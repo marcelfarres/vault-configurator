@@ -35,11 +35,10 @@ else { "no image build found for $sha (nothing new published?); redeploying the 
 if ($cfg["DOCKHAND_DEPLOY"]) {
     $headers = @{}
     if ($cfg["DOCKHAND_TOKEN"]) { $headers["Authorization"] = "Bearer " + $cfg["DOCKHAND_TOKEN"] }
-    # answers with a log stream that ends in a `result` event once the stack is redeployed
-    $r = Invoke-WebRequest -UseBasicParsing -Method POST -Uri $cfg["DOCKHAND_DEPLOY"] -Headers $headers -TimeoutSec 900 -SkipHttpErrorCheck
-    $result = ($r.Content -split "`n" | Where-Object { $_ -like 'data:*"success"*' } | Select-Object -Last 1)
-    "deploy: HTTP $($r.StatusCode) $result"
-    if ($r.StatusCode -ne 200 -or $result -notmatch '"success":\s*true') { throw "Dockhand deploy failed: $($r.Content)" }
+    # answers with a log stream that Dockhand cuts off when it is done ("response ended prematurely"):
+    # the build poll below is the real check
+    try { $r = Invoke-WebRequest -UseBasicParsing -Method POST -Uri $cfg["DOCKHAND_DEPLOY"] -Headers $headers -TimeoutSec 900; "deploy: HTTP $($r.StatusCode)" }
+    catch { if ($_.Exception.Response) { throw "Dockhand deploy refused: $($_.Exception.Message)" }; "deploy: $($_.Exception.Message)" }
 } else { "no DOCKHAND_DEPLOY set: redeploy the stack in Dockhand, then the NAS is checked below" }
 
 $deadline = (Get-Date).AddMinutes($TimeoutMinutes)
