@@ -94,7 +94,7 @@ VAULT_ARCHIVE=/path/to/VAULT docker compose up -d     # http://localhost:8765
 **NAS with a stack manager** (Dockhand, Portainer): paste [`deploy/compose.yaml`](deploy/compose.yaml),
 set `VAULT_ARCHIVE` to the dataset that holds the archive. The image is
 `ghcr.io/marcelfarres/vault-configurator:latest`, built on every push; `pull_policy: always` means a
-scheduled redeploy (or a webhook call) picks up the newest version. Step by step: [deploy/README.md](deploy/README.md).
+forced redeploy (`deploy/update-nas.cmd`) picks up the newest version. Step by step: [deploy/README.md](deploy/README.md).
 
 **Plain Python** (3.11+ with `numpy`, `pypdf` and `pillow`):
 `VAULT_ARCHIVE=/path/to/VAULT python -X utf8 server.py`. In Docker, mount the slicers' config folder

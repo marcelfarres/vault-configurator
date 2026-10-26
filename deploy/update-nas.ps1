@@ -3,8 +3,10 @@
 #
 # Settings come from working-files\nas.env (never published), lines like:
 #   NAS_URL=http://<nas>:8765
-#   DOCKHAND_WEBHOOK=http://<dockhand>/api/git/webhook/<repositoryId>     (optional: without it, wait for the cron)
-#   DOCKHAND_SECRET=<the secret Dockhand generated for that webhook>        (optional)
+#   DOCKHAND_DEPLOY=http://<dockhand>/api/git/stacks/<stackId>/deploy     (optional: without it, redeploy by hand)
+#   DOCKHAND_TOKEN=<Dockhand API token>                                    (only when Dockhand login is on)
+# Not the stack webhook: Dockhand's webhook only redeploys when files under deploy/ changed, and an app update
+# changes only the image, so it is always skipped. The deploy endpoint forces a redeploy, which pulls :latest.
 param([switch]$SkipPublish, [int]$TimeoutMinutes = 25)
 $ErrorActionPreference = "Stop"
 $app = Split-Path $PSScriptRoot -Parent
@@ -30,16 +32,15 @@ for ($i = 0; $i -lt 30 -and -not $run; $i++) {
 if ($run) { "waiting for image build (run $run)"; gh run watch $run --repo marcelfarres/vault-configurator --exit-status | Out-Null; if ($LASTEXITCODE) { throw "image build failed: gh run view $run --repo marcelfarres/vault-configurator --log-failed" } }
 else { "no image build found for $sha (nothing new published?); redeploying the current image" }
 
-if ($cfg["DOCKHAND_WEBHOOK"]) {
-    $body = '{"ref":"refs/heads/main"}'
-    $headers = @{ "X-GitHub-Event" = "push" }
-    if ($cfg["DOCKHAND_SECRET"]) {
-        $hmac = New-Object System.Security.Cryptography.HMACSHA256 (,[Text.Encoding]::UTF8.GetBytes($cfg["DOCKHAND_SECRET"]))
-        $headers["X-Hub-Signature-256"] = "sha256=" + (-join ($hmac.ComputeHash([Text.Encoding]::UTF8.GetBytes($body)) | ForEach-Object { $_.ToString("x2") }))
-    }
-    $r = Invoke-WebRequest -UseBasicParsing -Method POST -Uri $cfg["DOCKHAND_WEBHOOK"] -Body $body -ContentType "application/json" -Headers $headers -SkipHttpErrorCheck
-    "webhook: HTTP $($r.StatusCode)"
-} else { "no DOCKHAND_WEBHOOK set: waiting for Dockhand's scheduled sync" }
+if ($cfg["DOCKHAND_DEPLOY"]) {
+    $headers = @{}
+    if ($cfg["DOCKHAND_TOKEN"]) { $headers["Authorization"] = "Bearer " + $cfg["DOCKHAND_TOKEN"] }
+    # answers with a log stream that ends in a `result` event once the stack is redeployed
+    $r = Invoke-WebRequest -UseBasicParsing -Method POST -Uri $cfg["DOCKHAND_DEPLOY"] -Headers $headers -TimeoutSec 900 -SkipHttpErrorCheck
+    $result = ($r.Content -split "`n" | Where-Object { $_ -like 'data:*"success"*' } | Select-Object -Last 1)
+    "deploy: HTTP $($r.StatusCode) $result"
+    if ($r.StatusCode -ne 200 -or $result -notmatch '"success":\s*true') { throw "Dockhand deploy failed: $($r.Content)" }
+} else { "no DOCKHAND_DEPLOY set: redeploy the stack in Dockhand, then the NAS is checked below" }
 
 $deadline = (Get-Date).AddMinutes($TimeoutMinutes)
 do {

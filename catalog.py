@@ -32,6 +32,12 @@ def norm(s):
     return re.sub(r"[^a-z0-9]", "", s)
 
 
+def name_key(s):
+    """File-name key: norm() without word-final s, since USSA renames files between archive versions
+    ('x7 Runner Slide' / 'x7 Runner Slides'); no two files in one folder differ only by it."""
+    return norm(re.sub(r"(?i)(?<=[a-z])s\b", "", s))
+
+
 class Index:
     """All STL files in the archive, addressable by normalized filename + folder hint.
     (The archive's folder names contain mojibake like 'L┬▓ Families', hence the normalization.)"""
@@ -41,11 +47,11 @@ class Index:
         self.files = []  # (norm_path, norm_base, rel)
         for p in glob.glob(os.path.join(root, "0*", "**", "*.stl"), recursive=True):
             rel = os.path.relpath(p, root)
-            self.files.append((norm(rel), norm(os.path.basename(rel)[:-4]), rel))
+            self.files.append((norm(rel), name_key(os.path.basename(rel)[:-4]), rel))
 
     def find(self, name, hint=""):
-        """Exact normalized basename match, disambiguated by a folder hint. None if missing."""
-        n, words = norm(name), [norm(w) for w in hint.split()]
+        """Basename match (name_key), disambiguated by a folder hint. None if missing."""
+        n, words = name_key(name), [norm(w) for w in hint.split()]
         hits = [rel for np_, nb, rel in self.files if nb == n and all(w in np_ for w in words)]
         if not hits and words:
             hits = [rel for np_, nb, rel in self.files if nb == n]
@@ -475,6 +481,7 @@ def kind_of(name, role=""):
 
 
 if __name__ == "__main__":  # self-check against the real archive
+    assert name_key("x7 Runner Slides") == name_key("x7 Runner Slide") and name_key("S Rails") != name_key("M Rails")  # renamed archives
     root = os.environ.get("VAULT_ARCHIVE") or os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     idx = Index(root)
     site = load_site_data(os.path.join(os.path.dirname(os.path.abspath(__file__)), "site_print_data.json"))

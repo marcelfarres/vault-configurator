@@ -6,8 +6,9 @@
 # First start measures all 733 STLs once (minutes) into the vault-cache volume, extracts the help pages
 # from your PDFs and fetches the render sheets from ussadesign.com. Exports land in vault-output.
 #
-# Updating: `pull_policy: always` pulls the newest image on every (re)deploy; a scheduled sync or a webhook
-# call after a push redeploys. deploy/update-nas.ps1 waits for the image build before calling the webhook.
+# Updating: `pull_policy: always` pulls the newest image on every (re)deploy. A stack manager's git sync or
+# webhook only redeploys when this folder changed, so deploy/update-nas.ps1 waits for the image build and then
+# forces a redeploy.
 services:
   vault-configurator:
     image: ghcr.io/marcelfarres/vault-configurator:latest
