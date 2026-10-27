@@ -1,4 +1,5 @@
 """Local web server for the VAULT configurator.  Run:  python server.py  (opens the browser)."""
+import io
 import json
 import os
 import re
@@ -9,6 +10,7 @@ import time
 import urllib.parse
 import urllib.request
 import webbrowser
+import zipfile
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -204,13 +206,17 @@ def run_export(body, test):
         if test:
             pr = plates.plan_tests(bom["parts"], s, body.get("kinds") or [], stats_fn)
             files = plates.export(pr, s, out, ROOT, stats_fn, stack_name=name, suffix="_TEST", progress=progress)
+            extra = []
         else:
             pr = plates.plan(bom["parts"], s, stats_fn)
             files = plates.export(pr, s, out, ROOT, stats_fn, stack_name=name, progress=progress)
-            write_bom_md(os.path.join(out, "BOM.md"), body["stack"], bom, pr, s)
-            with open(os.path.join(out, "stack.json"), "w", encoding="utf-8") as f:
+            extra = [os.path.join(out, "BOM.md"), os.path.join(out, "stack.json")]
+            write_bom_md(extra[0], body["stack"], bom, pr, s)
+            with open(extra[1], "w", encoding="utf-8") as f:
                 json.dump({"stack": body["stack"], "settings": s, "overrides": body.get("overrides") or {}}, f, indent=1)
-        EXPORT.update({"result": {"folder": out, "files": files, "plan": pr, "seconds": round(time.time() - t, 1)}, "percent": 100, "msg": "done"})
+        EXPORT.update({"result": {"folder": out, "files": files, "plan": pr, "seconds": round(time.time() - t, 1),
+                                  "zip": name + ("_TEST" if test else "") + ".zip", "download": [f["file"] for f in files] + extra},
+                       "percent": 100, "msg": "done"})
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -246,16 +252,25 @@ class Handler(SimpleHTTPRequestHandler):
         if "/api/" in str(args[0] if args else ""):
             super().log_message(fmt, *args)
 
-    def send_json(self, obj, code=200):
-        data = json.dumps(obj).encode("utf-8")
+    def send_bytes(self, data, ctype, code=200, headers=()):
         try:
             self.send_response(code)
-            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Type", ctype)
             self.send_header("Content-Length", str(len(data)))
+            for h in headers:
+                self.send_header(*h)
             self.end_headers()
             self.wfile.write(data)
         except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
             pass  # the page navigated away while we were computing
+
+    def send_json(self, obj, code=200):
+        self.send_bytes(json.dumps(obj).encode("utf-8"), "application/json; charset=utf-8", code)
+
+    def local(self):
+        """Page opened on the Windows machine running the server: Explorer can show the output folder.
+        Anywhere else (Docker, NAS, another PC, macOS/Linux) the files are downloaded instead."""
+        return os.name == "nt" and self.client_address[0] in ("127.0.0.1", "::1")
 
     def send_thumb(self, rel):
         rel = archive_rel(rel)
@@ -267,16 +282,7 @@ class Handler(SimpleHTTPRequestHandler):
         finally:
             BUSY.acquire(blocking=False)
         with open(cache, "rb") as f:
-            data = f.read()
-        try:
-            self.send_response(200)
-            self.send_header("Content-Type", "image/png")
-            self.send_header("Content-Length", str(len(data)))
-            self.send_header("Cache-Control", "max-age=86400")
-            self.end_headers()
-            self.wfile.write(data)
-        except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
-            pass
+            self.send_bytes(f.read(), "image/png", headers=[("Cache-Control", "max-age=86400")])
 
     def do_GET(self):
         if self.path in ("/", "/index.html"):
@@ -286,19 +292,27 @@ class Handler(SimpleHTTPRequestHandler):
             return self.send_json({"defaults": plates.DEFAULT_SETTINGS, "layouts": catalog.LAYOUTS, "allowed": catalog.ALLOWED_LAYOUTS,
                                    "patterns": catalog.PATTERNS, "width": catalog.WIDTH, "files": len(INDEX.files), "progress": PROGRESS,
                                    "roles": catalog.ROLES, "roleLabels": catalog.ROLE_LABELS, "kinds": [k for k, _ in catalog.KINDS], "materials": plates.MATERIALS, "printerCatalog": plates.PRINTER_CATALOG,
-                                   "build": BUILD, "assets": assets_bootstrap.count(os.path.join(HERE, "assets")),
-                                   "outputRoot": os.path.join(HERE, "output")})
+                                   "build": BUILD, "assets": assets_bootstrap.count(os.path.join(HERE, "assets")), "local": self.local()})
         if self.path == "/api/progress":
             return self.send_json(PROGRESS)
         if self.path == "/api/presets":
             out = {}
             for k, v in presets.SLICERS.items():
                 ok = os.path.isdir(v["dir"])
-                out[k] = {"label": v["label"], "installed": ok, "presets": presets.catalog(k) if ok else [],
+                out[k] = {"label": v["label"], "installed": ok, "uploaded": v["dir"].startswith(presets.UPLOADS), "presets": presets.catalog(k) if ok else [],
                           "filaments": presets.catalog(k, kind="filament") if ok else [], "machines": presets.catalog(k, kind="machine") if ok else []}
             return self.send_json(out)
         if self.path == "/api/export_status":
             return self.send_json(EXPORT)
+        if self.path == "/api/download":  # the last export as one zip: 3MFs + BOM.md + stack.json
+            r = EXPORT.get("result")
+            if not r:
+                return self.send_json({"error": "nothing exported yet"}, 404)
+            buf = io.BytesIO()
+            with zipfile.ZipFile(buf, "w") as z:  # stored: a 3MF is already deflated
+                for p in r["download"]:
+                    z.write(p, os.path.basename(p))
+            return self.send_bytes(buf.getvalue(), "application/zip", headers=[("Content-Disposition", f'attachment; filename="{r["zip"]}"')])
         if self.path.startswith("/api/spoolman"):
             url = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query).get("url", [""])[0].strip()
             return self.send_json(spoolman(url if "://" in url or not url else "http://" + url))
@@ -313,17 +327,7 @@ class Handler(SimpleHTTPRequestHandler):
             if rel.startswith("..") or not any(r == rel for _, _, r in INDEX.files):
                 return self.send_json({"error": "unknown part"}, 404)
             with open(os.path.join(ROOT, rel), "rb") as f:
-                data = f.read()
-            try:
-                self.send_response(200)
-                self.send_header("Content-Type", "model/stl")
-                self.send_header("Content-Length", str(len(data)))
-                self.send_header("Cache-Control", "max-age=86400")
-                self.end_headers()
-                self.wfile.write(data)
-            except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
-                pass
-            return
+                return self.send_bytes(f.read(), "model/stl", headers=[("Cache-Control", "max-age=86400")])
         if self.path.startswith("/api/"):
             return self.send_json({"error": "not found"}, 404)
         return super().do_GET()  # static files: /assets/*.png
@@ -331,7 +335,6 @@ class Handler(SimpleHTTPRequestHandler):
     def do_POST(self):
         n = int(self.headers.get("Content-Length") or 0)
         if self.path == "/api/import_pdf":  # raw PDF body from the site's "Your build" print-out
-            import io
             from pypdf import PdfReader
             try:
                 text = "\n".join(p.extract_text() or "" for p in PdfReader(io.BytesIO(self.rfile.read(n))).pages)
@@ -354,8 +357,12 @@ class Handler(SimpleHTTPRequestHandler):
                 threading.Thread(target=run_export, args=(body, self.path == "/api/export_test"), daemon=True).start()
                 return self.send_json({"started": True})
             if self.path == "/api/open":
+                if not self.local():
+                    return self.send_json({"error": "only from the computer running the tool"}, 403)
                 subprocess.Popen(["explorer", body["path"]])
                 return self.send_json({"ok": True})
+            if self.path == "/api/presets_upload":  # {"files": {"BambuStudio/user/…/x.json": text}} from a folder picked in the browser
+                return self.send_json(presets.save_upload(body["files"]))
         except Exception as e:  # surface errors in the UI instead of a silent 500
             import traceback
             traceback.print_exc()

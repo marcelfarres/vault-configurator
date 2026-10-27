@@ -10,6 +10,7 @@ import glob
 import json
 import os
 import re
+import shutil
 import sys
 
 
@@ -24,11 +25,40 @@ def config_root():
 
 
 APPDATA = config_root()
-SLICERS = {
-    "bambu": {"label": "Bambu Studio", "dir": os.path.join(APPDATA, "BambuStudio")},
-    "anycubic": {"label": "Anycubic Slicer Next", "dir": os.path.join(APPDATA, "AnycubicSlicerNext")},
-    "orca": {"label": "OrcaSlicer", "dir": os.path.join(APPDATA, "OrcaSlicer")},
-}
+# copies of the slicer folders uploaded from a browser, for a server with no slicer installed (Docker volume /app/slicers)
+UPLOADS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "slicers")
+FOLDERS = {"bambu": ("Bambu Studio", "BambuStudio"), "anycubic": ("Anycubic Slicer Next", "AnycubicSlicerNext"), "orca": ("OrcaSlicer", "OrcaSlicer")}
+SLICERS = {k: {"label": label, "folder": folder, "dir": next((d for d in (os.path.join(APPDATA, folder), os.path.join(UPLOADS, folder)) if os.path.isdir(d)),
+                                                             os.path.join(UPLOADS, folder))}
+           for k, (label, folder) in FOLDERS.items()}
+UPLOAD_PATH = re.compile(r"(?:^|/)(BambuStudio|AnycubicSlicerNext|OrcaSlicer)/((?:system|user)/[^\\]+\.json)$")
+
+
+def save_upload(files):
+    """Replace the uploaded copy of each slicer folder in `files` ({browser relative path: text}); only the
+    system/ and user/ preset JSONs are kept. A slicer installed on this machine keeps reading its own folder."""
+    by = {}
+    for path, text in files.items():
+        m = UPLOAD_PATH.search(path.replace("\\", "/"))
+        if m and ".." not in m.group(2).split("/"):
+            by.setdefault(m.group(1), {})[m.group(2)] = text
+    if not by:
+        return {"error": "no slicer presets found: pick the BambuStudio, AnycubicSlicerNext or OrcaSlicer folder itself"}
+    out = {}
+    for folder, rels in by.items():
+        k = next(k for k, v in SLICERS.items() if v["folder"] == folder)
+        target = os.path.join(UPLOADS, folder)
+        if SLICERS[k]["dir"] != target:
+            out[k] = "installed here: its own folder is used"
+            continue
+        shutil.rmtree(target, ignore_errors=True)
+        for rel, text in rels.items():
+            os.makedirs(os.path.dirname(os.path.join(target, rel)), exist_ok=True)
+            with open(os.path.join(target, rel), "w", encoding="utf-8") as f:
+                f.write(text)
+        out[k] = f"{len(rels)} preset files"
+    _cache.clear()
+    return {"saved": out}
 KINDS = ("process", "filament", "machine")
 # bookkeeping keys that are not print settings
 META = {"name", "inherits", "from", "type", "version", "setting_id", "instantiation", "description", "compatible_printers",
@@ -219,4 +249,7 @@ if __name__ == "__main__":
     k = default_filament("anycubic", "Anycubic Kobra X", "0.4", "PETG")
     cfgk = project_config("anycubic", "Anycubic Kobra X 0.4 nozzle", "0.20mm Standard @Anycubic Kobra X 0.4 nozzle", [k, k], ["#AAAAAA", "#333333"])
     print("kobra project keys:", len(cfgk), "| filaments", cfgk["filament_settings_id"], "| printable_area", cfgk.get("printable_area"))
+    assert "error" in save_upload({"Downloads/x.json": "{}", "BambuStudio/user/../../evil.json": "{}"})
+    if SLICERS["bambu"]["dir"] != os.path.join(UPLOADS, "BambuStudio"):  # an installed slicer's folder is never overwritten
+        assert save_upload({"BambuStudio/user/1/process/a.json": "{}"})["saved"]["bambu"].startswith("installed")
     print("presets.py self-check ok")

@@ -4,5 +4,6 @@ assets/
 archive-path.txt
 cache/
 output/
+slicers/
 __pycache__/
 *.pyc

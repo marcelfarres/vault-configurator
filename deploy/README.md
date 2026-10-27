@@ -53,4 +53,6 @@ reported, an export writes its 3MF files. `-SkipPublish` re-tests without publis
 - Slicer presets: the container has no slicer, so preset features show nothing unless you mount a
   slicer config folder at `/slicers` and set `APPDATA=/slicers`. Exports then open with the slicer's own
   current presets.
-- Exports land in the `vault-output` volume; bind it to a share instead if you want them on the PC.
+- Exports land in the `vault-output` volume, and the browser downloads each export as a zip (3MFs, BOM.md, stack.json).
+- Slicer presets: on the Plates tab, under "Slicer, nozzle and presets", pick your BambuStudio / AnycubicSlicerNext /
+  OrcaSlicer settings folder; the server keeps a copy in the `vault-slicers` volume. Pick it again after changing presets.

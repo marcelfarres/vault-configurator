@@ -28,7 +28,10 @@ services:
       # help pages and render sheets made at first start: kept, so redeploys don't fetch them again
       - vault-pictures:/app/assets
       - vault-output:/app/output
+      # slicer presets sent from the browser (Plates tab → Slicer, nozzle and presets)
+      - vault-slicers:/app/slicers
 volumes:
   vault-cache:
   vault-pictures:
   vault-output:
+  vault-slicers:

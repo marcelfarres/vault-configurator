@@ -15,9 +15,12 @@ services:
       - vault-cache:/app/cache
       - vault-pictures:/app/assets
       - ./output:/app/output
+      # slicer presets sent from the browser, when no slicer folder is mounted at /slicers
+      - vault-slicers:/app/slicers
       # optional, Windows example: C:/Users/you/AppData/Roaming -> gives the tool your Bambu Studio / Orca / Anycubic presets
       # - C:/Users/you/AppData/Roaming:/slicers:ro
     restart: unless-stopped
 volumes:
   vault-cache:
   vault-pictures:
+  vault-slicers:

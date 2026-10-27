@@ -2,6 +2,7 @@
 assets/
 cache/
 output/
+slicers/
 __pycache__/
 *.pyc
 static/

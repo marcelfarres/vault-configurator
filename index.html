@@ -167,6 +167,16 @@ details{margin:8px 0}details>summary{padding:4px 0}details[open]>summary{color:v
   <details><summary>Slicer, nozzle and presets per printer</summary>
    <table id="slicers"><thead><tr><th>Printer</th><th>Slicer</th><th>Profile</th><th>Nozzle</th><th data-help="machine">Machine preset</th><th data-help="defaultPreset">Default process preset</th></tr></thead><tbody></tbody></table>
    <p class="note">Presets are read from the slicers' own folders (your presets first). "0.20mm" in a process preset name is the layer height, not the nozzle; the nozzle is the column before it. The exported file is a full project: it opens with this machine, this process preset and the filaments from step 2 already set, with your colours. H2C bed is 325 × 320 × 320: what one nozzle alone reaches.</p>
+   <div id="presetUpload" style="display:none">
+    <h3>Send your slicer presets to this server</h3>
+    <p class="note">This page runs on a server, which has no slicer of its own. Pick a slicer's settings folder on your computer: its printer, process and filament presets (yours and the built-in ones, JSON files only) are copied here. Pick it again whenever you change a preset in the slicer. Your browser asks to confirm the upload of many files.</p>
+    <table><thead><tr><th>Slicer</th><th>Windows (paste into the folder picker's address bar)</th><th>macOS (⌘⇧G in the picker)</th><th>Linux</th><th>On this server</th></tr></thead><tbody>
+     <tr><td>Bambu Studio</td><td><code>%APPDATA%\BambuStudio</code></td><td><code>~/Library/Application Support/BambuStudio</code></td><td><code>~/.config/BambuStudio</code></td><td id="up-bambu" class="note"></td></tr>
+     <tr><td>Anycubic Slicer Next</td><td><code>%APPDATA%\AnycubicSlicerNext</code></td><td><code>~/Library/Application Support/AnycubicSlicerNext</code></td><td><code>~/.config/AnycubicSlicerNext</code></td><td id="up-anycubic" class="note"></td></tr>
+     <tr><td>OrcaSlicer</td><td><code>%APPDATA%\OrcaSlicer</code></td><td><code>~/Library/Application Support/OrcaSlicer</code></td><td><code>~/.config/OrcaSlicer</code></td><td id="up-orca" class="note"></td></tr>
+    </tbody></table>
+    <div class="row"><label>Slicer folder <input type="file" id="presetDir" webkitdirectory></label><span id="presetUploadStatus" class="note"></span></div>
+   </div>
   </details>
  </section>
  <section>
@@ -191,6 +201,7 @@ details{margin:8px 0}details>summary{padding:4px 0}details[open]>summary{color:v
   <h2>Step 3 · Plates &amp; export</h2>
   <p class="note">One 3MF project per printer, several plates inside, every plate a single filament. Parts of one colour are packed together (MaxRects, 90° rotation allowed); the biggest parts go to the biggest printer.</p>
   <div class="row"><button id="planBtn">Preview plates</button><button id="exportBtn" class="primary">Export 3MF (one project per printer)</button><span id="exportStatus" class="note"></span></div>
+  <div class="row"><button id="saveStack" data-help="stackFile">Save stack (.json)</button><label data-help="stackFile">Load stack <input type="file" id="loadStack" accept=".json,application/json"></label><span id="stackFileStatus" class="note">a file to keep versions of a stack or share it; the stack.json in an export loads too</span></div>
   <div class="progress" id="progressBar" style="display:none"><div></div></div>
   <details><summary>Packing and estimate options</summary>
    <div class="row"><label data-help="mode">Send parts to <select id="mode"><option value="both">all printers (balance print time)</option></select></label>
@@ -279,6 +290,7 @@ const HELP={
  maxH:['Max part height','Tallest part this printer may print; defaults to its Z height.',null],
  mode:['Send parts to','Balance the estimated print time over all enabled printers, or send everything to one printer.',null],
  addPrinter:['Add printer','Pick a printer to add a row for it. Dual-nozzle Bambus are listed once per nozzle: each nozzle alone reaches only part of the plate, and the exported file sends every filament to that nozzle. "Custom printer" adds a row where you type the name and bed size; × removes a printer.',null],
+ stackFile:['Stack file','Save writes the stack (layers, roof, modifications, depth, name) and your per-part colour choices to a .json file. Load replaces the current stack with one from such a file; your printers, filaments and presets stay as they are, so a stack shared by someone else prints with your setup.',null],
  groupBy:['Group plates by','Colour: all parts of a colour on a printer share plates, fewest plates. Module: a module\'s parts of one colour stay together.',null],
  spacing:['Part spacing','Gap between parts on a plate.',null],
  edge:['Bed edge','Keep-out margin at the bed edge (the slicer already handles its own exclusion zones).',null],
@@ -572,7 +584,7 @@ function renderBom(){const cards=$('#cards'),pt=$('#parts tbody'),ht=$('#hardwar
  $('#estimateInfo').textContent=bom.estimate.preset?`${bom.estimate.printer}: ${bom.estimate.walls} walls × ${bom.estimate.lineWidth} mm = ${bom.estimate.wallMm} mm shell, ${Math.round(bom.estimate.infill*100)} % infill (${bom.estimate.preset})`:'no process preset found for the biggest printer; manual values used';}
 
 function renderPlan(plan,files){const box=$('#plates');box.replaceChildren();const s=state.settings;const name=id=>(s.printers.find(p=>p.id===id)||{name:id}).name;
- if(files)files.forEach(f=>box.append(el('div',{class:f.warning?'warn':'ok'},`✓ ${f.file.split(/[\\/]/).pop()} — ${f.plates} plates, ${f.items} parts${f.outside&&!f.outside.length?', every piece checked on its plate':''}${f.overrides?`, ${f.overrides} objects with preset overrides`:''}; filaments: ${(f.filaments||[]).join(' · ')||'slicer defaults'}${f.warning?' · ⚠ '+f.warning:''} (${f.seconds}s) `,el('button',{class:'small',onclick:()=>api('/api/open',{path:f.file.replace(/[\\/][^\\/]*$/,'')})},'open folder'))));
+ if(files)files.forEach(f=>box.append(el('div',{class:f.warning?'warn':'ok'},`✓ ${f.file.split(/[\\/]/).pop()} — ${f.plates} plates, ${f.items} parts${f.outside&&!f.outside.length?', every piece checked on its plate':''}${f.overrides?`, ${f.overrides} objects with preset overrides`:''}; filaments: ${(f.filaments||[]).join(' · ')||'slicer defaults'}${f.warning?' · ⚠ '+f.warning:''} (${f.seconds}s) `,META.local?el('button',{class:'small',onclick:()=>api('/api/open',{path:f.file.replace(/[\\/][^\\/]*$/,'')})},'open folder'):'')));
  const per={};plan.plates.forEach(p=>{per[p.printer]=per[p.printer]||{n:0,sec:0};per[p.printer].n++;per[p.printer].sec+=p.seconds});
  box.append(el('div',{class:'row'},...Object.entries(per).map(([id,v])=>el('span',{class:'chip'},`${name(id)}: ${v.n} plates · ≈${fmtH(v.sec)}`))));
  if(plan.pieces!=null){const left=(plan.unplaceable||[]).reduce((a,u)=>a+(u.qty||1),0);box.append(el('div',{class:left?'warn':'ok'},`${plan.placed} of ${plan.pieces} printed pieces are on plates${left?`; ${left} NOT exported (listed below)`:' — nothing left out'}${plan.pieces-plan.placed-left?` · ⚠ ${plan.pieces-plan.placed-left} pieces unaccounted for, report this`:''}`))}
@@ -584,18 +596,31 @@ function renderPlan(plan,files){const box=$('#plates');box.replaceChildren();con
 async function runExport(path,extra,statusEl,btn){statusEl.textContent='Starting…';btn.disabled=true;const bar=$('#progressBar');bar.style.display='block';bar.firstElementChild.style.width='0%';
  try{await api(path,{stack:state.stack,settings:state.settings,overrides:state.overrides,...extra});
   while(true){await new Promise(r=>setTimeout(r,800));const st=await (await fetch('/api/export_status')).json();bar.firstElementChild.style.width=st.percent+'%';statusEl.textContent=`${st.percent}% · ${st.msg}`;
-   if(st.error)throw new Error(st.error);if(!st.running&&st.result){renderPlan(st.result.plan,st.result.files);statusEl.textContent=`done in ${st.result.seconds}s · files in output/${st.result.folder.split(/[\\/]/).pop()}`;break}}}  /* no local paths on screen */
+   if(st.error)throw new Error(st.error);if(!st.running&&st.result){renderPlan(st.result.plan,st.result.files);
+    if(META.local)statusEl.textContent=`done in ${st.result.seconds}s · files in output/${st.result.folder.split(/[\\/]/).pop()}`;  /* no local paths on screen */
+    else{const a=el('a',{href:'/api/download',download:st.result.zip},'download '+st.result.zip);statusEl.replaceChildren(`done in ${st.result.seconds}s · `,a);a.click()}  /* on a server the files are only useful downloaded */
+    break}}}
  catch(e){statusEl.replaceChildren(el('span',{class:'bad'},e.message))}finally{btn.disabled=false;setTimeout(()=>bar.style.display='none',1500)}}
 $('#planBtn').onclick=async()=>{$('#exportStatus').textContent='Planning…';try{const r=await api('/api/plan',{stack:state.stack,settings:state.settings,overrides:state.overrides});renderPlan(r.plan);$('#exportStatus').textContent=''}catch(e){$('#exportStatus').replaceChildren(el('span',{class:'bad'},e.message))}};
 $('#exportBtn').onclick=()=>runExport('/api/export',{},$('#exportStatus'),$('#exportBtn'));
 $('#testBtn').onclick=()=>{const kinds=Object.entries(state.tests).filter(([k,v])=>v).map(([k])=>k);if(!kinds.length){$('#testStatus').textContent='Tick at least one group.';return}runExport('/api/export_test',{kinds},$('#testStatus'),$('#testBtn'))};
-$('#rescan').onclick=async()=>{PRESETS=await (await fetch('/api/presets')).json();renderSetup()};
+$('#rescan').onclick=async()=>{PRESETS=await (await fetch('/api/presets')).json();renderSetup();presetStatus()};
 $('#spoolmanBtn').onclick=async()=>{changed();$('#spoolmanStatus').textContent='loading…';try{const j=await (await fetch('/api/spoolman?url='+encodeURIComponent(state.settings.spoolman))).json();if(j.error)throw new Error(j.error);SPOOLS=j.spools;$('#spoolmanStatus').textContent=`${SPOOLS.length} spools`;renderSetup()}catch(e){$('#spoolmanStatus').replaceChildren(el('span',{class:'bad'},e.message))}};
 $('#addLayer').onclick=()=>{state.stack.layers.push(newLayer());changed(true)};
 $('#clear').onclick=()=>{state.stack.layers=[];state.overrides={};state.stack.roof={type:'none',topHandle:true};state.stack.mods={backbone:'none',pegboard:'none'};fillStack();changed(true)};
 const importLayers=layers=>{state.stack.layers=layers.map(l=>({...newLayer(),type:l.type,layout:l.layout,height:+l.height,facades:l.facades}));state.overrides={};changed(true)};
 $('#importBtn').onclick=()=>{try{importLayers(JSON.parse($('#importBox').value).layers)}catch(e){alert('Could not parse: '+e.message)}};
 $('#importPdf').onchange=async e=>{const f=e.target.files[0];if(!f)return;$('#importStatus').textContent='reading…';try{const r=await fetch('/api/import_pdf',{method:'POST',headers:{'Content-Type':'application/pdf'},body:await f.arrayBuffer()});const j=await r.json();if(j.error)throw new Error(j.error);importLayers(j.layers);$('#importStatus').replaceChildren(el('span',{class:'ok'},`${j.layers.length} layers imported. `),...(j.warnings||[]).map(w=>el('div',{class:'warn'},'⚠ '+w)))}catch(err){$('#importStatus').replaceChildren(el('span',{class:'bad'},err.message))}e.target.value=''};
+$('#saveStack').onclick=()=>{changed();const a=el('a',{href:URL.createObjectURL(new Blob([JSON.stringify({stack:state.stack,overrides:state.overrides},null,1)],{type:'application/json'})),download:(state.stack.name||'vault-stack')+'.json'});a.click();URL.revokeObjectURL(a.href)};
+$('#loadStack').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const j=JSON.parse(await f.text());if(!j.stack||!Array.isArray(j.stack.layers))throw new Error('not a stack file (no "stack" with "layers")');
+  state.stack={...defaultState().stack,...j.stack};state.overrides=j.overrides||{};fillStack();changed(true);$('#stackFileStatus').replaceChildren(el('span',{class:'ok'},`loaded "${state.stack.name}" (${state.stack.layers.length} layers)`))}
+ catch(err){$('#stackFileStatus').replaceChildren(el('span',{class:'bad'},err.message))}e.target.value=''};
+function presetStatus(){Object.entries(PRESETS).forEach(([k,v])=>{const c=$('#up-'+k);if(c)c.textContent=!v.installed?'none yet':v.uploaded?`uploaded · ${v.machines.length} printers, ${v.presets.length} process, ${v.filaments.length} filament presets`:'read from the slicer installed on the server'})}
+$('#presetDir').onchange=async e=>{const st=$('#presetUploadStatus');const fs=[...e.target.files].filter(f=>/(^|\/)(BambuStudio|AnycubicSlicerNext|OrcaSlicer)\/(system|user)\/.+\.json$/.test(f.webkitRelativePath));e.target.value='';
+ if(!fs.length){st.replaceChildren(el('span',{class:'bad'},'no presets in that folder: pick the BambuStudio, AnycubicSlicerNext or OrcaSlicer folder itself (see the table)'));return}
+ try{st.textContent=`reading ${fs.length} files…`;const files={};for(const f of fs)files[f.webkitRelativePath]=await f.text();st.textContent=`sending ${fs.length} files…`;
+  const r=await api('/api/presets_upload',{files});PRESETS=await (await fetch('/api/presets')).json();renderSetup();presetStatus();st.replaceChildren(el('span',{class:'ok'},Object.entries(r.saved).map(([k,v])=>`${PRESETS[k].label}: ${v}`).join(' · ')))}
+ catch(err){st.replaceChildren(el('span',{class:'bad'},err.message))}};
 $('#helpOn').onchange=e=>{state.help=e.target.checked;save()};
 ['#name','#depth','#roofType','#topHandle','#mode','#groupBy','#spacing','#edge','#wallMm','#infill','#secondsPerGram','#spoolman','#estimateFromPreset'].forEach(q=>$(q).addEventListener('change',()=>changed()));
 $('#mergeParts').onchange=e=>{state.merge=e.target.checked;save();renderBom()};
@@ -606,6 +631,7 @@ document.querySelectorAll('[data-mod]').forEach(i=>i.addEventListener('change',(
  $('#meta').textContent=`${META.files} STL files indexed`;
  if(!META.files)document.body.prepend(el('div',{style:'background:#b3261e;color:#fff;padding:10px 16px;font-weight:600'},'No VAULT archive found: no STL files are indexed. Close the window, delete archive-path.txt and start again to choose the folder holding "01. DRAWERS" (Docker: mount it at /archive).'));
  $('#helpOn').checked=state.help!==false;if(state.settings.spoolman)$('#spoolmanBox').open=true;
+ if(!META.local){$('#presetUpload').style.display='';presetStatus()}
  fillStack();renderSetup();renderLayers();drawSchematic();showTab(state.tab);compute();
  if(state.settings.spoolman){try{const j=await (await fetch('/api/spoolman?url='+encodeURIComponent(state.settings.spoolman))).json();if(j.spools){SPOOLS=j.spools;$('#spoolmanStatus').textContent=`${SPOOLS.length} spools`;renderSetup()}}catch{}}
  setInterval(async()=>{const p=await (await fetch('/api/progress')).json();$('#meta').textContent=`${META.files} STL files indexed · ${p.total&&p.done<p.total?`preparing parts ${p.done}/${p.total}`:'all parts ready'}`},3000);  /* no local paths on screen: they end up in screenshots */

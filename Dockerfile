@@ -6,6 +6,6 @@ RUN pip install --no-cache-dir numpy pypdf pillow
 WORKDIR /app
 COPY . /app
 ENV VAULT_ARCHIVE=/archive PORT=8765 HOST=0.0.0.0 PYTHONUNBUFFERED=1
-VOLUME ["/archive", "/app/cache", "/app/assets", "/app/output"]
+VOLUME ["/archive", "/app/cache", "/app/assets", "/app/output", "/app/slicers"]
 EXPOSE 8765
 CMD ["python", "-X", "utf8", "server.py", "--no-browser"]
