@@ -31,12 +31,14 @@ FOLDERS = {"bambu": ("Bambu Studio", "BambuStudio"), "anycubic": ("Anycubic Slic
 SLICERS = {k: {"label": label, "folder": folder, "dir": next((d for d in (os.path.join(APPDATA, folder), os.path.join(UPLOADS, folder)) if os.path.isdir(d)),
                                                              os.path.join(UPLOADS, folder))}
            for k, (label, folder) in FOLDERS.items()}
-UPLOAD_PATH = re.compile(r"(?:^|/)(BambuStudio|AnycubicSlicerNext|OrcaSlicer)/((?:system|user)/[^\\]+\.json)$")
+# preset JSONs, plus <slicer>.conf reduced by the browser to its preset_folder (the account in use)
+UPLOAD_PATH = re.compile(r"(?:^|/)(BambuStudio|AnycubicSlicerNext|OrcaSlicer)/((?:system|user)/[^\\]+\.json|\1\.conf)$")
 
 
 def save_upload(files):
     """Replace the uploaded copy of each slicer folder in `files` ({browser relative path: text}); only the
-    system/ and user/ preset JSONs are kept. A slicer installed on this machine keeps reading its own folder."""
+    system/ and user/ preset JSONs and the account in use are kept. A slicer installed on this machine keeps
+    reading its own folder."""
     by = {}
     for path, text in files.items():
         m = UPLOAD_PATH.search(path.replace("\\", "/"))
@@ -63,23 +65,36 @@ KINDS = ("process", "filament", "machine")
 # bookkeeping keys that are not print settings
 META = {"name", "inherits", "from", "type", "version", "setting_id", "instantiation", "description", "compatible_printers",
         "compatible_printers_condition", "print_settings_id", "is_custom_defined", "updated_time", "filament_settings_id",
-        "printer_settings_id", "base_id", "filament_id", "setting_id"}
+        "printer_settings_id", "base_id", "filament_id", "setting_id", "include", "compatible_prints", "compatible_prints_condition"}
 # project-level keys we do not copy per object
 SKIP = META | {"print_extruder_id", "print_extruder_variant", "printer_model", "printer_variant"}
 
 _cache = {}
 
 
+def user_files(d, kind):
+    """User presets the slicer shows: those of the account in use (`preset_folder` in <slicer>.conf; user/default
+    is the signed-out set), with the base/ presets its filaments inherit from. No .conf: every account folder."""
+    try:
+        with open(os.path.join(d, os.path.basename(d) + ".conf"), encoding="utf-8", errors="replace") as f:
+            m = re.search(r'"preset_folder"\s*:\s*"([\w-]+)"', f.read())
+    except OSError:
+        m = None
+    folders = [os.path.join(d, "user", m.group(1))] if m else [f for f in glob.glob(os.path.join(d, "user", "*")) if os.path.isdir(f)]
+    return [p for f in folders for p in glob.glob(os.path.join(f, kind, "*.json")) + glob.glob(os.path.join(f, kind, "base", "*.json"))]
+
+
 def load_all(slicer, kind="process"):
     """name -> preset dict (with _user flag and _file) for every preset of one kind of one slicer."""
     d = SLICERS[slicer]["dir"]
-    stamp = tuple(sorted((p, os.path.getmtime(p)) for p in glob.glob(os.path.join(d, "user", "*", kind, "*.json"))))
+    users = user_files(d, kind)
+    stamp = tuple(sorted((p, os.path.getmtime(p)) for p in users))
     key = (slicer, kind)
     if key in _cache and _cache[key][0] == stamp:
         return _cache[key][1]
     out = {}
-    for user, pattern in ((False, os.path.join(d, "system", "*", kind, "*.json")), (True, os.path.join(d, "user", "*", kind, "*.json"))):
-        for p in glob.glob(pattern):
+    for user, files in ((False, glob.glob(os.path.join(d, "system", "*", kind, "*.json"))), (True, users)):
+        for p in files:
             try:
                 with open(p, encoding="utf-8") as f:
                     j = json.load(f)
@@ -104,6 +119,10 @@ def chain(name, all_presets):
 def flatten(name, all_presets):
     merged = {}
     for p in reversed(chain(name, all_presets)):
+        # Bambu Studio 2.8 templates (a printer's G-code, dual-nozzle filament vectors): applied over the parent,
+        # under the preset's own keys
+        for inc in p.get("include") or []:
+            merged.update({k: v for k, v in flatten(inc, all_presets).items() if k not in META})
         merged.update({k: v for k, v in p.items() if not k.startswith("_")})
     return merged
 
@@ -128,6 +147,9 @@ def catalog(slicer, profile="", kind="process"):
     """Instantiable presets of one kind, optionally only those compatible with a printer profile
     (substring match on compatible_printers or, for machines, on the preset name)."""
     allp = load_all(slicer, kind)
+    key = ("catalog", slicer, profile, kind)
+    if key in _cache and _cache[key][0] is allp:  # same preset files: same rows
+        return _cache[key][1]
     rows = []
     for name, p in allp.items():
         if str(p.get("instantiation", "true")).lower() == "false":
@@ -143,6 +165,7 @@ def catalog(slicer, profile="", kind="process"):
             row["vendor"] = (fl.get("filament_vendor") or [""])[0]
         rows.append(row)
     rows.sort(key=lambda r: (not r["user"], r["nozzle"], r["name"]))
+    _cache[key] = (allp, rows)
     return rows
 
 
@@ -179,10 +202,14 @@ def project_config(slicer, machine, process, filaments, colours, nozzle_side=Non
     for d in (M, P):
         cfg.update({k: v for k, v in d.items() if k not in META})
     fkeys = {k for F in Fs for k, v in F.items() if isinstance(v, list) and k not in META}
+    nvar = [len(F.get("filament_extruder_variant") or [1]) for F in Fs]  # values per filament of a per-nozzle-variant key
     for k in sorted(fkeys):
+        donor, dn = next((F[k], n) for F, n in zip(Fs, nvar) if isinstance(F.get(k), list))
         vals = []
-        for F in Fs:
-            v = F.get(k, Fs[0].get(k))
+        for F, n in zip(Fs, nvar):
+            v = F.get(k)
+            if v is None:  # this preset lacks the key: another slot's value, one per variant if the key is per variant
+                v = donor[:1] * (n if len(donor) == dn > 1 else 1)
             vals.extend(v if isinstance(v, list) else [v])
         cfg[k] = vals
     cfg["filament_self_index"] = [str(i + 1) for i, F in enumerate(Fs) for _ in range(len(F.get("filament_extruder_variant") or [1]))]
@@ -214,12 +241,19 @@ def vendor_version(slicer):
     return "02.08.00.06"
 
 
-def default_filament(slicer, profile, nozzle, material, prefer_user=True):
+def default_filament(slicer, profile, nozzle, material, brand="", prefer_user=True):
+    """Filament preset for a slot of `material` (as Spoolman names it, e.g. PETG-HF): a preset of that material or
+    its base (PETG), never another material; then the slot's brand, the material's suffix in the name (HF), user presets."""
     rows = [r for r in catalog(slicer, profile, "filament") if (not nozzle or r["nozzle"] in (nozzle, ""))]
     m = material.lower()
-    mat = [r for r in rows if m in (r.get("material") or "").lower() or m in r["name"].lower()]
-    # exact material first (PETG before PETG-CF), then a name that says the material (TPU95A before PEBA), then user presets
-    pick = sorted(mat or rows, key=lambda r: ((r.get("material") or "").lower() != m, m not in r["name"].lower(), prefer_user and not r["user"], r["name"]))
+    base, *suffix = [t for t in re.split(r"[-_+ ]", m) if t] or [""]
+    kind = lambda r: (r.get("material") or "").lower()
+    own = lambda r: r["name"].split("@")[0].lower()  # "Anycubic PETG @Bambu Lab H2C": the printer part says nothing about the filament
+    same = [r for r in rows if kind(r) in (m, base) or m in kind(r) or m in own(r)]
+    b = brand.lower()
+    # exact material first (PETG before PETG-CF), then the brand, the suffix, a name that says the material (TPU95A before PEBA), user presets
+    pick = sorted(same or rows, key=lambda r: (kind(r) != m, kind(r) not in (m, base), bool(b) and b not in own(r),
+                                               not all(t in own(r) for t in suffix), m not in own(r), prefer_user and not r["user"], r["name"]))
     return pick[0]["name"] if pick else ""
 
 
@@ -241,6 +275,10 @@ if __name__ == "__main__":
     print("default filaments:", f1, "|", f2)
     cfg = project_config("bambu", "Bambu Lab H2C 0.4 nozzle", "0.20mm Standard @BBL H2C", [f1, f1, f2], ["#AAAAAA", "#333333", "#111111"])
     n = len(cfg["filament_settings_id"])
+    assert "H2C" in cfg["machine_start_gcode"][:80], "the printer's G-code comes from its `include` templates"
+    assert not [k for k, v in cfg.items() if isinstance(v, list) and None in v], "a filament vector has a hole"
+    hf = default_filament("bambu", "Bambu Lab H2C", "0.4", "PETG-HF")
+    assert flatten(hf, load_all("bambu", "filament")).get("filament_type") == ["PETG"], hf  # Spoolman's PETG-HF: a PETG preset, never another material
     assert cfg["printable_height"] and len(cfg["filament_type"]) == n and len(cfg["filament_colour"]) == n and len(cfg["nozzle_diameter"]) == 2
     assert cfg["filament_self_index"][:1] == ["1"] and len(cfg["filament_self_index"]) == len(cfg["filament_extruder_variant"])
     right = project_config("bambu", "Bambu Lab H2C 0.4 nozzle", "0.20mm Standard @BBL H2C", [f1, f2], ["#AAAAAA", "#111111"], "right")

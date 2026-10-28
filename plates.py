@@ -365,18 +365,25 @@ def plate_name(n, plate, s):
     return (grp + " · " if grp else "") + fil
 
 
+def filament_presets(s, p):
+    """One filament preset per slot for printer `p`: the slot's choice for this printer, or the material match."""
+    import presets as presets_mod
+    if p.get("slicer") not in presets_mod.SLICERS:
+        return []
+    return [(f.get("preset") or {}).get(p["id"]) or presets_mod.default_filament(p["slicer"], p.get("profile", ""), p.get("nozzle", ""), f.get("material", "PETG"),
+                                                                                  brand=(f.get("name") or "").split(" ")[0])
+            for f in s["filaments"]]
+
+
 def project_for(s, p):
     """project_settings.config for one printer: its machine + default process preset and one filament
-    preset per slot (the slot's preset for this printer, or a material match). None when unknown."""
+    preset per slot (filament_presets). None when unknown."""
     import presets as presets_mod
     if p.get("slicer") not in presets_mod.SLICERS or not p.get("preset"):
         return None, []
     machine = p.get("machine") or f"{p.get('profile', '')} {p.get('nozzle', '')} nozzle".strip()
-    names, colours = [], []
-    for f in s["filaments"]:
-        name = (f.get("preset") or {}).get(p["id"]) or presets_mod.default_filament(p["slicer"], p.get("profile", ""), p.get("nozzle", ""), f.get("material", "PETG"))
-        names.append(name)
-        colours.append((f.get("color") or "#808080").upper())
+    names = filament_presets(s, p)
+    colours = [(f.get("color") or "#808080").upper() for f in s["filaments"]]
     try:
         return presets_mod.project_config(p["slicer"], machine, p["preset"], names, colours, p.get("nozzleSide")), names
     except ValueError as e:

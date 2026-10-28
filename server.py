@@ -136,6 +136,7 @@ def compute_bom(body):
             line.update({"size": st["size"], "volume_cm3": st["volume_cm3"], "tris": st["tris"], "grams": round(g, 1), "seconds": round(sec),
                          "fits": {p["id"]: plates.fits(st["size"], p, float(s["edge"])) is not None for p in enabled}})
     bom["estimate"] = est or {"wallMm": s["wallMm"], "infill": s["infill"], "preset": None}
+    bom["filamentPresets"] = {p["id"]: plates.filament_presets(s, p) for p in enabled}  # what the export will use, shown as "auto"
     for l in bom["parts"]:  # say exactly why a part fits no printer: which dimension, against which limit
         if l.get("fits") and not any(l["fits"].values()):
             w, d, h = l["size"]

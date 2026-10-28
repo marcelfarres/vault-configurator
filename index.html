@@ -529,8 +529,9 @@ function renderFilaments(){const s=state.settings,ps=s.printers.filter(p=>p.enab
   fillColours(curType);sp.append(el('tr',{},el('td',{},el('span',{class:'swatch',style:`background:${f.color}`}),`slot ${i+1}`),el('td',{},type),el('td',{},colour)))});
  else sp.append(el('tr',{},el('td',{class:'note'},'Enter the server URL and press Load spools; each slot can then take a spool\'s name, colour and material.')));
  const fp=$('#filPresets');fp.querySelector('thead tr').replaceChildren(el('th',{},'#'),el('th',{},'Filament'),...ps.map(p=>el('th',{},p.name)));const fb=fp.querySelector('tbody');fb.replaceChildren();
- s.filaments.forEach((f,i)=>{const tr=el('tr',{},el('td',{},String(i+1)),el('td',{},f.name));ps.forEach(p=>{const rows=presetsFor(p,'filaments');const mat=rows.filter(r=>(r.material||'').toLowerCase().includes((f.material||'').toLowerCase())||r.name.toLowerCase().includes((f.material||'').toLowerCase()));
-   tr.append(el('td',{},presetSelect(mat.length?mat:rows,f.preset[p.id]||'',v=>{f.preset[p.id]=v},true,'(auto: first '+(f.material||'')+' preset)')))});fb.append(tr)})}
+ s.filaments.forEach((f,i)=>{const tr=el('tr',{},el('td',{},String(i+1)),el('td',{},f.name));ps.forEach(p=>{const rows=presetsFor(p,'filaments');const base=(f.material||'').toLowerCase().split(/[-_+ ]/)[0];  /* PETG-HF lists the PETG presets */
+   const mat=rows.filter(r=>(r.material||'').toLowerCase().includes(base)||r.name.toLowerCase().includes(base));const auto=bom&&bom.filamentPresets&&(bom.filamentPresets[p.id]||[])[i];
+   tr.append(el('td',{},presetSelect(mat.length?mat:rows,f.preset[p.id]||'',v=>{f.preset[p.id]=v},true,auto?`(auto: ${auto})`:'(auto: by material)')))});fb.append(tr)})}
 function renderColours(){const s=state.settings,parts=bom?bom.parts:[];
  const rt=$('#roles tbody');rt.replaceChildren();ROLES().forEach(r=>{if(parts.length&&!parts.some(p=>p.role===r))return;const sel=el('select',{onchange:e=>{s.roles[r]=+e.target.value;changed();renderFilaments();renderColours()}});s.filaments.forEach((f,i)=>sel.append(el('option',{value:i,...(s.roles[r]===i?{selected:''}:{})},`${i+1} · ${f.name}`)));
   rt.append(el('tr',{},el('td',{},META.roleLabels[r]),el('td',{},el('span',{class:'swatch',style:`background:${slotColor(r)}`}),sel),el('td',{},parts.length?examples(parts.filter(p=>p.role===r),slotColor(r)):el('span',{class:'note'},'build a stack first'))))});
@@ -616,9 +617,11 @@ $('#loadStack').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{co
   state.stack={...defaultState().stack,...j.stack};state.overrides=j.overrides||{};fillStack();changed(true);$('#stackFileStatus').replaceChildren(el('span',{class:'ok'},`loaded "${state.stack.name}" (${state.stack.layers.length} layers)`))}
  catch(err){$('#stackFileStatus').replaceChildren(el('span',{class:'bad'},err.message))}e.target.value=''};
 function presetStatus(){Object.entries(PRESETS).forEach(([k,v])=>{const c=$('#up-'+k);if(c)c.textContent=!v.installed?'none yet':v.uploaded?`uploaded · ${v.machines.length} printers, ${v.presets.length} process, ${v.filaments.length} filament presets`:'read from the slicer installed on the server'})}
-$('#presetDir').onchange=async e=>{const st=$('#presetUploadStatus');const fs=[...e.target.files].filter(f=>/(^|\/)(BambuStudio|AnycubicSlicerNext|OrcaSlicer)\/(system|user)\/.+\.json$/.test(f.webkitRelativePath));e.target.value='';
+$('#presetDir').onchange=async e=>{const st=$('#presetUploadStatus');const fs=[...e.target.files].filter(f=>/(^|\/)(BambuStudio|AnycubicSlicerNext|OrcaSlicer)\/((system|user)\/.+\.json|\2\.conf)$/.test(f.webkitRelativePath));e.target.value='';
  if(!fs.length){st.replaceChildren(el('span',{class:'bad'},'no presets in that folder: pick the BambuStudio, AnycubicSlicerNext or OrcaSlicer folder itself (see the table)'));return}
- try{st.textContent=`reading ${fs.length} files…`;const files={};for(const f of fs)files[f.webkitRelativePath]=await f.text();st.textContent=`sending ${fs.length} files…`;
+ try{st.textContent=`reading ${fs.length} files…`;const files={};
+  for(const f of fs){const t=await f.text();files[f.webkitRelativePath]=f.name.endsWith('.conf')?JSON.stringify({preset_folder:(t.match(/"preset_folder"\s*:\s*"([\w-]+)"/)||[])[1]||''}):t}  /* the .conf also holds recent files and printers: send only which account's presets are in use */
+  st.textContent=`sending ${fs.length} files…`;
   const r=await api('/api/presets_upload',{files});PRESETS=await (await fetch('/api/presets')).json();renderSetup();presetStatus();st.replaceChildren(el('span',{class:'ok'},Object.entries(r.saved).map(([k,v])=>`${PRESETS[k].label}: ${v}`).join(' · ')))}
  catch(err){st.replaceChildren(el('span',{class:'bad'},err.message))}};
 $('#helpOn').onchange=e=>{state.help=e.target.checked;save()};
