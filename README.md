@@ -96,9 +96,14 @@ set `VAULT_ARCHIVE` to the dataset that holds the archive. The image is
 `ghcr.io/marcelfarres/vault-configurator:latest`, built on every push; `pull_policy: always` means a
 forced redeploy (`deploy/update-nas.cmd`) picks up the newest version. Step by step: [deploy/README.md](deploy/README.md).
 
+On a server (Docker, NAS, or any page not opened on the PC running it) exports download as one zip
+(3MFs, BOM.md, stack.json), and you send your slicer presets from the browser: Plates tab → "Slicer,
+nozzle and presets" → pick your `BambuStudio`, `AnycubicSlicerNext` or `OrcaSlicer` settings folder
+(the page lists where it is on Windows, macOS and Linux). Pick it again after changing presets.
+**Save stack** / **Load stack** keep versions of a stack or share one as a small JSON file.
+
 **Plain Python** (3.11+ with `numpy`, `pypdf` and `pillow`):
-`VAULT_ARCHIVE=/path/to/VAULT python -X utf8 server.py`. In Docker, mount the slicers' config folder
-to get your presets.
+`VAULT_ARCHIVE=/path/to/VAULT python -X utf8 server.py`.
 
 Printers: the H2C is used as 325 × 320 × 320 mm, what one nozzle reaches. L-family parts are 329.6 mm
 wide: 1U/2U modules, backbones and wall mounts go across the diagonal; L 4U modules, the L 4U sustainer
