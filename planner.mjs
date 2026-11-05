@@ -59,6 +59,33 @@ export function migratePrinters(saved, fleet) {
   return saved;
 }
 
+/** The parts list always includes every required part. The fit control disables choices; it does not hide rows. */
+export function visiblePartRows(parts) {
+  return (parts || []).slice();
+}
+
+/**
+ * When the fit control is on, a choice that does not fit is disabled unless it is the current
+ * saved or imported value. That value stays selected and is marked.
+ */
+export function decorateChoices(entries, filterOn) {
+  const items = (entries || []).map((entry) => {
+    const current = !!entry.current;
+    const fits = !!entry.fits;
+    return {
+      ...entry,
+      current,
+      fits,
+      disabled: !!(filterOn && !fits && !current),
+      mark: current && !fits ? "does not fit" : "",
+    };
+  });
+  const warning = filterOn && items.length > 0 && !items.some((item) => item.fits)
+    ? "No choice here fits the selected printer. The current one stays selected."
+    : "";
+  return { items, warning };
+}
+
 export function checkedCount(progress) {
   const plates = Object.values((progress && progress.plates) || {}).filter(Boolean).length;
   const hardware = Object.values((progress && progress.hardware) || {}).filter((row) => row && row.done).length;

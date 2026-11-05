@@ -149,7 +149,7 @@ def test_server_hides_archive_path_and_rejects_open():
     assert meta["handoff"] == "none"
     assert "Download" in meta["handoffNote"] or "download" in meta["handoffNote"]
     page = call("/")[1].decode()
-    for text in ("VAULT_ARCHIVE", "Unraid", "Only show parts that fit", "Save project", "data-tab=\"assemble\"", "Show a sample plate"):
+    for text in ("VAULT_ARCHIVE", "Unraid", "Only offer choices that fit", "Save project", "data-tab=\"assemble\"", "Show a sample plate"):
         assert text in page, text
     code, body = call("/api/handoff", {"file": "../../etc/passwd", "app": "bambu"})
     assert code == 403
@@ -167,8 +167,63 @@ def test_server_hides_archive_path_and_rejects_open():
     httpd.shutdown()
 
 
+def test_xl7_h2d_choices_keep_invalid_selection():
+    """The reported XL7 1U meshes do not fit an H2D left nozzle. The current XL choice stays."""
+    h2d = plates.catalog_printer("Bambu Lab H2D · left nozzle", "h2d-left")
+    module, facade = [57.0, 418.8, 314.1], [418.8, 47.0, 10.0]
+    assert plates.fits(module, h2d, 0) is None
+    assert plates.fits(facade, h2d, 0) is None
+    mini = next(p for p in plates.PRINTER_CATALOG if p["name"] == "Bambu Lab A1 mini")
+    assert plates.fits(facade, {**mini, "bed": list(mini["bed"]), "maxH": mini["z"]}, 0) is None
+
+    class Idx:
+        def find(self, name, hint=""):
+            return "virtual/" + name + ".stl"
+
+        def divider(self, folder, length):
+            return "virtual/divider.stl"
+
+    def stats(path):
+        if "Module" in path and "XL" in path:
+            return {"size": module, "volume_cm3": 1, "area_cm2": 1}
+        if "Facade" in path and "XL" in path:
+            return {"size": facade, "volume_cm3": 1, "area_cm2": 1}
+        return {"size": [30, 20, 10], "volume_cm3": 1, "area_cm2": 1}
+
+    stack = {"depth": 7, "layers": [{"type": "Drawers", "layout": "XL", "height": 1, "facades": [[1]],
+                                     "interior": "none", "key": "none", "labels": False, "rails": False, "manualSupports": False}],
+             "roof": {"type": "none"}, "mods": {}}
+    saved = json.loads(json.dumps(stack))
+    result = planner.fit_choices(stack, [h2d], 0, Idx(), {}, stats, lambda rel: True)
+    assert stack["layers"][0]["layout"] == "XL" and stack == saved
+    layouts = result["layers"][0]["layout"]
+    xl = next(choice for choice in layouts if choice["value"] == "XL")
+    narrow = next(choice for choice in layouts if choice["value"] == "S")
+    assert xl["current"] and not xl["fits"] and "418.8" in xl["reason"]
+    assert narrow["fits"] and not narrow["current"]
+    depth7 = next(choice for choice in result["depth"] if choice["value"] == 7)
+    assert depth7["current"] and not depth7["fits"]
+    big = {"id": "big", "name": "Large bed", "bed": [450, 450], "z": 400, "maxH": 400}
+    wider = planner.fit_choices(stack, [big], 0, Idx(), {}, stats, lambda rel: True)
+    assert next(choice for choice in wider["layers"][0]["layout"] if choice["value"] == "XL")["fits"]
+
+    def stats_depth(path):
+        if "XL7 Module" in path:
+            return {"size": module, "volume_cm3": 1, "area_cm2": 1}
+        return {"size": [30, 20, 10], "volume_cm3": 1, "area_cm2": 1}
+
+    by_depth = planner.fit_choices(stack, [h2d], 0, Idx(), {}, stats_depth, lambda rel: True)
+    assert not next(choice for choice in by_depth["depth"] if choice["value"] == 7)["fits"]
+    assert next(choice for choice in by_depth["depth"] if choice["value"] == 3)["fits"]
+    judged, scope = planner.judged_printers({"printers": [h2d, big]}, "h2d-left")
+    assert scope == "one" and [p["id"] for p in judged] == ["h2d-left"]
+    judged, scope = planner.judged_printers({"printers": [h2d, {**big, "enabled": True}]}, "every")
+    assert scope == "every" and len(judged) == 2
+
+
 if __name__ == "__main__":
     test_quantities()
+    test_xl7_h2d_choices_keep_invalid_selection()
     test_fleet_and_sample()
     test_handoff_policy()
     test_server_hides_archive_path_and_rejects_open()

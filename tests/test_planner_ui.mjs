@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { reconcileProgress, plateKey, partCorners, insideBed, migratePrinters } from "../planner.mjs";
+import { reconcileProgress, plateKey, partCorners, insideBed, migratePrinters, decorateChoices, visiblePartRows } from "../planner.mjs";
 
 const plate = { printer: "u1", slots: [0], items: [{ part: "Guide", x: 1, y: 2, rot: 0 }] };
 const key = plateKey(plate);
@@ -41,5 +41,25 @@ migrated[0].bed[0] = 1;
 assert.equal(fleet[0].bed[0], 270);
 const resized = [{ id: "h2c", bed: [300, 320], z: 320 }, { id: "kobrax", bed: [260, 260], z: 260 }];
 assert.equal(migratePrinters(resized, fleet), resized);
+
+const marked = decorateChoices([
+  { value: "S", fits: true, current: false },
+  { value: "XL", fits: false, current: true, reason: "418.8 mm does not fit" },
+  { value: "L", fits: false, current: false, reason: "too wide" },
+], true);
+assert.equal(marked.items.find((item) => item.value === "XL").disabled, false);
+assert.equal(marked.items.find((item) => item.value === "XL").mark, "does not fit");
+assert.equal(marked.items.find((item) => item.value === "L").disabled, true);
+assert.equal(marked.items.find((item) => item.value === "S").disabled, false);
+const off = decorateChoices([{ value: "XL", fits: false, current: true }], false);
+assert.equal(off.items[0].disabled, false);
+assert.equal(off.warning, "");
+const none = decorateChoices([
+  { value: "XL", fits: false, current: true },
+  { value: "S", fits: false, current: false },
+], true);
+assert.match(none.warning, /stays selected/);
+const parts = [{ name: "XL7 Module 1F", fits: false }, { name: "Runner Stopper", fits: true }];
+assert.deepEqual(visiblePartRows(parts).map((part) => part.name), ["XL7 Module 1F", "Runner Stopper"]);
 
 console.log("test_planner_ui ok");
