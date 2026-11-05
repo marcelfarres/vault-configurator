@@ -1,6 +1,6 @@
 services:
   vault-configurator:
-    image: ghcr.io/marcelfarres/vault-configurator:latest
+    image: ghcr.io/vcolombo/vault-configurator:latest
     build: .
     container_name: vault-configurator
     ports:

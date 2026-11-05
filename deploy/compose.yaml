@@ -11,7 +11,7 @@
 # forces a redeploy.
 services:
   vault-configurator:
-    image: ghcr.io/marcelfarres/vault-configurator:latest
+    image: ghcr.io/vcolombo/vault-configurator:latest
     pull_policy: always
     container_name: vault-configurator
     restart: unless-stopped

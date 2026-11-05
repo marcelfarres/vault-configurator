@@ -41,10 +41,15 @@ RIGHT = {**next(c for c in plates.PRINTER_CATALOG if c["name"] == "Bambu Lab H2C
 
 
 def settings_for(mode):
-    """Default settings plus the H2C's right nozzle as a printer of its own, with a process preset picked
-    per printer the way the Plates tab does."""
+    """H2C left, Kobra (short-part limit) and H2C right, with a process preset picked the way the Plates tab does.
+
+    The app's default rows are the U1 / P1S / H2D fleet. This test keeps the older beds so diagonal placement
+    and the bed-slinger height limit stay covered when an archive is present."""
     s = copy.deepcopy(plates.DEFAULT_SETTINGS)
-    s["printers"].append(copy.deepcopy(RIGHT))
+    h2c = plates.catalog_printer("Bambu Lab H2C · left nozzle", "h2c")
+    kobra = plates.catalog_printer("Anycubic Kobra X", "kobrax")
+    kobra["maxH"] = 120
+    s["printers"] = [h2c, kobra, copy.deepcopy(RIGHT)]
     s["mode"] = mode
     for p in s["printers"]:
         rows = [r for r in presets.catalog(p["slicer"], p["profile"]) if r["nozzle"] in (p["nozzle"], "")]

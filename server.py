@@ -23,6 +23,7 @@ import version  # noqa: E402
 import catalog  # noqa: E402
 import mesh  # noqa: E402
 import plates  # noqa: E402
+import planner  # noqa: E402
 import presets  # noqa: E402
 
 PORT = int(os.environ.get("VAULT_PORT") or os.environ.get("PORT") or 8765)
@@ -191,6 +192,33 @@ def tot_h(sec):
 
 
 EXPORT = {"running": False, "percent": 0, "msg": "", "result": None, "error": None}
+EXPORTED = {}  # basename -> real path, only files this process wrote under output/
+
+
+def output_root():
+    return os.path.join(HERE, "output")
+
+
+def remember_written(paths):
+    for path in paths:
+        if path and os.path.isfile(path):
+            planner.remember_export(path, EXPORTED, output_root())
+
+
+def handoff_meta(loopback):
+    """What this process can open, and the sentence the page should show."""
+    if not loopback:
+        return "none", ("This page is not on the computer running the planner. Download the 3MF and open it in "
+                        "Bambu Studio or OrcaSlicer. Opening an app needs the planner running on that Mac or PC, "
+                        "not in a hosted browser or on a NAS.")
+    if sys.platform == "darwin":
+        return "mac", ("Opens the exported 3MF in Bambu Studio or OrcaSlicer on this Mac. If the app is missing, "
+                       "macOS says so and the download still works.")
+    if sys.platform == "win32":
+        return "windows", ("Shows the export folder, or opens the 3MF with the app Windows has associated with it. "
+                           "The download is there either way.")
+    return "none", ("This computer is not macOS or Windows, so the planner cannot hand a file to Bambu Studio or "
+                    "OrcaSlicer. Download the 3MF and open it yourself.")
 
 
 def run_export(body, test):
@@ -215,8 +243,10 @@ def run_export(body, test):
             write_bom_md(extra[0], body["stack"], bom, pr, s)
             with open(extra[1], "w", encoding="utf-8") as f:
                 json.dump({"stack": body["stack"], "settings": s, "overrides": body.get("overrides") or {}}, f, indent=1)
+        written_paths = [f["file"] for f in files]
+        remember_written(written_paths)
         EXPORT.update({"result": {"folder": out, "files": files, "plan": pr, "seconds": round(time.time() - t, 1),
-                                  "zip": name + ("_TEST" if test else "") + ".zip", "download": [f["file"] for f in files] + extra},
+                                  "zip": name + ("_TEST" if test else "") + ".zip", "download": written_paths + extra},
                        "percent": 100, "msg": "done"})
     except Exception as e:
         import traceback
@@ -268,10 +298,13 @@ class Handler(SimpleHTTPRequestHandler):
     def send_json(self, obj, code=200):
         self.send_bytes(json.dumps(obj).encode("utf-8"), "application/json; charset=utf-8", code)
 
+    def loopback(self):
+        return self.client_address[0] in ("127.0.0.1", "::1")
+
     def local(self):
         """Page opened on the Windows machine running the server: Explorer can show the output folder.
         Anywhere else (Docker, NAS, another PC, macOS/Linux) the files are downloaded instead."""
-        return os.name == "nt" and self.client_address[0] in ("127.0.0.1", "::1")
+        return os.name == "nt" and self.loopback()
 
     def send_thumb(self, rel):
         rel = archive_rel(rel)
@@ -293,7 +326,10 @@ class Handler(SimpleHTTPRequestHandler):
             return self.send_json({"defaults": plates.DEFAULT_SETTINGS, "layouts": catalog.LAYOUTS, "allowed": catalog.ALLOWED_LAYOUTS,
                                    "patterns": catalog.PATTERNS, "width": catalog.WIDTH, "files": len(INDEX.files), "progress": PROGRESS,
                                    "roles": catalog.ROLES, "roleLabels": catalog.ROLE_LABELS, "kinds": [k for k, _ in catalog.KINDS], "materials": plates.MATERIALS, "printerCatalog": plates.PRINTER_CATALOG,
-                                   "build": BUILD, "assets": assets_bootstrap.count(os.path.join(HERE, "assets")), "local": self.local()})
+                                   "build": BUILD, "assets": assets_bootstrap.count(os.path.join(HERE, "assets")), "local": self.local(),
+                                   "archiveVia": "environment" if os.environ.get("VAULT_ARCHIVE") else "unspecified",
+                                   "archiveReady": os.path.isdir(os.path.join(ROOT, "01. DRAWERS")),
+                                   **dict(zip(("handoff", "handoffNote"), handoff_meta(self.loopback())))})
         if self.path == "/api/progress":
             return self.send_json(PROGRESS)
         if self.path == "/api/presets":
@@ -305,6 +341,16 @@ class Handler(SimpleHTTPRequestHandler):
             return self.send_json(out)
         if self.path == "/api/export_status":
             return self.send_json(EXPORT)
+        if self.path == "/api/sample_plan":
+            return self.send_json(plates.sample_plan())
+        if self.path.startswith("/api/download_file"):
+            name = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query).get("name", [""])[0]
+            path = EXPORTED.get(name)
+            if not path:
+                return self.send_json({"error": "that file is not from an export this planner just wrote"}, 404)
+            with open(path, "rb") as fh:
+                data = fh.read()
+            return self.send_bytes(data, "application/octet-stream", headers=[("Content-Disposition", f'attachment; filename="{name}"')])
         if self.path == "/api/download":  # the last export as one zip: 3MFs + BOM.md + stack.json
             r = EXPORT.get("result")
             if not r:
@@ -357,11 +403,10 @@ class Handler(SimpleHTTPRequestHandler):
                 EXPORT.update({"running": True, "percent": 0, "msg": "planning…", "result": None, "error": None})
                 threading.Thread(target=run_export, args=(body, self.path == "/api/export_test"), daemon=True).start()
                 return self.send_json({"started": True})
-            if self.path == "/api/open":
-                if not self.local():
-                    return self.send_json({"error": "only from the computer running the tool"}, 403)
-                subprocess.Popen(["explorer", body["path"]])
-                return self.send_json({"ok": True})
+            if self.path in ("/api/open", "/api/handoff"):
+                return self.send_handoff(body)
+            if self.path == "/api/export_part":
+                return self.send_json(export_one_part(body))
             if self.path == "/api/presets_upload":  # {"files": {"BambuStudio/user/…/x.json": text}} from a folder picked in the browser
                 return self.send_json(presets.save_upload(body["files"]))
         except Exception as e:  # surface errors in the UI instead of a silent 500
@@ -371,6 +416,46 @@ class Handler(SimpleHTTPRequestHandler):
         finally:
             BUSY.acquire(blocking=False)
         return self.send_json({"error": "not found"}, 404)
+
+    def send_handoff(self, body):
+        """Open one file this process exported. Never a caller-supplied path or command."""
+        origin_ok = planner.origin_allows_handoff(self.headers.get("Origin"), self.headers.get("Host"))
+        filename = body.get("file") or ""
+        app = body.get("app") or ""
+        if not filename and body.get("path"):
+            filename = os.path.basename(str(body.get("path")).replace("\\", "/"))
+            app = app or "folder"
+        try:
+            spec = planner.plan_handoff(app, filename, platform=sys.platform, loopback=self.loopback(), origin_ok=origin_ok,
+                                        exported=EXPORTED, output_root=output_root())
+        except planner.HandoffError as e:
+            return self.send_json({"error": str(e)}, 403)
+        if spec["action"] == "argv":
+            subprocess.Popen(spec["argv"])
+        else:
+            os.startfile(spec["path"])  # Windows only; plan_handoff never asks for it elsewhere
+        return self.send_json({"ok": True, "opened": spec["label"]})
+
+
+def export_one_part(body):
+    """One 3MF containing a single archive part. The STL is read in place and not copied into the repo."""
+    rel = archive_rel(body.get("file") or "")
+    if rel.startswith("..") or not any(r == rel for _, _, r in INDEX.files):
+        raise ValueError("unknown part")
+    s = settings_of(body)
+    name = re.sub(r"[^A-Za-z0-9_-]+", "-", body.get("name") or os.path.splitext(os.path.basename(rel))[0]).strip("-") or "part"
+    line = {"name": body.get("name") or name, "file": rel, "qty": 1, "role": body.get("role") or "main", "group": "solo", "kind": "other"}
+    pr = plates.plan([line], s, stats_fn)
+    if not pr["plates"]:
+        why = pr["unplaceable"][0].get("name") if pr["unplaceable"] else line["name"]
+        raise ValueError(f"{why} does not fit an enabled printer")
+    out = os.path.join(output_root(), "solo-" + name)
+    files = plates.export(pr, s, out, ROOT, stats_fn, stack_name="solo-" + name)
+    remember_written([f["file"] for f in files])
+    first = files[0]
+    base = os.path.basename(first["file"])
+    return {"file": base, "files": [os.path.basename(f["file"]) for f in files], "download": "/api/download_file?name=" + urllib.parse.quote(base),
+            "warning": first.get("warning"), "plates": first["plates"]}
 
 
 if __name__ == "__main__":

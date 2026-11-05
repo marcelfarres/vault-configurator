@@ -85,15 +85,22 @@ Windows may warn that the file is from an unknown publisher: choose **More info*
 A git checkout updates itself at each start. Running on the PC with your slicers lets it read your
 Bambu Studio, OrcaSlicer and Anycubic Slicer Next presets.
 
-**Docker** (PC or NAS):
+**Docker** (PC, Unraid, or another NAS). The archive path is configuration, not part of the image:
 
 ```bash
-VAULT_ARCHIVE=/path/to/VAULT docker compose up -d     # http://localhost:8765
+VAULT_ARCHIVE=/path/on/this/host docker compose up -d     # http://localhost:8765
 ```
 
-**NAS with a stack manager** (Dockhand, Portainer): paste [`deploy/compose.yaml`](deploy/compose.yaml),
+`VAULT_ARCHIVE` is the folder on the host that contains `01. DRAWERS`. Compose mounts it read-only at
+`/archive` inside the container and the process reads that mount. Put the host path in the stack's
+environment (Unraid: the container's path mapping plus `VAULT_ARCHIVE=/archive` for the app, and the
+share path only in the volume). Do not bake a computer-specific path into the image or the repository.
+Named projects stay in the browser; **Save stack** writes a JSON file you can move. A container cannot
+open Bambu Studio or OrcaSlicer — download the 3MF, or send presets from the Plates step.
+
+**NAS with a stack manager** (Unraid, Dockhand, Portainer): paste [`deploy/compose.yaml`](deploy/compose.yaml),
 set `VAULT_ARCHIVE` to the dataset that holds the archive. The image is
-`ghcr.io/marcelfarres/vault-configurator:latest`, built on every push; `pull_policy: always` means a
+`ghcr.io/vcolombo/vault-configurator:latest`, built on every push to this repository; `pull_policy: always` means a
 forced redeploy (`deploy/update-nas.cmd`) picks up the newest version. Step by step: [deploy/README.md](deploy/README.md).
 
 On a server (Docker, NAS, or any page not opened on the PC running it) exports download as one zip
@@ -119,6 +126,7 @@ and the limit. USSA's own printer check on the VAULT page gives the same answer 
   export, reads every 3MF back the way the slicer does and fails if any piece leaves its plate or the
   piece count does not add up. The same read-back runs at the end of every export in the app.
 - `deploy/smoke_test.py <url>` checks a running instance end to end (used after each NAS update).
+- `tests/test_planner.py` and `tests/test_planner_ui.mjs` cover fleet fit, plate coordinates, runner quantities, saved-project progress, and the slicer handoff lock. They do not need the archive.
 - Each module has a self-check: `python -X utf8 {catalog,mesh,plates,presets,assets_bootstrap}.py`.
 
 The tests need the archive: set `VAULT_ARCHIVE` to its folder (a network share works).

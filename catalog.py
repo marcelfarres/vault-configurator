@@ -15,6 +15,17 @@ LAYOUT_FAMILY = {"S": "S", "M": "M", "L": "L", "XL": "XL", "SS": "L", "SM": "XL"
 ALLOWED_LAYOUTS = {"S": ["S"], "M": ["M"], "L": ["L", "SS"], "XL": ["XL", "SM"]}
 PATTERNS = {1: [[1]], 2: [[2], [1, 1]], 4: [[4], [2, 2], [1, 1, 1, 1], [2, 1, 1], [1, 1, 2]]}
 WIDTH = {"S": 164.8, "M": 254.0, "L": 329.6, "XL": 418.8}
+
+
+def runners_per_box(facade_height):
+    """Printed runner guides, slides and stoppers for one box.
+
+    A 1F box takes two of each (one pair). A 2F or 4F box takes four (two pairs,
+    one pair per side). Another planner halved these counts on the theory that one
+    STL already holds both pieces of a pair. This release did not open a purchased
+    archive to count bodies in those files, so the count is not halved.
+    """
+    return 2 if int(facade_height) == 1 else 4
 GRID_W = {"S": 10, "M": 18, "L": 26, "XL": 32}   # grid-divider length index per family width
 GRID_D = {3: 10, 4: 14, 5: 18, 6: 22, 7: 26}      # ... and per depth
 ROD_LENGTH = {"S": 248, "M": 338, "L": 414, "XL": 504}
@@ -144,8 +155,8 @@ class Bom:
             faces = layer["facades"][col]
             for fh in faces:
                 fh = int(fh)
-                runners = 2 if fh == 1 else 4
-                runner_note = "Two per 1F box, four per 2F/4F box (two runner pairs per side)."
+                runners = runners_per_box(fh)
+                runner_note = "Two per 1F box, four per 2F/4F box (two runner pairs per side). Not halved: a paired STL was not verified."
                 if f == "XL":
                     if depth >= 6:
                         self.add(g, f"XL{depth} Box 1F Part 1", "drawers boxes", 1, MAIN, site_key=f"Drawer box:XL:{depth}:1")

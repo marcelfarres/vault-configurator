@@ -1,0 +1,45 @@
+import assert from "node:assert/strict";
+import { reconcileProgress, plateKey, partCorners, insideBed, migratePrinters } from "../planner.mjs";
+
+const plate = { printer: "u1", slots: [0], items: [{ part: "Guide", x: 1, y: 2, rot: 0 }] };
+const key = plateKey(plate);
+assert.equal(plateKey({ ...plate, items: [{ part: "Guide", x: 1, y: 3, rot: 0 }] }) !== key, true);
+
+const prev = {
+  layoutKey: "aaa",
+  plates: { [key]: true, stale: true },
+  hardware: { "M4 bolt": { qty: 4, done: true } },
+  assemble: { "L1|Box": { qty: 1, done: true } },
+};
+const same = reconcileProgress(prev, "aaa", [plate], [{ item: "M4 bolt", qty: 4 }]);
+assert.equal(same.note, "");
+assert.equal(same.progress.plates[key], true);
+assert.equal(same.progress.plates.stale, undefined);
+assert.equal(same.progress.hardware["M4 bolt"].done, true);
+assert.equal(same.progress.assemble["L1|Box"].done, true);
+
+const moved = reconcileProgress(same.progress, "bbb", [plate], [{ item: "M4 bolt", qty: 4 }]);
+assert.match(moved.note, /cleared/);
+assert.deepEqual(moved.progress.plates, {});
+assert.equal(moved.progress.hardware["M4 bolt"].done, true);
+
+const qty = reconcileProgress(moved.progress, "bbb", [plate], [{ item: "M4 bolt", qty: 8 }]);
+assert.equal(qty.progress.hardware["M4 bolt"].done, false);
+assert.equal(qty.progress.hardware["M4 bolt"].qty, 8);
+
+const corners = partCorners({ x: 10, y: 20, w: 30, d: 40, rot: 90 }).map((p) => p.map((n) => Math.round(n)));
+assert.deepEqual(corners, [[10, 20], [10, 50], [-30, 50], [-30, 20]]);
+assert.equal(insideBed([[0, 0], [10, 10]], [20, 20]), true);
+assert.equal(insideBed([[0, 0], [30, 10]], [20, 20]), false);
+
+const fleet = [{ id: "u1", bed: [270, 270] }];
+const stock = [{ id: "h2c", bed: [325, 320], z: 320 }, { id: "kobrax", bed: [260, 260], z: 260 }];
+const migrated = migratePrinters(stock, fleet);
+assert.equal(migrated[0].id, "u1");
+assert.notEqual(migrated, fleet);
+migrated[0].bed[0] = 1;
+assert.equal(fleet[0].bed[0], 270);
+const resized = [{ id: "h2c", bed: [300, 320], z: 320 }, { id: "kobrax", bed: [260, 260], z: 260 }];
+assert.equal(migratePrinters(resized, fleet), resized);
+
+console.log("test_planner_ui ok");
