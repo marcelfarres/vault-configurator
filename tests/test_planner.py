@@ -228,6 +228,16 @@ def test_unknown_height_becomes_one():
     stackfit.normalize(stack)
     assert stack["layers"][0]["height"] == 1
     assert stack["layers"][0]["facades"] == [[1]]
+    assert catalog.HEIGHTS == tuple(catalog.PATTERNS)
+    assert catalog.layouts_for(True, "S") is catalog.FAMILIES
+    assert not hasattr(catalog, "BASE_LAYOUTS")
+    wide = {"layers": [{"layout": "SS", "height": 2, "facades": [[1, 1]]}]}
+    stackfit.normalize(wide)
+    assert wide["layers"][0]["layout"] == catalog.layouts_for(True, "S")[0]
+    xl = {"layers": [{"layout": "XL", "height": 2, "facades": [[2]]}]}
+    stackfit.normalize(xl)
+    assert xl["layers"][0]["height"] == catalog.heights_for("XL")[0]
+    assert xl["layers"][0]["facades"] == [[1]]
     bom, _ = server.compute_bom({"stack": {"depth": 5, "layers": [], "roof": {"type": "none"}, "mods": {}}, "fitTarget": "every"})
     assert bom["judged"]["scope"] == "every" and len(bom["judged"]["printers"]) == 4
     assert "optionFits" not in bom

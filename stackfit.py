@@ -30,15 +30,14 @@ def normalize(stack):
         return stack
     base = catalog.LAYOUT_FAMILY[layers[0]["layout"]]
     for i, layer in enumerate(layers):
-        allowed = catalog.ALLOWED_LAYOUTS[base] if i else ["S", "M", "L", "XL"]
+        allowed = catalog.layouts_for(i == 0, base)
         if layer.get("layout") not in allowed:
             layer["layout"] = allowed[0]
-        if catalog.LAYOUT_FAMILY[layer["layout"]] == "XL":
-            layer["height"] = 1
-        height = int(layer.get("height") or 1)
-        if height not in catalog.PATTERNS:
-            height = 1
-            layer["height"] = 1
+        heights = catalog.heights_for(layer["layout"])
+        height = int(layer.get("height") or heights[0])
+        if height not in heights:
+            height = heights[0]
+            layer["height"] = height
         patterns = catalog.PATTERNS[height]
         fams = catalog.LAYOUTS[layer["layout"]]
         facades = layer.get("facades") or []

@@ -19,8 +19,7 @@ ROOFS = ("none", "grid", "table", "bowl", "undertable", "heavyweight")
 LAYER_TYPES = ("Drawers", "Sustainers")
 DRAWER_INTERIORS = ("none", "baseplate", "baseplate1h", "baseplate2h", "grid")
 SUSTAINER_INTERIORS = ("Flat", "Dividers", "Sealed")
-BASE_LAYOUTS = ("S", "M", "L", "XL")
-HEIGHTS = (1, 2, 4)
+HEIGHTS = tuple(PATTERNS)
 
 
 def heights_for(layout):
@@ -31,8 +30,10 @@ def heights_for(layout):
 def layouts_for(is_base, base_family):
     """Widths a layer may use. The base picks the family; later layers stay inside it."""
     if is_base:
-        return BASE_LAYOUTS
+        return FAMILIES
     return tuple(ALLOWED_LAYOUTS[base_family])
+
+
 WIDTH = {"S": 164.8, "M": 254.0, "L": 329.6, "XL": 418.8}
 
 
