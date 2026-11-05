@@ -393,6 +393,9 @@ def plan(parts, settings, stats_fn):
     placed = sum(len(pl["items"]) for pl in plates)
     result = {"plates": plates, "unplaceable": unplaceable, "load": load, "pieces": pieces, "placed": placed,
               "missing": pieces - placed}  # placed + unplaceable quantities must add up to the BOM; anything else is a bug
+    for pl in plates:
+        for it in pl["items"]:
+            it["corners"] = [[round(x, 2), round(y, 2)] for x, y in footprint_corners(it)]
     result["fingerprint"] = plate_fingerprint(plates)
     return result
 
@@ -537,10 +540,10 @@ if __name__ == "__main__":  # self-check on synthetic parts
         assert [len(r) for r in bars] == [3, 3, 1], [len(r) for r in bars]
         for r in bars:
             for it in r:
-                aa = math.radians(it["rot"]); cc, ss = math.cos(aa), math.sin(aa)
-                for u, v in [(0, 0), (gw, 0), (0, gd), (gw, gd)]:  # the part's own corners through its transform
-                    px, py = it["x"] + u * cc - v * ss, it["y"] + u * ss + v * cc
+                for px, py in footprint_corners({**it, "w": gw, "d": gd}):
                     assert SAFE_EDGE - 1e-6 <= px <= 260 - SAFE_EDGE + 1e-6 and SAFE_EDGE - 1e-6 <= py <= 260 - SAFE_EDGE + 1e-6, (gw, gd, it, px, py)
+    turned = [(round(x), round(y)) for x, y in footprint_corners({"x": 10, "y": 20, "w": 30, "d": 40, "rot": 90})]
+    assert turned == [(10, 20), (10, 50), (-30, 50), (-30, 20)]
     pk = Shelf(h2c["bed"], SAFE_EDGE, 6)
     pk.items, pk.free = expand(rows[0]), corner_rects(rows[0][0], h2c["bed"], 6, SAFE_EDGE)
     assert len(pk.free) == 2 and pk.place({"w": 40, "d": 40, "h": 10, "part": "small"})  # ...but small parts go into the empty corners

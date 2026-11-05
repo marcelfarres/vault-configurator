@@ -24,6 +24,7 @@ import catalog  # noqa: E402
 import mesh  # noqa: E402
 import plates  # noqa: E402
 import planner  # noqa: E402
+import stackfit  # noqa: E402
 import presets  # noqa: E402
 
 PORT = int(os.environ.get("VAULT_PORT") or os.environ.get("PORT") or 8765)
@@ -153,11 +154,12 @@ def compute_bom(body):
             bigger = [f"{n} ({x}×{y}×{z} mm)" for n, (x, y, z) in BIGGER.items() if h <= z and plates.diagonal_fit(w, d, x, y) is not None]
             bom["warnings"].append(f'{l["group"]}: {l["qty"]}× {l["name"]} ({w:.1f}×{d:.1f}×{h:.1f} mm) cannot be printed. ' + "; ".join(why) + "."
                                    + (f" It fits a {' or a '.join(bigger)}." if bigger else ""))
+    judged, scope = stackfit.judged_printers(s, body.get("fitTarget"))
+    bom["judged"] = {"scope": scope, "printers": [{"id": p["id"], "name": p["name"]} for p in judged]}
     if body.get("fitChoices"):
-        judged, scope = planner.judged_printers(s, body.get("fitTarget"))
-        bom["optionFits"] = planner.fit_choices(body["stack"], judged, float(s["edge"]), INDEX, SITE, stats_fn, fits_whole)
+        bom["optionFits"] = stackfit.fit_choices(body["stack"], judged, float(s["edge"]), INDEX, SITE, stats_fn, fits_whole)
         bom["optionFits"]["scope"] = scope
-        bom["optionFits"]["printers"] = [{"id": p["id"], "name": p["name"]} for p in judged]
+        bom["optionFits"]["printers"] = bom["judged"]["printers"]
     return bom, s
 
 

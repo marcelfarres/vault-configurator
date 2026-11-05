@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { reconcileProgress, plateKey, partCorners, insideBed, migratePrinters, decorateChoices, visiblePartRows } from "../planner.mjs";
+import { reconcileProgress, plateKey, partFitsScope, migratePrinters, decorateChoices, visiblePartRows, checkedCount } from "../planner.mjs";
 
 const plate = { printer: "u1", slots: [0], items: [{ part: "Guide", x: 1, y: 2, rot: 0 }] };
 const key = plateKey(plate);
@@ -27,10 +27,18 @@ const qty = reconcileProgress(moved.progress, "bbb", [plate], [{ item: "M4 bolt"
 assert.equal(qty.progress.hardware["M4 bolt"].done, false);
 assert.equal(qty.progress.hardware["M4 bolt"].qty, 8);
 
-const corners = partCorners({ x: 10, y: 20, w: 30, d: 40, rot: 90 }).map((p) => p.map((n) => Math.round(n)));
-assert.deepEqual(corners, [[10, 20], [10, 50], [-30, 50], [-30, 20]]);
-assert.equal(insideBed([[0, 0], [10, 10]], [20, 20]), true);
-assert.equal(insideBed([[0, 0], [30, 10]], [20, 20]), false);
+const asmPrev = reconcileProgress(
+  { layoutKey: "aaa", plates: {}, hardware: {}, assemble: { "L1|Box": { qty: 1, done: true } } },
+  "aaa",
+  null,
+  [],
+  [{ key: "L1|Box", qty: 2 }],
+);
+assert.equal(asmPrev.progress.assemble["L1|Box"].done, false);
+assert.equal(checkedCount(asmPrev.progress).assemble, 0);
+assert.equal(partFitsScope({ file: "a", fits: { u1: true, p1s: false } }, ["u1", "p1s"]), "unfit");
+assert.equal(partFitsScope({ file: "a", fits: { u1: true } }, ["u1"]), "fits");
+assert.equal(partFitsScope({ file: null }, ["u1"]), "missing");
 
 const fleet = [{ id: "u1", bed: [270, 270] }];
 const stock = [{ id: "h2c", bed: [325, 320], z: 320 }, { id: "kobrax", bed: [260, 260], z: 260 }];

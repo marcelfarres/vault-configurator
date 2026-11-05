@@ -20,6 +20,7 @@ sys.path.insert(0, ROOT)
 
 import catalog  # noqa: E402
 import planner  # noqa: E402
+import stackfit  # noqa: E402
 import plates  # noqa: E402
 import server  # noqa: E402
 
@@ -63,7 +64,8 @@ def test_fleet_and_sample():
     for plate in sample["plates"]:
         assert plate["bed"] == [270, 270]
         for item in plate["items"]:
-            for x, y in plates.footprint_corners(item):
+            assert item["corners"] == [[round(x, 2), round(y, 2)] for x, y in plates.footprint_corners(item)]
+            for x, y in item["corners"]:
                 assert -0.05 <= x <= 270.05 and -0.05 <= y <= 270.05, (item["part"], x, y)
     wide = [400, 200, 20]
     tall = [100, 80, 300]
@@ -194,7 +196,7 @@ def test_xl7_h2d_choices_keep_invalid_selection():
                                      "interior": "none", "key": "none", "labels": False, "rails": False, "manualSupports": False}],
              "roof": {"type": "none"}, "mods": {}}
     saved = json.loads(json.dumps(stack))
-    result = planner.fit_choices(stack, [h2d], 0, Idx(), {}, stats, lambda rel: True)
+    result = stackfit.fit_choices(stack, [h2d], 0, Idx(), {}, stats, lambda rel: True)
     assert stack["layers"][0]["layout"] == "XL" and stack == saved
     layouts = result["layers"][0]["layout"]
     xl = next(choice for choice in layouts if choice["value"] == "XL")
@@ -204,7 +206,7 @@ def test_xl7_h2d_choices_keep_invalid_selection():
     depth7 = next(choice for choice in result["depth"] if choice["value"] == 7)
     assert depth7["current"] and not depth7["fits"]
     big = {"id": "big", "name": "Large bed", "bed": [450, 450], "z": 400, "maxH": 400}
-    wider = planner.fit_choices(stack, [big], 0, Idx(), {}, stats, lambda rel: True)
+    wider = stackfit.fit_choices(stack, [big], 0, Idx(), {}, stats, lambda rel: True)
     assert next(choice for choice in wider["layers"][0]["layout"] if choice["value"] == "XL")["fits"]
 
     def stats_depth(path):
@@ -212,17 +214,28 @@ def test_xl7_h2d_choices_keep_invalid_selection():
             return {"size": module, "volume_cm3": 1, "area_cm2": 1}
         return {"size": [30, 20, 10], "volume_cm3": 1, "area_cm2": 1}
 
-    by_depth = planner.fit_choices(stack, [h2d], 0, Idx(), {}, stats_depth, lambda rel: True)
+    by_depth = stackfit.fit_choices(stack, [h2d], 0, Idx(), {}, stats_depth, lambda rel: True)
     assert not next(choice for choice in by_depth["depth"] if choice["value"] == 7)["fits"]
     assert next(choice for choice in by_depth["depth"] if choice["value"] == 3)["fits"]
-    judged, scope = planner.judged_printers({"printers": [h2d, big]}, "h2d-left")
+    judged, scope = stackfit.judged_printers({"printers": [h2d, big]}, "h2d-left")
     assert scope == "one" and [p["id"] for p in judged] == ["h2d-left"]
-    judged, scope = planner.judged_printers({"printers": [h2d, {**big, "enabled": True}]}, "every")
+    judged, scope = stackfit.judged_printers({"printers": [h2d, {**big, "enabled": True}]}, "every")
     assert scope == "every" and len(judged) == 2
+
+
+def test_unknown_height_becomes_one():
+    stack = {"layers": [{"layout": "S", "height": 9, "facades": [[9]]}]}
+    stackfit.normalize(stack)
+    assert stack["layers"][0]["height"] == 1
+    assert stack["layers"][0]["facades"] == [[1]]
+    bom, _ = server.compute_bom({"stack": {"depth": 5, "layers": [], "roof": {"type": "none"}, "mods": {}}, "fitTarget": "every"})
+    assert bom["judged"]["scope"] == "every" and len(bom["judged"]["printers"]) == 4
+    assert "optionFits" not in bom
 
 
 if __name__ == "__main__":
     test_quantities()
+    test_unknown_height_becomes_one()
     test_xl7_h2d_choices_keep_invalid_selection()
     test_fleet_and_sample()
     test_handoff_policy()

@@ -9,43 +9,50 @@ export function plateKey(plate) {
   return `${plate.printer}|${slots}|${items}`;
 }
 
-export function reconcileProgress(progress, fingerprint, plates, hardware) {
-  const prev = progress || { layoutKey: "", plates: {}, hardware: {} };
+export function reconcileProgress(progress, fingerprint, plates, hardware, assemble) {
+  const prev = progress || { layoutKey: "", plates: {}, hardware: {}, assemble: {} };
   let note = "";
   let plateDone = { ...(prev.plates || {}) };
-  if (prev.layoutKey && prev.layoutKey !== fingerprint) {
-    plateDone = {};
-    note = "Plate checks cleared because the layout changed.";
+  if (plates) {
+    if (prev.layoutKey && prev.layoutKey !== fingerprint) {
+      plateDone = {};
+      note = "Plate checks cleared because the layout changed.";
+    }
+    const alive = new Set(plates.map(plateKey));
+    plateDone = Object.fromEntries(Object.entries(plateDone).filter(([key, done]) => done && alive.has(key)));
   }
-  const alive = new Set((plates || []).map(plateKey));
-  plateDone = Object.fromEntries(Object.entries(plateDone).filter(([key, done]) => done && alive.has(key)));
   const hardwareDone = {};
   for (const row of hardware || []) {
     const old = (prev.hardware || {})[row.item];
     const sameQty = !!old && Number(old.qty) === Number(row.qty);
     hardwareDone[row.item] = { qty: Number(row.qty), done: sameQty && !!old.done };
   }
+  let assembleDone = { ...(prev.assemble || {}) };
+  if (assemble) {
+    assembleDone = {};
+    for (const row of assemble) {
+      const old = (prev.assemble || {})[row.key];
+      const sameQty = !!old && Number(old.qty) === Number(row.qty);
+      assembleDone[row.key] = { qty: Number(row.qty), done: sameQty && !!old.done };
+    }
+  }
   return {
-    progress: { ...prev, layoutKey: fingerprint || "", plates: plateDone, hardware: hardwareDone },
+    progress: {
+      ...prev,
+      layoutKey: plates ? (fingerprint || "") : (prev.layoutKey || ""),
+      plates: plateDone,
+      hardware: hardwareDone,
+      assemble: assembleDone,
+    },
     note,
   };
 }
 
-/** Plate-local corners. Matches plates.footprint_corners: rotate about the part origin, then translate. */
-export function partCorners(item) {
-  const radians = ((item.rot || 0) * Math.PI) / 180;
-  const c = Math.cos(radians);
-  const s = Math.sin(radians);
-  const width = item.w;
-  const depth = item.d;
-  return [[0, 0], [width, 0], [width, depth], [0, depth]].map(([u, v]) => [
-    item.x + u * c - v * s,
-    item.y + u * s + v * c,
-  ]);
-}
-
-export function insideBed(corners, bed, slack = 0.05) {
-  return corners.every(([x, y]) => x >= -slack && y >= -slack && x <= bed[0] + slack && y <= bed[1] + slack);
+/** missing | fits | unfit. A part fits the judged set only when every id fits. */
+export function partFitsScope(part, ids) {
+  if (!part || !part.file) return "missing";
+  if (!ids || !ids.length || !part.fits) return "unknown";
+  return ids.every((id) => part.fits[id]) ? "fits" : "unfit";
 }
 
 /** Replace the untouched upstream H2C + Kobra pair with the fleet. A resized or extended list is kept. */
@@ -89,5 +96,6 @@ export function decorateChoices(entries, filterOn) {
 export function checkedCount(progress) {
   const plates = Object.values((progress && progress.plates) || {}).filter(Boolean).length;
   const hardware = Object.values((progress && progress.hardware) || {}).filter((row) => row && row.done).length;
-  return { plates, hardware };
+  const assemble = Object.values((progress && progress.assemble) || {}).filter((row) => row && row.done).length;
+  return { plates, hardware, assemble };
 }
