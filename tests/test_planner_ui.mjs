@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { reconcileProgress, plateKey, partFitsScope, migratePrinters, decorateChoices, visiblePartRows, checkedCount } from "../planner.mjs";
+import { reconcileProgress, plateKey, partFitsScope, layerNotes, migratePrinters, decorateChoices, visiblePartRows, checkedCount } from "../planner.mjs";
 
 const plate = { printer: "u1", slots: [0], items: [{ part: "Guide", x: 1, y: 2, rot: 0 }] };
 const key = plateKey(plate);
@@ -39,6 +39,9 @@ assert.equal(checkedCount(asmPrev.progress).assemble, 0);
 assert.equal(partFitsScope({ file: "a", fits: { u1: true, p1s: false } }, ["u1", "p1s"]), "unfit");
 assert.equal(partFitsScope({ file: "a", fits: { u1: true } }, ["u1"]), "fits");
 assert.equal(partFitsScope({ file: null }, ["u1"]), "missing");
+assert.deepEqual(layerNotes({ reasons: [] }, [{ group: "L1 · S", name: "Box", qty: 1, file: "a", fits: { u1: false } }], ["u1"], 1), []);
+assert.deepEqual(layerNotes({ reasons: ["L1 · too wide"] }, [], [], 1), ["L1 · too wide"]);
+assert.deepEqual(layerNotes(null, [{ group: "L1 · S", name: "Box", qty: 2, file: "a", fits: { u1: false } }], ["u1"], 1), ["2× Box does not fit"]);
 
 const fleet = [{ id: "u1", bed: [270, 270] }];
 const stock = [{ id: "h2c", bed: [325, 320], z: 320 }, { id: "kobrax", bed: [260, 260], z: 260 }];

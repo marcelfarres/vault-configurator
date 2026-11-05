@@ -231,6 +231,35 @@ def test_unknown_height_becomes_one():
     bom, _ = server.compute_bom({"stack": {"depth": 5, "layers": [], "roof": {"type": "none"}, "mods": {}}, "fitTarget": "every"})
     assert bom["judged"]["scope"] == "every" and len(bom["judged"]["printers"]) == 4
     assert "optionFits" not in bom
+    assert [entry["value"] for entry in bom["choices"]["depth"]] == list(catalog.DEPTHS)
+    assert [entry["value"] for entry in bom["choices"]["roof"]] == list(catalog.ROOFS)
+    judged_bom, _ = server.compute_bom({
+        "fitChoices": True,
+        "fitTarget": "h2d-left",
+        "stack": {"depth": 5, "layers": [{"type": "Drawers", "layout": "S", "height": 9, "facades": [[9]],
+                                          "interior": "none", "key": "none"}], "roof": {"type": "none"}, "mods": {}},
+    })
+    assert judged_bom["stack"]["depth"] == 5
+    assert judged_bom["stack"]["layers"][0]["height"] == 1
+    assert judged_bom["stack"]["layers"][0]["facades"] == [[1]]
+    assert judged_bom["choices"] is judged_bom["optionFits"]
+    assert [entry["value"] for entry in judged_bom["choices"]["depth"]] == list(catalog.DEPTHS)
+    assert [entry["value"] for entry in judged_bom["choices"]["layers"][0]["height"]] == list(catalog.HEIGHTS)
+    assert isinstance(judged_bom["choices"]["layers"][0]["reasons"], list)
+    frame = stackfit.choice_frame(json.loads(json.dumps(judged_bom["stack"])))
+    h2d = plates.catalog_printer("Bambu Lab H2D · left nozzle", "h2d-left")
+
+    class Found:
+        def find(self, name, hint=""):
+            return "virtual/" + name + ".stl"
+
+        def divider(self, folder, length):
+            return "virtual/divider.stl"
+
+    judged = stackfit.fit_choices(judged_bom["stack"], [h2d], 0, Found(), {}, lambda path: {"size": [30, 20, 10], "volume_cm3": 1, "area_cm2": 1}, lambda rel: True)
+    assert [entry["value"] for entry in judged["depth"]] == [entry["value"] for entry in frame["depth"]]
+    assert "fits" in judged["depth"][0] and "fits" not in frame["depth"][0]
+    assert judged["layers"][0]["reasons"] == []
 
 
 if __name__ == "__main__":

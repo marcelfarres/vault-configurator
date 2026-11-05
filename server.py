@@ -1,4 +1,5 @@
 """Local web server for the VAULT configurator.  Run:  python server.py  (opens the browser)."""
+import copy
 import io
 import json
 import os
@@ -112,6 +113,8 @@ def estimate_from_preset(s, p):
 
 
 def compute_bom(body):
+    body = dict(body)
+    body["stack"] = stackfit.normalize(copy.deepcopy(body.get("stack") or {}))
     s = settings_of(body)
     big = biggest_printer(s)
     est = estimate_from_preset(s, big) if s.get("estimateFromPreset", True) else None
@@ -156,10 +159,14 @@ def compute_bom(body):
                                    + (f" It fits a {' or a '.join(bigger)}." if bigger else ""))
     judged, scope = stackfit.judged_printers(s, body.get("fitTarget"))
     bom["judged"] = {"scope": scope, "printers": [{"id": p["id"], "name": p["name"]} for p in judged]}
-    if body.get("fitChoices"):
+    bom["stack"] = body["stack"]
+    if body.get("fitChoices") and judged:
         bom["optionFits"] = stackfit.fit_choices(body["stack"], judged, float(s["edge"]), INDEX, SITE, stats_fn, fits_whole)
         bom["optionFits"]["scope"] = scope
         bom["optionFits"]["printers"] = bom["judged"]["printers"]
+        bom["choices"] = bom["optionFits"]
+    else:
+        bom["choices"] = stackfit.choice_frame(body["stack"])
     return bom, s
 
 

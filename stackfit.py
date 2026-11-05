@@ -1,8 +1,7 @@
 """Which design choices fit a printer. Not the slicer handoff.
 
-The page repairs a layer with the same rules before the round trip (`fixLayer`).
-Unknown heights become 1 here and there. Choice lists are this catalog; the page
-only supplies display labels.
+Legal values live on `catalog`. This module repairs a stack with `normalize` and, when the
+fit control is on, attaches a verdict to each of those values. The page only supplies labels.
 """
 import copy
 import json
@@ -25,7 +24,7 @@ def judged_printers(settings, fit_target):
 
 
 def normalize(stack):
-    """Same layout/height/facade repair the page applies before it draws a layer."""
+    """Repair layout, XL height, an unknown height, and facades. The page draws this stack."""
     layers = stack.get("layers") or []
     if not layers:
         return stack
@@ -84,20 +83,58 @@ def judge_stack(stack, printers, edge, index, site, stats_fn, fits_whole):
     return {"fits": not reasons, "reason": reasons[0] if reasons else "", "reasons": reasons}
 
 
-def _option(value, current, verdict):
-    return {"value": value, "fits": verdict["fits"], "current": value == current, "reason": "" if verdict["fits"] else verdict["reason"]}
+def _entry(value, current):
+    return {"value": value, "current": value == current}
+
+
+def choice_frame(stack):
+    """The legal values for this stack. No fit verdict. `fit_choices` adds one onto each entry."""
+    normalize(stack)
+    layers_in = stack.get("layers") or []
+    current_depth = int(stack.get("depth") or catalog.DEPTHS[0])
+    depth = [_entry(d, current_depth) for d in catalog.DEPTHS]
+    current_roof = (stack.get("roof") or {}).get("type") or catalog.ROOFS[0]
+    roof = [_entry(name, current_roof) for name in catalog.ROOFS]
+    layers = []
+    base = catalog.LAYOUT_FAMILY[layers_in[0]["layout"]] if layers_in else "S"
+    for i, layer in enumerate(layers_in):
+        layouts = [_entry(layout, layer["layout"]) for layout in catalog.layouts_for(i == 0, base)]
+        height_now = int(layer["height"])
+        heights = [_entry(h, height_now) for h in catalog.heights_for(layer["layout"])]
+        types = [_entry(kind, layer.get("type") or "Drawers") for kind in catalog.LAYER_TYPES]
+        patterns = catalog.PATTERNS[height_now]
+        facades = layer.get("facades") or []
+        bays = []
+        for bay in range(len(catalog.LAYOUTS[layer["layout"]])):
+            current = facades[bay] if bay < len(facades) else patterns[0]
+            current_encoded = json.dumps(list(current), separators=(",", ":"))
+            bays.append([_entry(json.dumps(pattern, separators=(",", ":")), current_encoded) for pattern in patterns])
+        if layer.get("type") == "Sustainers" and catalog.LAYOUT_FAMILY[layer["layout"]] in ("L", "XL"):
+            interiors = [_entry(name, layer.get("variant") or "Flat") for name in catalog.SUSTAINER_INTERIORS]
+        elif layer.get("type") != "Sustainers":
+            interiors = [_entry(name, layer.get("interior") or "none") for name in catalog.DRAWER_INTERIORS]
+        else:
+            interiors = []
+        layers.append({"type": types, "layout": layouts, "height": heights, "facades": bays, "interior": interiors})
+    return {"depth": depth, "roof": roof, "layers": layers}
+
+
+def _stamp(entry, verdict):
+    entry["fits"] = verdict["fits"]
+    entry["reason"] = "" if verdict["fits"] else verdict["reason"]
+    return entry
 
 
 def fit_choices(stack, printers, edge, index, site, stats_fn, fits_whole):
-    """Legal choices for the current stack, each judged by the real parts that choice would require.
+    """Attach a fit verdict to `choice_frame`. The current value stays even when it does not fit.
 
-    The current value is always returned, even when it does not fit, so a saved or imported stack is
-    not rewritten. ``printers`` is the selected nozzle, or every enabled printer when the scope says so.
+    ``printers`` is the selected nozzle, or every enabled printer when the scope says so.
     """
-    if not printers:
-        return {"depth": [], "roof": [], "layers": [], "scope": "one"}
     original = copy.deepcopy(stack)
-    normalize(original)
+    frame = choice_frame(original)
+    if not printers:
+        frame["scope"] = "one"
+        return frame
     cache = {}
 
     def verdict_for(trial):
@@ -119,43 +156,33 @@ def fit_choices(stack, printers, edge, index, site, stats_fn, fits_whole):
                 trial["layers"][index_layer][field] = field_value
         return verdict_for(trial)
 
-    current_depth = int(original.get("depth") or 3)
-    depth = [_option(d, current_depth, vary(depth=d)) for d in (3, 4, 5, 6, 7)]
-    current_roof = (original.get("roof") or {}).get("type") or "none"
-    roof = [_option(name, current_roof, vary(roof=name)) for name in ("none", "grid", "table", "bowl", "undertable", "heavyweight")]
-    layers = []
-    base = catalog.LAYOUT_FAMILY[original["layers"][0]["layout"]] if original.get("layers") else "S"
+    for entry in frame["depth"]:
+        _stamp(entry, vary(depth=entry["value"]))
+    for entry in frame["roof"]:
+        _stamp(entry, vary(roof=entry["value"]))
     for i, layer in enumerate(original.get("layers") or []):
-        allowed = ["S", "M", "L", "XL"] if i == 0 else list(catalog.ALLOWED_LAYOUTS[base])
-        layouts = [_option(layout, layer["layout"], vary(layout=(i, "layout", layout))) for layout in allowed]
-        heights = [1] if catalog.LAYOUT_FAMILY[layer["layout"]] == "XL" else [1, 2, 4]
-        height = [_option(h, int(layer["height"]), vary(height=(i, "height", h))) for h in heights]
-        types = [_option(kind, layer.get("type") or "Drawers", vary(kind=(i, "type", kind))) for kind in ("Drawers", "Sustainers")]
-        patterns = catalog.PATTERNS[int(layer["height"])]
-        bays = []
+        card = frame["layers"][i]
+        for entry in card["layout"]:
+            _stamp(entry, vary(layout=(i, "layout", entry["value"])))
+        for entry in card["height"]:
+            _stamp(entry, vary(height=(i, "height", entry["value"])))
+        for entry in card["type"]:
+            _stamp(entry, vary(kind=(i, "type", entry["value"])))
         facades = layer.get("facades") or []
-        for bay in range(len(catalog.LAYOUTS[layer["layout"]])):
-            current = facades[bay] if bay < len(facades) else patterns[0]
-            choices = []
-            for pattern in patterns:
+        patterns = catalog.PATTERNS[int(layer["height"])]
+        for bay, choices in enumerate(card["facades"]):
+            for entry in choices:
                 trial = copy.deepcopy(original)
                 trial["layers"][i]["facades"] = [list(item) for item in facades]
                 while len(trial["layers"][i]["facades"]) <= bay:
                     trial["layers"][i]["facades"].append(list(patterns[0]))
-                trial["layers"][i]["facades"][bay] = list(pattern)
-                encoded = json.dumps(pattern, separators=(",", ":"))
-                current_encoded = json.dumps(list(current), separators=(",", ":"))
-                choices.append(_option(encoded, current_encoded, verdict_for(trial)))
-            bays.append(choices)
-        if layer.get("type") == "Sustainers" and catalog.LAYOUT_FAMILY[layer["layout"]] in ("L", "XL"):
-            interiors = [_option(name, layer.get("variant") or "Flat", vary(variant=(i, "variant", name))) for name in ("Flat", "Dividers", "Sealed")]
-        elif layer.get("type") != "Sustainers":
-            interiors = [_option(name, layer.get("interior") or "none", vary(interior=(i, "interior", name)))
-                         for name in ("none", "baseplate", "baseplate1h", "baseplate2h", "grid")]
-        else:
-            interiors = []
+                trial["layers"][i]["facades"][bay] = json.loads(entry["value"])
+                _stamp(entry, verdict_for(trial))
+        field = "variant" if layer.get("type") == "Sustainers" else "interior"
+        for entry in card["interior"]:
+            _stamp(entry, vary(**{field: (i, field, entry["value"])}))
         current = verdict_for(copy.deepcopy(original))
         prefix = f"L{i + 1} ·"
-        layers.append({"fits": current["fits"], "reasons": [r for r in current["reasons"] if r.startswith(prefix)],
-                       "type": types, "layout": layouts, "height": height, "facades": bays, "interior": interiors})
-    return {"depth": depth, "roof": roof, "layers": layers}
+        card["fits"] = current["fits"]
+        card["reasons"] = [reason for reason in current["reasons"] if reason.startswith(prefix)]
+    return frame

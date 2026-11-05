@@ -127,8 +127,7 @@ header a{color:var(--muted)}
   <div id="layers"></div>
   <h3 data-help="roof">Roof</h3>
   <div class="row"><label data-help="roof">Type <select id="roofType">
-    <option value="none">none</option><option value="grid">Gridfinity grid roof</option><option value="table">Table roof</option>
-    <option value="bowl">Bowl roof</option><option value="undertable">Under-table mount roof</option><option value="heavyweight">Heavyweight roof (L/XL)</option></select></label>
+    </select></label>
    <label data-help="topHandle"><input type="checkbox" id="topHandle" checked> Top handle (grid roof)</label></div>
   <h3 data-help="mods">Modifications <span class="note" data-help="backboneRule">(designer's advice: 2U right above the base and right below the roof)</span></h3>
   <div class="row">
@@ -277,13 +276,15 @@ header a{color:var(--muted)}
 <div id="lightbox"></div>
 <div id="viewer"><div class="bar"><b id="viewerTitle"></b><span id="viewerStatus" class="note"></span><span id="viewerExport" class="note"></span><span style="flex:1"></span><span class="note">drag to orbit · wheel to zoom · right-drag to pan</span><button type="button" id="viewerStl" class="small">Download STL</button><button type="button" id="viewer3mf" class="small">Export this part</button><button type="button" id="viewerClose">Close</button></div><canvas id="viewerCanvas"></canvas></div>
 <script type="module">
-import { reconcileProgress, plateKey, partFitsScope, migratePrinters, decorateChoices, visiblePartRows, checkedCount } from "./planner.mjs";
+import { reconcileProgress, plateKey, partFitsScope, layerNotes, migratePrinters, decorateChoices, visiblePartRows, checkedCount } from "./planner.mjs";
 const $=s=>document.querySelector(s);
 const el=(t,a={},...c)=>{const n=document.createElement(t);for(const[k,v]of Object.entries(a)){if(k==='class')n.className=v;else if(k.startsWith('on'))n[k]=v;else if(v!==undefined&&v!==null)n.setAttribute(k,v)}for(const x of c)n.append(x);return n};
 const svg=(t,a={},...c)=>{const n=document.createElementNS('http://www.w3.org/2000/svg',t);for(const[k,v]of Object.entries(a))n.setAttribute(k,v);for(const x of c)n.append(x);return n};
 let META=null, PRESETS=null, SPOOLS=[], state=null, bom=null, timer=null;
 const PATTERN_NAME=p=>p.join('+')+'U';
 const LAYOUT_LABEL={S:'S',M:'M',L:'L',XL:'XL',SS:'L width · two S bays',SM:'XL width · S + M bays'};
+const ROOF_LABEL={none:'none',grid:'Gridfinity grid roof',table:'Table roof',bowl:'Bowl roof',undertable:'Under-table mount roof',heavyweight:'Heavyweight roof (L/XL)'};
+const INTERIOR_LABEL={none:'empty',baseplate:'Gridfinity baseplate',baseplate1h:'baseplate · 1 handle',baseplate2h:'baseplate · 2 handles',grid:'grid dividers',Flat:'flat',Dividers:'dividers',Sealed:'sealed'};
 const FAM={S:'S',M:'M',L:'L',XL:'XL',SS:'L',SM:'XL'};
 const WIDTH={S:164.8,M:254,L:329.6,XL:418.8};
 
@@ -418,8 +419,6 @@ function load(){try{const raw=localStorage.getItem('vault-configurator');if(raw&
  s.progress=s.progress&&typeof s.progress==='object'?s.progress:{layoutKey:'',plates:{},hardware:{},assemble:{}};s.progress.plates=s.progress.plates||{};s.progress.hardware=s.progress.hardware||{};s.progress.assemble=s.progress.assemble||{};return s}}catch{}return defaultState()}
 function baseFamily(){const l=state.stack.layers[0];return l?FAM[l.layout]:null}
 function newLayer(){const base=baseFamily();const layout=base?META.allowed[base][0]:'S';const h=FAM[layout]==='XL'?1:2;return {type:'Drawers',layout,height:h,facades:META.layouts[layout].map(()=>[h]),interior:'none',key:'key',labels:true,rails:false,manualSupports:false,variant:'Flat',baseplate:false,gridW:1,gridD:1,divW:1,divD:2}}
-function fixLayer(l,i){const base=i===0?null:baseFamily();const allowed=base?META.allowed[base]:['S','M','L','XL'];if(!allowed.includes(l.layout))l.layout=allowed[0];if(FAM[l.layout]==='XL'||!META.patterns[l.height])l.height=1;const fams=META.layouts[l.layout];const pats=META.patterns[l.height];l.facades=fams.map((f,c)=>{const cur=l.facades&&l.facades[c];return cur&&pats.some(p=>JSON.stringify(p)===JSON.stringify(cur))?cur:pats[0]})}
-
 /* ---------------------------------------------------------------- tabs */
 function showTab(id){state.tab=id;document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active',b.dataset.tab===id));document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.id==='tab-'+id));save();if(id==='plates'&&state.stack.layers.length)refreshPlan()}
 async function refreshPlan(){try{const r=await api('/api/plan',{stack:state.stack,settings:state.settings,overrides:state.overrides});syncProgress(r.plan);renderPlan(r.plan)}catch(e){const host=$('#exportStatus');if(host)host.replaceChildren(el('span',{class:'bad'},e.message))}}
@@ -427,34 +426,34 @@ document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>showTab(b.datas
 
 /* ---------------------------------------------------------------- stack editor (top layer first) */
 function renderLayers(){const box=$('#layers');box.replaceChildren();if(!state.stack.layers.length)box.append(el('p',{class:'note'},'No layers yet. The first layer is the base and sets the family (S, M, L or XL) for the whole stack.'));
- state.stack.layers.forEach((l,i)=>fixLayer(l,i));
- [...state.stack.layers.keys()].reverse().forEach(i=>{const l=state.stack.layers[i];const base=i===0?null:baseFamily();const allowed=base?META.allowed[base]:['S','M','L','XL'];
+ [...state.stack.layers.keys()].reverse().forEach(i=>{const l=state.stack.layers[i];
   const card=el('div',{class:'layer','data-layer':i});
-  const title=el('div',{class:'title'},el('span',{},`Layer ${i+1}${i===0?' · base (bottom)':i===state.stack.layers.length-1?' · top':''} — ${LAYOUT_LABEL[l.layout]} · ${l.height}U · ${l.type}`),
+  const title=el('div',{class:'title'},el('span',{},`Layer ${i+1}${i===0?' · base (bottom)':i===state.stack.layers.length-1?' · top':''} — ${LAYOUT_LABEL[l.layout]||l.layout} · ${l.height}U · ${l.type}`),
    el('span',{},el('button',{class:'small',title:'move up',onclick:()=>move(i,1)},'↑'),' ',el('button',{class:'small',title:'move down',onclick:()=>move(i,-1)},'↓'),' ',el('button',{class:'small',onclick:()=>{state.stack.layers.splice(i,1);changed(true)}},'✕')));
-  const gateFor=(kind,bay)=>{const layer=optionFits()&&optionFits().layers&&optionFits().layers[i];if(!layer)return null;return bay==null?layer[kind]:(layer.facades||[])[bay]};
-  const sel=(opts,val,fn,kind,bay)=>{const s=el('select',{onchange:e=>{fn(e.target.value);changed(true)}});const entries=kind?gateFor(kind,bay):null;const dec=entries&&state.fitOnly?decorateChoices(entries.map(e=>({...e,current:String(e.value)===String(val)})),true):null;opts.forEach(([v,t])=>{const item=dec&&dec.items.find(e=>String(e.value)===String(v));const o=el('option',{value:v,selected:String(v)===String(val)?'':null,title:item&&item.reason||''},t+(item&&item.mark?' · '+item.mark:''));if(item&&item.disabled)o.disabled=true;s.append(o)});if(dec&&dec.warning)s.dataset.warning=dec.warning;return s};
+  const choiceLayer=()=>{const rows=bom&&bom.choices&&bom.choices.layers;return rows&&rows[i]||null};
+  const sel=(entries,val,fn,label)=>{const s=el('select',{onchange:e=>{fn(e.target.value);changed(true)}});const list=(entries&&entries.length)?entries:[{value:val,current:true}];const judged=list.some(e=>Object.prototype.hasOwnProperty.call(e,'fits'));const dec=judged&&state.fitOnly?decorateChoices(list.map(e=>({...e,current:String(e.value)===String(val)})),true):null;list.forEach(e=>{const item=dec&&dec.items.find(x=>String(x.value)===String(e.value));const text=label(e.value)+(item&&item.mark?' · '+item.mark:'');const o=el('option',{value:e.value,selected:String(e.value)===String(val)?'':null,title:(item&&item.reason)||e.reason||''},text);if(item&&item.disabled)o.disabled=true;s.append(o)});if(dec&&dec.warning)s.dataset.warning=dec.warning;return s};
   const chk=(val,fn)=>el('input',{type:'checkbox',onchange:e=>{fn(e.target.checked);changed(true)},...(val?{checked:''}:{})});
   const num=(val,fn,min=0)=>el('input',{type:'number',value:val,min,onchange:e=>{fn(+e.target.value);changed(true)}});
-  const typeSel=sel([['Drawers','Drawers'],['Sustainers','Sustainers']],l.type,v=>l.type=v,'type');
-  const widthSel=sel(allowed.map(a=>[a,LAYOUT_LABEL[a]]),l.layout,v=>l.layout=v,'layout');
-  const heightSel=sel((FAM[l.layout]==='XL'?[1]:[1,2,4]).map(h=>[h,h+'U']),l.height,v=>l.height=+v,'height');
+  const rows=choiceLayer()||{};
+  const typeSel=sel(rows.type,l.type,v=>l.type=v,v=>v);
+  const widthSel=sel(rows.layout,l.layout,v=>l.layout=v,v=>LAYOUT_LABEL[v]||v);
+  const heightSel=sel(rows.height,l.height,v=>l.height=+v,v=>v+'U');
   const r1=el('div',{class:'row'},el('label',{'data-help':'type'},'Type ',typeSel),el('label',{'data-help':'width'},'Width ',widthSel),el('label',{'data-help':'height'},'Height ',heightSel));
   card.append(title,r1);
-  if(l.type==='Drawers'){const fams=META.layouts[l.layout];const r2=el('div',{class:'row'});fams.forEach((f,c)=>r2.append(el('label',{'data-help':'facades'},`${fams.length>1?'Bay '+(c+1)+' ('+f+') ':''}Facades `,sel(META.patterns[l.height].map(p=>[JSON.stringify(p),PATTERN_NAME(p)]),JSON.stringify(l.facades[c]),v=>l.facades[c]=JSON.parse(v),'facades',c))));
-   const r3=el('div',{class:'row'},el('label',{'data-help':'interior'},'Interior ',sel([['none','empty'],['baseplate','Gridfinity baseplate'],['baseplate1h','baseplate · 1 handle'],['baseplate2h','baseplate · 2 handles'],['grid','grid dividers']],l.interior,v=>l.interior=v,'interior')),
-    el('label',{'data-help':'key'},'Lock ',sel([['key','key'],['hidden','hidden key'],['none','none']],l.key,v=>l.key=v)),
+  if(l.type==='Drawers'){const fams=META.layouts[l.layout];const r2=el('div',{class:'row'});fams.forEach((f,c)=>r2.append(el('label',{'data-help':'facades'},`${fams.length>1?'Bay '+(c+1)+' ('+f+') ':''}Facades `,sel((rows.facades||[])[c],JSON.stringify(l.facades[c]),v=>l.facades[c]=JSON.parse(v),p=>PATTERN_NAME(JSON.parse(p))))));
+   const r3=el('div',{class:'row'},el('label',{'data-help':'interior'},'Interior ',sel(rows.interior,l.interior,v=>l.interior=v,v=>INTERIOR_LABEL[v]||v)),
+    el('label',{'data-help':'key'},'Lock ',sel([{value:'key'},{value:'hidden'},{value:'none'}],l.key,v=>l.key=v,v=>v==='hidden'?'hidden key':v)),
     el('label',{'data-help':'labels'},chk(l.labels,v=>l.labels=v),'labels'),el('label',{'data-help':'rails'},chk(l.rails,v=>l.rails=v),'geared rails'),el('label',{'data-help':'manualSupports'},chk(l.manualSupports,v=>l.manualSupports=v),'manual support wall'));
    card.append(r2,r3);
-   if(l.interior==='grid')card.append(el('div',{class:'row'},el('label',{},'Width dividers ',num(l.gridW,v=>l.gridW=v)),el('label',{},'Depth dividers ',num(l.gridD,v=>l.gridD=v)),el('label',{},'Height ',sel([['','full drawer height'],['20','20 mm']],l.gridHeight||'',v=>l.gridHeight=v||undefined))));
-  }else{const fam={S:'S',M:'M',L:'L',XL:'XL',SS:'S',SM:'S'}[l.layout];const big=['L','XL'].includes(fam);
+   if(l.interior==='grid')card.append(el('div',{class:'row'},el('label',{},'Width dividers ',num(l.gridW,v=>l.gridW=v)),el('label',{},'Depth dividers ',num(l.gridD,v=>l.gridD=v)),el('label',{},'Height ',sel([{value:''},{value:'20'}],l.gridHeight||'',v=>l.gridHeight=v||undefined,v=>v?v+' mm':'full drawer height'))));
+  }else{const interiors=rows.interior||[];
    const r2=el('div',{class:'row'});
-   if(big)r2.append(el('label',{'data-help':'variant'},'Interior ',sel([['Flat','flat'],['Dividers','dividers'],['Sealed','sealed']],l.variant,v=>l.variant=v,'interior')));
+   if(interiors.length)r2.append(el('label',{'data-help':'variant'},'Interior ',sel(interiors,l.variant,v=>l.variant=v,v=>INTERIOR_LABEL[v]||v)));
    else r2.append(el('label',{'data-help':'dividers'},chk(l.dividers,v=>l.dividers=v),'dividers'));
    r2.append(el('label',{'data-help':'baseplate'},chk(l.baseplate,v=>l.baseplate=v),'Gridfinity baseplate'));
-   if((big&&l.variant==='Dividers')||(!big&&l.dividers))r2.append(el('label',{},'Width dividers ',num(l.divW,v=>l.divW=v)),big?el('label',{},'Depth dividers ',num(l.divD,v=>l.divD=v)):'');
+   if((interiors.length&&l.variant==='Dividers')||(!interiors.length&&l.dividers))r2.append(el('label',{},'Width dividers ',num(l.divW,v=>l.divW=v)),interiors.length?el('label',{},'Depth dividers ',num(l.divD,v=>l.divD=v)):'');
    card.append(r2);}
-  const notes=layerFitNotes(i);const layerUnfit=bom&&bom.parts.some(p=>p.group.startsWith('L'+(i+1)+' ·')&&partFitsScope(p,scopeIds())==='unfit');if(layerUnfit)title.querySelector('span').append(el('span',{class:'chip bad fitgem'},'does not fit'));if(notes.length)card.append(el('p',{class:'warn'},notes.slice(0,3).join(' · ')+(notes.length>3?` · ${notes.length-3} more`:'')));
+  const notes=layerFitNotes(i);if(notes.length){title.querySelector('span').append(el('span',{class:'chip bad fitgem'},'does not fit'));card.append(el('p',{class:'warn'},notes.slice(0,3).join(' · ')+(notes.length>3?` · ${notes.length-3} more`:'')));}
   [typeSel,widthSel,heightSel].forEach(s=>{if(s.dataset.warning)card.append(el('p',{class:'warn'},s.dataset.warning))});
   box.append(card)});
  $('#roofType').disabled=!state.stack.layers.length;applyGlobalChoiceGates()}
@@ -625,6 +624,7 @@ const fmtH=sec=>{const m=Math.round(sec/60);return `${Math.floor(m/60)}h ${Strin
 async function compute(){if(!state.stack.layers.length){bom=null;renderBom();renderPresetTable();renderMeta();return}
  $('#status').textContent='Computing parts and geometry… (first run reads the STL files; later runs are instant)';
  try{bom=await api('/api/bom',{stack:state.stack,settings:state.settings,overrides:state.overrides,fitChoices:!!state.fitOnly,fitTarget:state.fitTarget||'every'});$('#status').textContent='';}catch(e){$('#status').replaceChildren(el('span',{class:'bad'},e.message));return}
+ if(bom.stack){state.stack.layers=bom.stack.layers;if(bom.stack.depth!=null)state.stack.depth=bom.stack.depth;if(bom.stack.roof)state.stack.roof={...state.stack.roof,...bom.stack.roof};fillStack()}
  syncProgress(null);renderBom();renderPresetTable();renderFilaments();renderColours();drawSchematic();renderLayers();renderMeta();if(state.tab==='plates')refreshPlan()}
 
 function renderBom(){const cards=$('#cards'),pt=$('#parts tbody'),ht=$('#hardware tbody');cards.replaceChildren();pt.replaceChildren();ht.replaceChildren();$('#warnings').replaceChildren();$('#warnings2').replaceChildren();if(!bom){renderDesignParts();renderAssemble();return}
@@ -653,11 +653,11 @@ function renderBom(){const cards=$('#cards'),pt=$('#parts tbody'),ht=$('#hardwar
 function optionFits(){return bom&&bom.optionFits}
 function scopeIds(){return ((bom&&bom.judged&&bom.judged.printers)||[]).map(p=>p.id)}
 function scopeLabel(){if(!bom||!bom.judged)return 'the selected printer';if(bom.judged.scope==='every')return 'every enabled printer';const name=(bom.judged.printers[0]&&bom.judged.printers[0].name)||'';return name.replace(/^Bambu Lab /,'').replace(/^Snapmaker /,'')||'the selected printer'}
-function layerFitNotes(i){const fromServer=optionFits()&&optionFits().layers&&optionFits().layers[i]&&optionFits().layers[i].reasons;if(fromServer&&fromServer.length)return fromServer;if(!bom)return [];return bom.parts.filter(p=>p.group.startsWith('L'+(i+1)+' ·')).flatMap(p=>{const fit=partFitsScope(p,scopeIds());if(fit==='missing')return [`File not found: ${p.name}`];if(fit==='unfit')return [`${p.qty}× ${p.name} does not fit ${scopeLabel()}`];return []})}
+function layerFitNotes(i){const matrix=optionFits()&&optionFits().layers;if(matrix)return layerNotes(matrix[i]||{reasons:[]},[],[],i+1);return layerNotes(null,bom&&bom.parts,scopeIds(),i+1).map(n=>n.endsWith('does not fit')?`${n} ${scopeLabel()}`:n)}
 function syncProgress(plan){const hw=bom?bom.hardware.map(h=>({item:h.item,qty:+h.qty})):[];const asm=bom?bom.parts.map(p=>({key:p.group+'|'+p.name,qty:+p.qty})):[];const rec=reconcileProgress(state.progress,plan?plan.fingerprint:state.progress.layoutKey,plan?plan.plates:null,hw,asm);state.progress=rec.progress;state.progressNote=rec.note||'';save();return rec.note}
 function plateProgressText(total){return `${checkedCount(state.progress).plates}/${total} plates marked printed. This is a manual check, not a connection to a printer.`}
-function paintSelect(select,entries){if(!select)return;[...select.options].forEach(o=>{if(!o.dataset.base)o.dataset.base=o.textContent});if(!entries||!state.fitOnly){[...select.options].forEach(o=>{o.disabled=false;o.textContent=o.dataset.base;o.title=''});select.dataset.warning='';return}const dec=decorateChoices(entries.map(e=>({...e,current:String(e.value)===String(select.value)})),true);dec.items.forEach(item=>{const opt=[...select.options].find(o=>o.value===String(item.value));if(!opt)return;opt.disabled=!!item.disabled;opt.textContent=opt.dataset.base+(item.mark?' · '+item.mark:'');opt.title=item.reason||''});select.dataset.warning=dec.warning||''}
-function applyGlobalChoiceGates(){const fits=optionFits();paintSelect($('#depth'),fits&&fits.depth);paintSelect($('#roofType'),fits&&fits.roof);const host=$('#fitScope');if(!host)return;const who=scopeLabel();if(!state.fitOnly)host.textContent='All choices stay available. Every required part stays in the list. A part that does not fit '+who+' is marked, not removed.';else if(bom&&bom.judged&&bom.judged.scope==='every')host.textContent='A choice is offered only when every required part fits every enabled printer. The current choice stays selected when it does not. The parts list is never filtered.';else host.textContent='Choices are judged only against '+who+', using each part’s real mesh size. Other enabled printers are still used when you export. A saved choice that does not fit stays selected and is marked.'}
+function fillCatalogSelect(select,entries,current,label){if(!select||!entries||!entries.length)return;const judged=entries.some(e=>Object.prototype.hasOwnProperty.call(e,'fits'));const dec=judged&&state.fitOnly?decorateChoices(entries.map(e=>({...e,current:String(e.value)===String(current)})),true):null;select.replaceChildren();entries.forEach(e=>{const item=dec&&dec.items.find(x=>String(x.value)===String(e.value));const o=el('option',{value:e.value,selected:String(e.value)===String(current)?'':null,title:(item&&item.reason)||''},label(e.value)+(item&&item.mark?' · '+item.mark:''));if(item&&item.disabled)o.disabled=true;select.append(o)});select.dataset.warning=(dec&&dec.warning)||''}
+function applyGlobalChoiceGates(){const choices=bom&&bom.choices;fillCatalogSelect($('#depth'),choices&&choices.depth,state.stack.depth,v=>`${v} · ${(156.1+(v-3)*42).toFixed(1)} mm`);fillCatalogSelect($('#roofType'),choices&&choices.roof,state.stack.roof&&state.stack.roof.type,v=>ROOF_LABEL[v]||v);const host=$('#fitScope');if(!host)return;const who=scopeLabel();if(!state.fitOnly)host.textContent='All choices stay available. Every required part stays in the list. A part that does not fit '+who+' is marked, not removed.';else if(bom&&bom.judged&&bom.judged.scope==='every')host.textContent='A choice is offered only when every required part fits every enabled printer. The current choice stays selected when it does not. The parts list is never filtered.';else host.textContent='Choices are judged only against '+who+', using each part’s real mesh size. Other enabled printers are still used when you export. A saved choice that does not fit stays selected and is marked.'}
 function renderMeta(prep){const archive=!META||!META.files?'archive not connected':(prep&&prep.total&&prep.done<prep.total?`measuring geometry ${prep.done}/${prep.total}`:'archive indexed');let print='';if(bom&&state&&state.stack.layers.length){const ids=scopeIds();const bad=bom.parts.filter(p=>partFitsScope(p,ids)==='unfit');const missing=bom.parts.filter(p=>partFitsScope(p,ids)==='missing');const who=scopeLabel();if(!ids.length)print=' · no printer is enabled';else if(!bad.length&&!missing.length)print=` · required parts fit ${who}`;else print=' · '+[bad.length?`${bad.length} required part${bad.length===1?'':'s'} do not fit ${who}`:'',missing.length?`${missing.length} file${missing.length===1?'':'s'} missing`:''].filter(Boolean).join(' · ')}$('#meta').textContent=`${META?META.files:0} STL files indexed · ${archive}${print}`}
 function renderFleet(){const box=$('#fleet');if(!box)return;box.replaceChildren();state.settings.printers.forEach(p=>{const b=el('button',{type:'button',class:'small','aria-pressed':p.enabled?'true':'false',onclick:()=>{p.enabled=!p.enabled;if(state.fitTarget===p.id)state.fitTarget='';changed();renderSetup()}},p.name.replace(/^Bambu Lab /,'').replace(/^Snapmaker /,''));box.append(b)});const sel=$('#fitTarget');if(!sel)return;if(state.fitTarget==='all')state.fitTarget='every';if(state.fitTarget!=='every'&&!state.settings.printers.some(p=>p.enabled&&p.id===state.fitTarget)){const first=state.settings.printers.find(p=>p.enabled);if(first)state.fitTarget=first.id}const cur=state.fitTarget||'every';sel.replaceChildren(el('option',{value:'every',...(cur==='every'?{selected:''}:{})},'every enabled printer — must fit each'));state.settings.printers.filter(p=>p.enabled).forEach(p=>sel.append(el('option',{value:p.id,...(cur===p.id?{selected:''}:{})},p.name.replace(/^Bambu Lab /,'').replace(/^Snapmaker /,''))));applyGlobalChoiceGates()}
 function renderDesignParts(){const box=$('#designParts');if(!box)return;box.replaceChildren();if(!bom||!bom.parts.length){box.append(el('p',{class:'note'},META&&META.files?'Add a layer. Quantities, size and fit show up here.':'No archive is connected, so part files cannot be listed yet. You can still arrange the stack.'));return}const who=scopeLabel();visiblePartRows(bom.parts).forEach(p=>{const col=state.settings.filaments[state.settings.roles[p.role]??0].color;const fit=partFitsScope(p,scopeIds());const size=p.size?p.size.map(v=>Number(v).toFixed(1)).join('×'):'?';box.append(el('div',{class:'partline'},thumb(p.file,col,48)||el('span'),el('div',{},el('b',{},`${p.qty}× ${p.name}`),el('div',{class:'note'},`${p.group} · ${size} mm · ${p.seconds!=null?fmtH(p.seconds):'time ?'}`)),el('span',{class:fit==='fits'?'ok':'bad'},fit==='missing'?'file missing':fit==='fits'?`fits ${who}`:`does not fit ${who}`)))})}
@@ -721,7 +721,6 @@ $('#mergeParts').onchange=e=>{state.merge=e.target.checked;save();renderBom()};
 document.querySelectorAll('[data-mod]').forEach(i=>i.addEventListener('change',()=>changed()));
 
 (async()=>{META=await (await fetch('/api/meta')).json();PRESETS=await (await fetch('/api/presets')).json();state=load();
- for(const d of [3,4,5,6,7])$('#depth').append(el('option',{value:d},`${d} · ${(156.1+(d-3)*42).toFixed(1)} mm`));
  renderMeta();
  $('#helpOn').checked=state.help!==false;if(state.settings.spoolman)$('#spoolmanBox').open=true;
  if(!META.local){$('#presetUpload').style.display='';presetStatus()}

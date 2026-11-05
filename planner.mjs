@@ -55,6 +55,23 @@ export function partFitsScope(part, ids) {
   return ids.every((id) => part.fits[id]) ? "fits" : "unfit";
 }
 
+/**
+ * Layer warning text. A fit matrix owns the sentence, including when `reasons` is empty.
+ * Without a matrix, the page falls back to part fit.
+ */
+export function layerNotes(layerEntry, parts, ids, layerNumber) {
+  if (layerEntry && Array.isArray(layerEntry.reasons)) return layerEntry.reasons.slice();
+  const prefix = `L${layerNumber} ·`;
+  const notes = [];
+  for (const part of parts || []) {
+    if (!String(part.group || "").startsWith(prefix)) continue;
+    const fit = partFitsScope(part, ids);
+    if (fit === "missing") notes.push(`File not found: ${part.name}`);
+    else if (fit === "unfit") notes.push(`${part.qty}× ${part.name} does not fit`);
+  }
+  return notes;
+}
+
 /** Replace the untouched upstream H2C + Kobra pair with the fleet. A resized or extended list is kept. */
 export function migratePrinters(saved, fleet) {
   if (!Array.isArray(saved) || saved.length !== 2 || !Array.isArray(fleet)) return saved;

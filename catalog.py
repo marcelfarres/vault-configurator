@@ -14,6 +14,25 @@ LAYOUTS = {"S": ["S"], "M": ["M"], "L": ["L"], "XL": ["XL"], "SS": ["S", "S"], "
 LAYOUT_FAMILY = {"S": "S", "M": "M", "L": "L", "XL": "XL", "SS": "L", "SM": "XL"}
 ALLOWED_LAYOUTS = {"S": ["S"], "M": ["M"], "L": ["L", "SS"], "XL": ["XL", "SM"]}
 PATTERNS = {1: [[1]], 2: [[2], [1, 1]], 4: [[4], [2, 2], [1, 1, 1, 1], [2, 1, 1], [1, 1, 2]]}
+DEPTHS = (3, 4, 5, 6, 7)
+ROOFS = ("none", "grid", "table", "bowl", "undertable", "heavyweight")
+LAYER_TYPES = ("Drawers", "Sustainers")
+DRAWER_INTERIORS = ("none", "baseplate", "baseplate1h", "baseplate2h", "grid")
+SUSTAINER_INTERIORS = ("Flat", "Dividers", "Sealed")
+BASE_LAYOUTS = ("S", "M", "L", "XL")
+HEIGHTS = (1, 2, 4)
+
+
+def heights_for(layout):
+    """Unit heights a layout may use. XL is 1U only."""
+    return (1,) if LAYOUT_FAMILY[layout] == "XL" else HEIGHTS
+
+
+def layouts_for(is_base, base_family):
+    """Widths a layer may use. The base picks the family; later layers stay inside it."""
+    if is_base:
+        return BASE_LAYOUTS
+    return tuple(ALLOWED_LAYOUTS[base_family])
 WIDTH = {"S": 164.8, "M": 254.0, "L": 329.6, "XL": 418.8}
 
 
