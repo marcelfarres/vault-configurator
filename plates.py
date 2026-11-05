@@ -1,4 +1,6 @@
 """Printer assignment, plate packing and 3MF export of a BOM."""
+import hashlib
+import json
 import math
 import os
 import re
@@ -6,13 +8,7 @@ import time
 
 import mesh
 
-DEFAULT_PRINTERS = [  # bed sizes taken from the user's own slicer projects (printable_area)
-    # H2C: one nozzle alone reaches 325 x 320 x 320 (left: x 0-325, right: x 25-330); only the union is 330 wide
-    {"id": "h2c", "name": "Bambu Lab H2C", "bed": [325, 320], "z": 320, "maxH": 320, "enabled": True,
-     "slicer": "bambu", "profile": "Bambu Lab H2C", "nozzle": "0.4", "preset": ""},
-    {"id": "kobrax", "name": "Anycubic Kobra X", "bed": [260, 260], "z": 260, "maxH": 120, "enabled": True,
-     "slicer": "anycubic", "profile": "Anycubic Kobra X", "nozzle": "0.4", "preset": ""},
-]
+# Default printers are filled in after PRINTER_CATALOG (U1, P1S, H2D left, H2D right).
 # "Add printer" list. Bambu beds from Bambu Studio's machine presets, Anycubic from Anycubic Slicer Next's,
 # the rest from the makers' spec sheets; `profile` is the model name the slicer's presets carry.
 PRINTER_CATALOG = [{"name": n, "profile": n, "bed": [x, y], "z": z, "slicer": sl} for sl, rows in {
@@ -36,6 +32,22 @@ for model, y, left, right in (("Bambu Lab H2C", 320, (325, 320), (305, 325, 25))
                         {"name": f"{model} · right nozzle", "profile": model, "bed": [right[0], y], "z": right[1], "slicer": "bambu",
                          "nozzleSide": "right", "origin": [right[2], 0]}]
 PRINTER_CATALOG.sort(key=lambda p: p["name"])
+
+
+def catalog_printer(name, pid):
+    """One add-printer row, with the id and nozzle fields the rest of the app expects."""
+    src = next(p for p in PRINTER_CATALOG if p["name"] == name)
+    return {**src, "bed": list(src["bed"]), "id": pid, "maxH": src["z"], "enabled": True, "nozzle": "0.4", "preset": ""}
+
+
+# Personal fleet. H2C and the other catalog rows stay available from Add printer.
+# H2D is one row per nozzle: each nozzle reaches only part of the physical plate.
+DEFAULT_PRINTERS = [
+    catalog_printer("Snapmaker U1", "u1"),
+    catalog_printer("Bambu Lab P1S", "p1s"),
+    catalog_printer("Bambu Lab H2D · left nozzle", "h2d-left"),
+    catalog_printer("Bambu Lab H2D · right nozzle", "h2d-right"),
+]
 MATERIALS = ["PLA", "PETG", "PETG-CF", "PETG-GF", "ASA", "ABS", "TPU"]
 DEFAULT_FILAMENTS = [  # one slot per colour role; `preset` = slicer filament preset per printer id
     {"name": "light grey", "color": "#9da3a8", "material": "PETG", "preset": {}},
@@ -260,11 +272,30 @@ def diagonal_rows(group_items, bed, gap, edge):
     return rows
 
 
+def footprint_corners(it):
+    """Plate-local corners of a packed part. Same rotation as the 3MF writer: rotate about the
+    part origin, then translate by (x, y)."""
+    a = math.radians(it.get("rot") or 0)
+    c, s = math.cos(a), math.sin(a)
+    w, d = it["w"], it["d"]
+    return [(it["x"] + u * c - v * s, it["y"] + u * s + v * c) for u, v in ((0, 0), (w, 0), (w, d), (0, d))]
+
+
+def plate_fingerprint(plates):
+    """Stable id for a layout. A coordinate, part or printer change produces a new id."""
+    rows = []
+    for pl in plates:
+        items = sorted((it["part"], it.get("x"), it.get("y"), it.get("rot"), it.get("file")) for it in pl["items"])
+        rows.append({"printer": pl["printer"], "slots": list(pl["slots"]), "items": items})
+    return hashlib.sha1(json.dumps(rows, separators=(",", ":")).encode()).hexdigest()[:16]
+
+
 def plan(parts, settings, stats_fn):
     """parts: BOM lines (with qty). Returns plates and per-part fit info.
 
     Every plate holds ONE filament (colour changes cost time even on a multi-material printer).
     groupBy: 'color' (default) = all parts of a colour on a printer packed together, fewest plates;
+    'size' = large and small parts of one colour stay on separate plates;
     'module' = a module's parts of one colour stay on their own plates."""
     s = {**DEFAULT_SETTINGS, **settings}
     printers = [p for p in s["printers"] if p.get("enabled", True)]
@@ -322,6 +353,10 @@ def plan(parts, settings, stats_fn):
         mine = [it for it in items if it["printer"] == p["id"]]
 
         def keyf(it):
+            if s["groupBy"] == "size":
+                bed = next(pr["bed"] for pr in printers if pr["id"] == it["printer"])
+                band = "large" if max(it["w"], it["d"]) > 0.5 * min(bed) else "small"
+                return (band, it["slot"])
             return (it["group"] if s["groupBy"] == "module" else "", it["slot"])
         for key in sorted({keyf(it) for it in mine}, key=str):
             bucket = sorted([it for it in mine if keyf(it) == key], key=lambda it: -(it["w"] * it["d"]))
@@ -347,6 +382,7 @@ def plan(parts, settings, stats_fn):
                     packers.append(pk)
             for pk in packers:
                 plates.append({"printer": p["id"], "group": key[0], "slots": sorted({i["slot"] for i in pk.items}), "items": expand(pk.items), "fill": round(pk.fill(), 2),
+                               "bed": list(p["bed"]), "origin": list(p.get("origin") or (0, 0)),
                                **({"diagonal": True} if getattr(pk, "diagonal", False) else {})})
     for n, pl in enumerate(plates):
         pl["name"] = plate_name(n + 1, pl, s)
@@ -355,8 +391,13 @@ def plan(parts, settings, stats_fn):
         pl["height"] = max(i["h"] for i in pl["items"])
     pieces = sum(int(l.get("qty", 0)) for l in parts if l.get("file"))
     placed = sum(len(pl["items"]) for pl in plates)
-    return {"plates": plates, "unplaceable": unplaceable, "load": load, "pieces": pieces, "placed": placed,
-            "missing": pieces - placed}  # placed + unplaceable quantities must add up to the BOM; anything else is a bug
+    result = {"plates": plates, "unplaceable": unplaceable, "load": load, "pieces": pieces, "placed": placed,
+              "missing": pieces - placed}  # placed + unplaceable quantities must add up to the BOM; anything else is a bug
+    for pl in plates:
+        for it in pl["items"]:
+            it["corners"] = [[round(x, 2), round(y, 2)] for x, y in footprint_corners(it)]
+    result["fingerprint"] = plate_fingerprint(plates)
+    return result
 
 
 def plate_name(n, plate, s):
@@ -446,6 +487,19 @@ def export(plan_result, settings, out_dir, root, stats_fn, stack_name="vault", s
     return written
 
 
+def sample_plan():
+    """Synthetic bed picture for an empty archive. Not VAULT geometry."""
+    stats = {"large": {"size": [160, 70, 30], "volume_cm3": 40, "area_cm2": 180},
+             "small": {"size": [28, 28, 8], "volume_cm3": 2, "area_cm2": 20}}
+    parts = [{"name": "synthetic large", "file": "large", "qty": 1, "role": "main", "group": "sample", "kind": "other"},
+             {"name": "synthetic small", "file": "small", "qty": 4, "role": "accent", "group": "sample", "kind": "other"}]
+    u1 = next(p for p in DEFAULT_PRINTERS if p["id"] == "u1")
+    result = plan(parts, {"printers": [u1], "mode": "u1", "groupBy": "color"}, lambda f: stats[f])
+    result["synthetic"] = True
+    result["label"] = "Synthetic rectangles on a Snapmaker U1 bed. Not VAULT parts."
+    return result
+
+
 def plan_tests(parts, settings, kinds, stats_fn):
     """Test plates: per printer, one plate per selected kind holding one of each part of that kind
     (an assembly's parts together), so settings can be tuned before the real export."""
@@ -471,48 +525,54 @@ if __name__ == "__main__":  # self-check on synthetic parts
     stats = {"a": {"size": [100, 50, 30], "volume_cm3": 100, "area_cm2": 400}, "b": {"size": [300, 40, 20], "volume_cm3": 50, "area_cm2": 300}, "c": {"size": [20, 20, 150], "volume_cm3": 1, "area_cm2": 10}}
     g, _ = estimate({"name": "x"}, {"volume_cm3": 262.1, "area_cm2": 1571.6}, DEFAULT_SETTINGS)
     assert abs(g - 202.5) < 12, g  # S3 module body: sheet says 202.5 g
-    a = fits([330, 105, 272], DEFAULT_PRINTERS[0])
-    assert a is not None and 0 < a < 90 and fits([330, 105, 272], DEFAULT_PRINTERS[1]) is None  # L6 2U module: H2C across the diagonal, Kobra too tall
-    rows = diagonal_rows([{"diag": a, "w": 330, "d": 105, "h": 272, "slot": 0, "part": "L"} for _ in range(3)], DEFAULT_PRINTERS[0]["bed"], 6, 0)
+    # Geometry fixtures stay the H2C reachable bed and the Kobra's short-part limit. They are not the default fleet.
+    legacy = {"printers": [
+        {"id": "h2c", "name": "Bambu Lab H2C", "bed": [325, 320], "z": 320, "maxH": 320, "enabled": True, "slicer": "bambu", "profile": "Bambu Lab H2C", "nozzle": "0.4"},
+        {"id": "kobrax", "name": "Anycubic Kobra X", "bed": [260, 260], "z": 260, "maxH": 120, "enabled": True, "slicer": "anycubic", "profile": "Anycubic Kobra X", "nozzle": "0.4"},
+    ]}
+    h2c, kobra = legacy["printers"]
+    a = fits([330, 105, 272], h2c)
+    assert a is not None and 0 < a < 90 and fits([330, 105, 272], kobra) is None  # L6 2U module: H2C across the diagonal, Kobra too tall
+    rows = diagonal_rows([{"diag": a, "w": 330, "d": 105, "h": 272, "slot": 0, "part": "L"} for _ in range(3)], h2c["bed"], 6, 0)
     assert [len(r) for r in rows] == [1, 1, 1]  # a 330 mm module across the 325 bed leaves no room for a second one...
     for (gw, gd) in ((270, 27), (27, 270)):  # ...but thin 270 mm runner guides go three per Kobra plate, whichever way the STL lies
-        bars = [expand(r) for r in diagonal_rows([{"diag": 25.0, "w": gw, "d": gd, "h": 10, "slot": 0, "part": "guide", "grams": 1, "seconds": 1} for _ in range(7)], DEFAULT_PRINTERS[1]["bed"], 6, 0)]
+        bars = [expand(r) for r in diagonal_rows([{"diag": 25.0, "w": gw, "d": gd, "h": 10, "slot": 0, "part": "guide", "grams": 1, "seconds": 1} for _ in range(7)], kobra["bed"], 6, 0)]
         assert [len(r) for r in bars] == [3, 3, 1], [len(r) for r in bars]
         for r in bars:
             for it in r:
-                aa = math.radians(it["rot"]); cc, ss = math.cos(aa), math.sin(aa)
-                for u, v in [(0, 0), (gw, 0), (0, gd), (gw, gd)]:  # the part's own corners through its transform
-                    px, py = it["x"] + u * cc - v * ss, it["y"] + u * ss + v * cc
+                for px, py in footprint_corners({**it, "w": gw, "d": gd}):
                     assert SAFE_EDGE - 1e-6 <= px <= 260 - SAFE_EDGE + 1e-6 and SAFE_EDGE - 1e-6 <= py <= 260 - SAFE_EDGE + 1e-6, (gw, gd, it, px, py)
-    pk = Shelf(DEFAULT_PRINTERS[0]["bed"], SAFE_EDGE, 6)
-    pk.items, pk.free = expand(rows[0]), corner_rects(rows[0][0], DEFAULT_PRINTERS[0]["bed"], 6, SAFE_EDGE)
+    turned = [(round(x), round(y)) for x, y in footprint_corners({"x": 10, "y": 20, "w": 30, "d": 40, "rot": 90})]
+    assert turned == [(10, 20), (10, 50), (-30, 50), (-30, 20)]
+    pk = Shelf(h2c["bed"], SAFE_EDGE, 6)
+    pk.items, pk.free = expand(rows[0]), corner_rects(rows[0][0], h2c["bed"], 6, SAFE_EDGE)
     assert len(pk.free) == 2 and pk.place({"w": 40, "d": 40, "h": 10, "part": "small"})  # ...but small parts go into the empty corners
     sm = pk.items[-1]
     assert sm["x"] >= SAFE_EDGE and sm["y"] >= SAFE_EDGE and sm["x"] + 40 <= 325 and sm["y"] + 40 <= 320, sm
     blk, dropped = combine_braces([{"kind": "module", "group": "g", "slot": 0, "part": "M", "file": "m", "w": 165, "d": 100, "h": 150, "grams": 1, "seconds": 1, "angles": {}},
                                    {"kind": "manual supports", "group": "g", "slot": 0, "part": "B", "file": "b", "w": 6, "d": 60, "h": 150, "grams": 1, "seconds": 1, "angles": {}},
                                    {"kind": "manual supports", "group": "g2", "slot": 0, "part": "B2", "file": "b", "w": 6, "d": 60, "h": 150, "grams": 1, "seconds": 1, "angles": {}}],
-                                  DEFAULT_PRINTERS[:1], 0, lambda f: {"topy": 0.02, "topx": 0.5})
+                                  [h2c], 0, lambda f: {"topy": 0.02, "topx": 0.5})
     assert len(blk) == 1 and blk[0]["d"] == 160 and blk[0]["subs"][1][2] == 100  # brace stands behind the module, its low-y edge on the face
     assert [b["part"] for b in dropped] == ["B2"]  # a brace without a module is reported, not packed
     parts_ = expand([{**blk[0], "x": 10, "y": 20, "rot": 90}])
     assert parts_[0]["rot"] == 90 and parts_[1]["rot"] == 90 and round(parts_[1]["x"], 1) == round(10 - 100, 1), parts_
-    nested = expand([r[0] for r in diagonal_rows([{**blk[0], "diag": 30.0}], DEFAULT_PRINTERS[0]["bed"], 6, 0)])
+    nested = expand([r[0] for r in diagonal_rows([{**blk[0], "diag": 30.0}], h2c["bed"], 6, 0)])
     assert [p["part"] for p in nested] == ["M", "B"] and all("subs" not in p for p in nested), nested  # a block across the diagonal still yields its parts
     parts = [{"name": "A", "file": "a", "qty": 5, "role": "main", "group": "g1"},
              {"name": "B", "file": "b", "qty": 1, "role": "accent", "group": "g1"},
              {"name": "C", "file": "c", "qty": 1, "role": "main", "group": "g1"}]
-    r = plan(parts, {"mode": "kobrax"}, lambda f: stats[f])
+    r = plan(parts, {**legacy, "mode": "kobrax"}, lambda f: stats[f])
     assert r["unplaceable"] and r["unplaceable"][0]["name"] == "C"          # taller than the Kobra's 120 mm part limit
     assert sum(len(p["items"]) for p in r["plates"]) == 6
     assert any(p.get("diagonal") for p in r["plates"])                      # 300 mm bar goes diagonal on a 260 bed
     assert all(len(p["slots"]) == 1 for p in r["plates"])                   # one filament per plate, always
-    r2 = plan(parts, {"mode": "both"}, lambda f: stats[f])
+    r2 = plan(parts, {**legacy, "mode": "both"}, lambda f: stats[f])
     assert sum(len(p["items"]) for p in r2["plates"]) == 7                  # C fits the H2C
     assert all(it["printer"] == "h2c" for p in r2["plates"] for it in p["items"] if it["part"] == "C")
     assert all(len(p["slots"]) == 1 for p in r2["plates"])
     parts2 = parts + [{"name": "D", "file": "a", "qty": 2, "role": "accent", "group": "g2"}, {"name": "E", "file": "a", "qty": 1, "role": "main", "group": "g2"}]
-    r3 = plan(parts2, {"mode": "kobrax", "groupBy": "color"}, lambda f: stats[f])
+    r3 = plan(parts2, {**legacy, "mode": "kobrax", "groupBy": "color"}, lambda f: stats[f])
     acc = [p for p in r3["plates"] if p["slots"] == [DEFAULT_SETTINGS["roles"]["accent"]]]
     assert sum(len(p["items"]) for p in acc) == 3 and len(acc) <= 2, acc   # accent parts of g1+g2 share plates (B is the diagonal bar; D×2 fill its corners or one more plate)
     for p in r2["plates"]:
@@ -520,7 +580,7 @@ if __name__ == "__main__":  # self-check on synthetic parts
             assert it["x"] >= 0 and it["y"] >= 0
     # MaxRects: 25 parts of 50×50 on a 260 bed with 6 mm gap -> 4 per row/col = 16 per plate -> 2 plates
     many = [{"name": "Q", "file": "q", "qty": 25, "role": "main", "group": "g"}]
-    r4 = plan(many, {"mode": "kobrax"}, lambda f: {"size": [50, 50, 10], "volume_cm3": 10, "area_cm2": 100})
+    r4 = plan(many, {**legacy, "mode": "kobrax"}, lambda f: {"size": [50, 50, 10], "volume_cm3": 10, "area_cm2": 100})
     assert len(r4["plates"]) == 2 and len(r4["plates"][0]["items"]) == 16, [len(p["items"]) for p in r4["plates"]]
     for p in r4["plates"]:
         boxes = [(i["x"], i["y"], i["x"] + i["fw"], i["y"] + i["fd"]) for i in p["items"]]
@@ -529,4 +589,28 @@ if __name__ == "__main__":  # self-check on synthetic parts
             for b in boxes:
                 assert a is b or a[2] + 6 <= b[0] + 1e-6 or b[2] + 6 <= a[0] + 1e-6 or a[3] + 6 <= b[1] + 1e-6 or b[3] + 6 <= a[1] + 1e-6
     assert diagonal_fit(300, 40, 260, 260) is not None and diagonal_fit(418.8, 51.5, 330, 320) is None  # XL module: ~333 mm at 45°
+    fleet = {p["id"]: p for p in DEFAULT_PRINTERS}
+    assert set(fleet) == {"u1", "p1s", "h2d-left", "h2d-right"}
+    assert fleet["u1"]["slicer"] == "orca" and fleet["u1"]["bed"] == [270, 270]
+    assert fleet["p1s"]["bed"] == [256, 256] and fleet["p1s"]["z"] == 250
+    assert fleet["h2d-left"].get("origin", [0, 0]) == [0, 0]
+    assert fleet["h2d-right"]["origin"] == [25, 0] and fleet["h2d-right"]["bed"][0] == 325
+    assert all(fits([160, 80, 40], p) is not None for p in fleet.values())
+    assert fits([100, 80, 300], fleet["p1s"]) is None  # taller than the P1S
+    assert fits([400, 200, 20], fleet["u1"]) is None
+    sized = [{"name": "Big", "file": "a", "qty": 1, "role": "main", "group": "g"},
+             {"name": "Small", "file": "q", "qty": 3, "role": "main", "group": "g"}]
+    rs = plan(sized, {"printers": [fleet["u1"]], "mode": "u1", "groupBy": "size"},
+              lambda f: {"a": {"size": [160, 80, 20], "volume_cm3": 20, "area_cm2": 80}, "q": {"size": [30, 30, 10], "volume_cm3": 2, "area_cm2": 20}}[f])
+    for pl in rs["plates"]:
+        names = {it["part"] for it in pl["items"]}
+        assert names <= {"Big"} or names <= {"Small"}, names
+        for it in pl["items"]:
+            for x, y in footprint_corners(it):
+                assert -0.05 <= x <= 270.05 and -0.05 <= y <= 270.05, (it, x, y)
+    moved = json.loads(json.dumps(rs["plates"]))
+    moved[0]["items"][0]["x"] = moved[0]["items"][0]["x"] + 1
+    assert plate_fingerprint(moved) != rs["fingerprint"]
+    sample = sample_plan()
+    assert sample["synthetic"] and sample["placed"] == 5 and all(pl["bed"] == [270, 270] for pl in sample["plates"])
     print("plates.py self-check ok:", len(r["plates"]), "plates kobra;", len(r2["plates"]), "plates both")

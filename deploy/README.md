@@ -9,7 +9,7 @@ redeploy, waits until the NAS reports the new build, and runs `deploy/smoke_test
    `03. MODIFICATIONS` and the PDF manuals) on a dataset. It is mounted read-only; the app never writes
    to it. 24 GB; copying over SMB is fine.
 2. **Dockhand → Git → Repositories → Add Repository**
-   - URL `https://github.com/marcelfarres/vault-configurator.git`, auth `none` (public)
+   - URL `https://github.com/vcolombo/vault-configurator.git`, auth `none` (public)
    - branch `main`, compose path `deploy/compose.yaml`
 3. **Dockhand → Stacks → new Git stack** from that repository
    - environment variable `VAULT_ARCHIVE=<the dataset path from step 1>`. It is a stack variable on
@@ -44,9 +44,20 @@ policy is not changed.)
 app's own files), 4. runs the smoke test: archive indexed, a demo stack resolves, every piece placed or
 reported, an export writes its 3MF files. `-SkipPublish` re-tests without publishing.
 
+## Unraid
+
+Use the same compose file, or add the image in the Docker UI. The share path lives only in the volume
+mapping on the server. Inside the container the app always reads `/archive`.
+
+- Image: `ghcr.io/vcolombo/vault-configurator:latest` (after this repository's workflow has published it; until then build from the repo with the root `docker-compose.yml`).
+- Port: `8765`.
+- Add a read-only path: your VAULT share (the folder that contains `01. DRAWERS`) → `/archive`.
+- Variable: `VAULT_ARCHIVE` = `/archive`.
+- Leave the host path out of git. Exports download in the browser. The container cannot launch Bambu Studio or OrcaSlicer; send slicer presets from the Plates step if you want them embedded.
+
 ## Notes
 
-- `compose.yaml` runs the prebuilt image `ghcr.io/marcelfarres/vault-configurator:latest`
+- `compose.yaml` runs the prebuilt image `ghcr.io/vcolombo/vault-configurator:latest`
   (`pull_policy: always`), so nothing is built on the NAS. Stack managers run the compose file from
   their own folder, which is why it must not depend on paths inside the repository.
   `update-nas.ps1` waits for GitHub to finish building the image before it asks Dockhand to redeploy.
