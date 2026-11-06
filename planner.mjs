@@ -1,4 +1,4 @@
-/** Pure helpers for saved-project progress and the 2D plate picture. No DOM, no network. */
+/** Pure helpers for saved progress, plate keys, and the depth/roof selects. No DOM, no network. */
 
 export function plateKey(plate) {
   const items = (plate.items || [])
@@ -108,6 +108,56 @@ export function decorateChoices(entries, filterOn) {
     ? "No choice here fits the selected printer. The current one stays selected."
     : "";
   return { items, warning };
+}
+
+export function depthLabel(depth) {
+  const n = Number(depth);
+  return `${n} · ${(156.1 + (n - 3) * 42).toFixed(1)} mm`;
+}
+
+function listed(list, prefer) {
+  const found = list.find((value) => String(value) === String(prefer));
+  return found !== undefined ? found : list[0];
+}
+
+/** Replace a depth or roof that is not in the meta catalog. Called when a stack is loaded. */
+export function repairStackCatalog(stack, depths, roofs) {
+  if (!stack) return stack;
+  const depthList = Array.isArray(depths) ? depths : [];
+  const roofList = Array.isArray(roofs) ? roofs : [];
+  if (depthList.length && !depthList.some((value) => String(value) === String(stack.depth))) stack.depth = listed(depthList, 5);
+  if (!stack.roof || typeof stack.roof !== "object") stack.roof = { type: roofList.length ? listed(roofList, "none") : "none", topHandle: true };
+  else if (roofList.length && !roofList.includes(stack.roof.type)) stack.roof.type = listed(roofList, "none");
+  return stack;
+}
+
+/**
+ * Options for one Design select. A non-empty BOM choice list wins; otherwise `catalog` is the meta list.
+ * Fit flags mark or disable. They do not drop values.
+ */
+export function catalogChoicesFor(name, spec) {
+  const choices = spec && spec.choices;
+  const fromBom = choices && choices[name];
+  const catalog = Array.isArray(spec && spec.catalog) ? spec.catalog : [];
+  const source = Array.isArray(fromBom) && fromBom.length ? fromBom : catalog.map((value) => ({ value }));
+  const current = spec ? spec.current : undefined;
+  const entries = source.map((entry) => ({
+    ...entry,
+    current: String(entry.value) === String(current),
+  }));
+  const judged = entries.some((entry) => Object.prototype.hasOwnProperty.call(entry, "fits"));
+  const decorated = judged && spec && spec.fitOnly ? decorateChoices(entries, true) : null;
+  const rows = decorated ? decorated.items : entries;
+  return {
+    warning: decorated ? decorated.warning : "",
+    options: rows.map((entry) => ({
+      value: entry.value,
+      disabled: !!(decorated && entry.disabled),
+      selected: String(entry.value) === String(current),
+      mark: (decorated && entry.mark) || "",
+      reason: entry.reason || "",
+    })),
+  };
 }
 
 export function checkedCount(progress) {

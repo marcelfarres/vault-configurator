@@ -148,6 +148,8 @@ def test_server_hides_archive_path_and_rejects_open():
     assert meta["archiveVia"] == "environment"
     assert meta["archiveReady"] is False
     assert meta["files"] == 0
+    assert meta["depths"] == list(catalog.DEPTHS)
+    assert meta["roofs"] == list(catalog.ROOFS)
     assert meta["handoff"] == "none"
     assert "Download" in meta["handoffNote"] or "download" in meta["handoffNote"]
     page = call("/")[1].decode()
