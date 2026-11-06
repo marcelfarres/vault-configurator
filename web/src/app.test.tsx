@@ -229,6 +229,43 @@ test("a plan keeps the part rows already on prev and drops a stale stack", () =>
   expect(applyPlanProgress(edited, requestSig, plan, null).state).toBe(edited);
 });
 
+test("the first row is the top module, and that module stays in the base family", async () => {
+  const user = userEvent.setup();
+  const layer = (type: string) => ({
+    type, layout: "S", height: 2, facades: [[2]], interior: "none", key: "key",
+    labels: true, rails: false, manualSupports: false, variant: "Flat", baseplate: false,
+    gridW: 1, gridD: 1, divW: 1, divD: 2,
+  });
+  localStorage.setItem("vault-configurator", JSON.stringify({
+    tab: "stack",
+    stack: {
+      name: "my-vault",
+      depth: 5,
+      layers: [layer("Drawers"), layer("Sustainers")],
+      roof: { type: "none", topHandle: true },
+      mods: { backbone: "none", pegboard: "none" },
+    },
+    settings: meta.defaults,
+  }));
+  render(<App />);
+  expect(await screen.findByText("Pick a depth, stack layers so the first row is the top of the stack, finish with a roof.")).toBeInTheDocument();
+  expect(screen.getByText("Top of the list is the top of the stack.")).toBeInTheDocument();
+  expect(screen.queryByText(/bottom-up/)).not.toBeInTheDocument();
+  expect(screen.queryByText(/first layer is the top/)).not.toBeInTheDocument();
+
+  expect(screen.getAllByRole("button", { name: /^Edit / }).map((button) => button.getAttribute("aria-label"))).toEqual([
+    "Edit S sustainer",
+    "Edit S drawer",
+  ]);
+  expect(screen.getAllByText(/^Layer \d/, { selector: "strong" }).map((node) => node.textContent)).toEqual([
+    "Layer 2 · S 2U Sustainers",
+    "Layer 1 · S 2U Drawers",
+  ]);
+
+  await user.click(screen.getByRole("button", { name: "Edit S sustainer" }));
+  expect([...screen.getByLabelText("Width").querySelectorAll("option")].map((option) => option.value)).toEqual(["S"]);
+});
+
 test("opening Plates requests a plan without another stack edit", async () => {
   const user = userEvent.setup();
   render(<App />);

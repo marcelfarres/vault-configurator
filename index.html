@@ -173,7 +173,7 @@ header a{color:var(--muted)}
 <div class="tab" id="tab-stack"><div class="cols">
 <div>
  <h2 class="page-title">Compose your stack</h2>
- <p class="lede">Pick a depth, stack layers so the first layer is the top of the stack, finish with a roof.</p>
+ <p class="lede">Pick a depth, stack layers so the first row is the top of the stack, finish with a roof.</p>
  <section>
   <h2>Footprint</h2>
   <div class="row"><label data-help="depth">Depth <select id="depth"></select></label></div>
@@ -517,7 +517,7 @@ async function refreshPlan(){try{const r=await api('/api/plan',{stack:state.stac
 document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
 
 /* ---------------------------------------------------------------- stack editor (top layer first) */
-function renderLayers(){const box=$('#layers');box.replaceChildren();if(!state.stack.layers.length)box.append(el('p',{class:'note'},'No layers yet. Add a layer: the first row is the top of the stack, and that layer sets the width family (S, M, L or XL).'));
+function renderLayers(){const box=$('#layers');box.replaceChildren();if(!state.stack.layers.length)box.append(el('p',{class:'note'},'No layers yet. Add a layer: the first row is the top of the stack, and the bottom layer sets the width family (S, M, L or XL).'));
  [...state.stack.layers.keys()].reverse().forEach(i=>{const l=state.stack.layers[i];
   const card=el('div',{class:'layer','data-layer':i});
   const place=state.stack.layers.length===1?' · top · base':i===state.stack.layers.length-1?' · top':i===0?' · base':'';

@@ -40,7 +40,7 @@ export function Design() {
       {!meta.files ? <Onboard /> : null}
       <p className="note">{meta.files} STL files indexed · {indexed}</p>
       <h1>Compose your stack</h1>
-      <p className="lede">Pick a depth, stack layers so the first layer is the top of the stack, finish with a roof.</p>
+      <p className="lede">Pick a depth, stack layers so the first row is the top of the stack, finish with a roof.</p>
       <div className="compose">
         <div className="col">
           <Card title="Footprint">

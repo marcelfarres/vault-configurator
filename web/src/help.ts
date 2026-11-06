@@ -22,7 +22,7 @@ export const HELP: Record<string, HelpBlock> = {
   },
   width: {
     title: "Width family",
-    body: "S 165 mm, M 254 mm, L 330 mm, XL 419 mm. L = two S side by side, XL = S + M. The first layer sets the family.",
+    body: "S 165 mm, M 254 mm, L 330 mm, XL 419 mm. L = two S side by side, XL = S + M. The bottom layer sets the family.",
     images: ["stacking.jpg"],
   },
   height: {

@@ -199,6 +199,8 @@ def test_server_hides_archive_path_and_rejects_open():
         "Only offer choices that fit", "Compose your stack", "Settings", "Appearance",
         "vault-theme", "Add layer", "All printers", "Show a sample plate",
         "VAULT_ARCHIVE", "Unraid", "4 Assemble", "Light", "Dark", "System",
+        "the first row is the top of the stack", "Top of the list is the top of the stack",
+        "the bottom layer sets the width family", "The bottom layer sets the family",
     ):
         assert text in ui, text
     assert '"data-tab"' in ui and 'id:"assemble"' in ui
@@ -206,12 +208,13 @@ def test_server_hides_archive_path_and_rejects_open():
     for text in (
         "VAULT_ARCHIVE", "Unraid", "Only offer choices that fit", "Save project", 'data-tab="assemble"',
         "Show a sample plate", ">Settings</button>", "What prints in which colour", "Export for",
-        "Top of the list is the top of the stack", "All printers dropdown in the header",
+        "Top of the list is the top of the stack", "the first row is the top of the stack",
+        "the bottom layer sets the width family", "All printers dropdown in the header",
         "Just what's on the shelf", 'aria-label="Theme"', 'data-theme="light"', 'data-theme="dark"',
         'data-theme="system"', "loadPlannerState", "defaultPlannerState",
     ):
         assert text in classic, text
-    for banned in ("Step 1 · Printers", "Step 2 · Filaments", "bottom-up", 'data-tab="shop"', "#101214", "shortName", "replace(/^Snapmaker", '<select id="theme"', "Manage shop", "material||'PETG'"):
+    for banned in ("Step 1 · Printers", "Step 2 · Filaments", "bottom-up", "first layer is the top", 'data-tab="shop"', "#101214", "shortName", "replace(/^Snapmaker", '<select id="theme"', "Manage shop", "material||'PETG'"):
         assert banned not in ui and banned not in classic, banned
     code, body = call("/api/handoff", {"file": "../../etc/passwd", "app": "bambu"})
     assert code == 403
