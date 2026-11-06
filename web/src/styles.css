@@ -416,11 +416,6 @@
     inset-inline-start: calc(100% - 1.05rem - 2px);
   }
 
-  .preview-card {
-    position: sticky;
-    top: 0.8rem;
-  }
-
   .preview-meta {
     color: var(--muted-foreground);
     font-size: 0.8rem;
@@ -693,9 +688,6 @@
   @media (max-width: 900px) {
     .compose, .settings, .role-row {
       grid-template-columns: 1fr;
-    }
-    .preview-card {
-      position: static;
     }
     .settings-btn {
       margin-inline-start: 0;
