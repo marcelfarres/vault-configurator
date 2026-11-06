@@ -93,7 +93,14 @@ test("design, settings theme, and export list follow the shop rules", async () =
   expect(screen.getByRole("tab", { name: "4 Assemble" })).toHaveAttribute("data-tab", "assemble");
   expect(screen.queryByRole("tab", { name: /settings/i })).not.toBeInTheDocument();
   expect(screen.queryByText("Manage shop")).not.toBeInTheDocument();
-  expect(screen.getByRole("button", { name: "U1" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Settings" })).toBeInTheDocument();
+  expect(screen.getByText("Only offer choices that fit")).toBeInTheDocument();
+  const enabled = screen.getByRole("group", { name: "Enabled" });
+  expect(within(enabled).getByText("U1")).toBeInTheDocument();
+  expect(within(enabled).getByText("P1S")).toBeInTheDocument();
+  expect(within(enabled).getByText("H2D left")).toBeInTheDocument();
+  expect(within(enabled).queryByRole("button")).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "U1" })).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Snapmaker U1" })).not.toBeInTheDocument();
   expect(screen.getByText("VAULT_ARCHIVE is set, but that folder does not contain 01. DRAWERS.", { exact: false })).toBeInTheDocument();
   expect(screen.getByText(/Unraid/)).toBeInTheDocument();
@@ -103,6 +110,10 @@ test("design, settings theme, and export list follow the shop rules", async () =
   expect(screen.getByLabelText("Roof")).not.toBeDisabled();
 
   await user.click(screen.getByRole("button", { name: "Add layer" }));
+  expect(screen.getByText("Fits every enabled printer — change this with the All printers dropdown in the header.")).toBeInTheDocument();
+  await user.selectOptions(screen.getByLabelText("All printers"), "u1");
+  expect(screen.getByText("Fits U1 — change this with the All printers dropdown in the header.")).toBeInTheDocument();
+  expect(screen.queryByText("Fits every enabled printer — change this with the All printers dropdown in the header.")).not.toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Edit S drawer" })).toHaveAttribute("aria-expanded", "true");
   expect(screen.getByLabelText("Type")).toBeInTheDocument();
   expect(screen.getByLabelText("Width")).toBeInTheDocument();
@@ -152,7 +163,9 @@ test("patch writes a legal export mode and fit target into saved state", async (
   expect(await screen.findByRole("heading", { name: "Plates & export" })).toBeInTheDocument();
   expect(screen.getByLabelText("Send parts to")).toHaveValue("u1");
   expect(screen.getByLabelText("All printers")).toHaveValue("h2d-left");
-  await user.click(screen.getByRole("button", { name: "H2D left" }));
+  await user.click(screen.getByRole("button", { name: "Settings" }));
+  await user.click(screen.getByRole("checkbox", { name: "Enabled H2D left" }));
+  await user.click(screen.getByRole("button", { name: "Close settings" }));
   const afterFit = JSON.parse(localStorage.getItem("vault-configurator") || "{}");
   expect(afterFit.fitTarget).toBe("every");
   expect(afterFit.settings.mode).toBe("u1");

@@ -197,7 +197,8 @@ def test_server_hides_archive_path_and_rejects_open():
     ui = "\n".join(chunks)
     for text in (
         "Only offer choices that fit", "Compose your stack", "Settings", "Appearance",
-        "vault-theme", "Add layer", "All printers", "Show a sample plate",
+        "vault-theme", "Add layer", "All printers", "All printers dropdown in the header",
+        "Show a sample plate", "status-chip",
         "VAULT_ARCHIVE", "Unraid", "4 Assemble", "Light", "Dark", "System",
         "the first row is the top of the stack", "Top of the list is the top of the stack",
         "the bottom layer sets the width family", "The bottom layer sets the family",
@@ -211,7 +212,7 @@ def test_server_hides_archive_path_and_rejects_open():
         "Top of the list is the top of the stack", "the first row is the top of the stack",
         "the bottom layer sets the width family", "All printers dropdown in the header",
         "Just what's on the shelf", 'aria-label="Theme"', 'data-theme="light"', 'data-theme="dark"',
-        'data-theme="system"', "loadPlannerState", "defaultPlannerState",
+        'data-theme="system"', "loadPlannerState", "defaultPlannerState", "footprintLine",
     ):
         assert text in classic, text
     for banned in ("Step 1 · Printers", "Step 2 · Filaments", "bottom-up", "first layer is the top", 'data-tab="shop"', "#101214", "shortName", "replace(/^Snapmaker", '<select id="theme"', "Manage shop", "material||'PETG'"):

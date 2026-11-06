@@ -22,6 +22,15 @@ export function printerLabel(printer) {
   return String(printer.name);
 }
 
+/**
+ * Footprint sentence for the All printers dropdown.
+ * `fitTarget` is already `every` or one enabled printer id. This does not write state.
+ */
+export function footprintLine(fitTarget, printer) {
+  const name = fitTarget === "every" ? "every enabled printer" : printerLabel(printer) || "the selected printer";
+  return `Fits ${name} — change this with the All printers dropdown in the header.`;
+}
+
 /** Shelf stock as shown on a Parts role dropdown: nickname, then material. */
 export function spoolLabel(filament) {
   const name = filament && filament.name ? String(filament.name) : "Unnamed";

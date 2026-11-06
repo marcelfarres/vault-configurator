@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { reconcileProgress, plateKey, partFitsScope, layerNotes, migratePrinters, migrateShop, legalExportMode, legalFitTarget, exportCandidates, LEGACY_FILAMENTS, LEGACY_ROLE_NAMES, LEGACY_PRINTER_NAMES, decorateChoices, visiblePartRows, checkedCount, depthLabel, repairStackCatalog, catalogChoicesFor, printerLabel, spoolLabel, normalizeTheme, themeIsDark, THEME_STORAGE_KEY, printersForExport, biggestExportPrinter, scopeLabel, loadPlannerState, defaultPlannerState } from "../planner.mjs";
+import { reconcileProgress, plateKey, partFitsScope, layerNotes, migratePrinters, migrateShop, legalExportMode, legalFitTarget, exportCandidates, LEGACY_FILAMENTS, LEGACY_ROLE_NAMES, LEGACY_PRINTER_NAMES, decorateChoices, visiblePartRows, checkedCount, depthLabel, repairStackCatalog, catalogChoicesFor, printerLabel, footprintLine, spoolLabel, normalizeTheme, themeIsDark, THEME_STORAGE_KEY, printersForExport, biggestExportPrinter, scopeLabel, loadPlannerState, defaultPlannerState } from "../planner.mjs";
 
 const plate = { printer: "u1", slots: [0], items: [{ part: "Guide", x: 1, y: 2, rot: 0 }] };
 const key = plateKey(plate);
@@ -153,6 +153,9 @@ assert.equal(printerLabel({ name: "U1", profile: "Snapmaker U1" }), "U1");
 assert.equal(printerLabel({ name: "Snapmaker U1", profile: "Snapmaker U1" }), "Snapmaker U1");
 assert.equal(printerLabel({ name: "Bambu Lab H2D · left nozzle" }), "Bambu Lab H2D · left nozzle");
 assert.equal(printerLabel({ profile: "Snapmaker U1" }), "");
+assert.equal(footprintLine("every", { name: "U1" }), "Fits every enabled printer — change this with the All printers dropdown in the header.");
+assert.equal(footprintLine("u1", { name: "U1", profile: "Snapmaker U1" }), "Fits U1 — change this with the All printers dropdown in the header.");
+assert.equal(footprintLine("u1", { profile: "Snapmaker U1" }), "Fits the selected printer — change this with the All printers dropdown in the header.");
 assert.equal(spoolLabel({ name: "Charcoal", material: "PLA" }), "Charcoal · PLA");
 assert.equal(spoolLabel({ name: "Silver Grey", material: "TPU" }), "Silver Grey · TPU");
 assert.equal(spoolLabel({ name: "Cream", material: "" }), "Cream");

@@ -135,6 +135,7 @@ export const THEME_STORAGE_KEY: string;
   export function normalizeTheme(value: unknown): "light" | "dark" | "system";
   export function themeIsDark(preference: unknown, prefersDark: boolean): boolean;
   export function printerLabel(printer: { name?: string | null } | null | undefined): string;
+  export function footprintLine(fitTarget: string, printer: { name?: string | null } | null | undefined): string;
   export function spoolLabel(filament: { name?: string; material?: string } | null | undefined): string;
   export function exportCandidates(settings: ExportSettings | null | undefined): ExportPrinter[];
   export function legalExportMode(settings: ExportSettings | null | undefined): string;

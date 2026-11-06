@@ -49,23 +49,11 @@ export function Header() {
           }}>Delete saved</button>
         </div>
       </details>
-      <span className="muted">Enabled</span>
-      <span className="fleet">
-        {enabled.map((printer) => (
-          <button
-            type="button"
-            key={printer.id}
-            className="chip"
-            aria-pressed="true"
-            onClick={() => patch((draft) => {
-              const row = draft.settings.printers.find((item) => item.id === printer.id);
-              if (!row) return;
-              row.enabled = false;
-            })}
-          >
-            {printerLabel(printer)}
-          </button>
-        ))}
+      <span className="muted" id="enabled-printers">Enabled</span>
+      <span className="fleet" role="group" aria-labelledby="enabled-printers">
+        {enabled.length ? enabled.map((printer) => (
+          <span className="status-chip" key={printer.id}>{printerLabel(printer)}</span>
+        )) : <span className="note">none</span>}
       </span>
       <span className="dots" aria-hidden="true">
         {state.settings.filaments.map((filament) => (
@@ -73,31 +61,33 @@ export function Header() {
         ))}
       </span>
       <span className="muted">{state.settings.filaments.length} filaments</span>
-      <label className="check">
-        <input
-          type="checkbox"
-          checked={state.fitOnly}
-          onChange={(event) => patch((draft) => {
-            draft.fitOnly = event.target.checked;
-          })}
-        />
-        Only offer choices that fit
-      </label>
-      <label className="fit-target">
-        <span className="visually-hidden">Judge fit against</span>
-        <select
-          aria-label="All printers"
-          value={state.fitTarget}
-          onChange={(event) => patch((draft) => {
-            draft.fitTarget = event.target.value;
-          })}
-        >
-          <option value="every">All printers</option>
-          {enabled.map((printer) => (
-            <option key={printer.id} value={printer.id}>{printerLabel(printer)}</option>
-          ))}
-        </select>
-      </label>
+      <div className="fit-controls">
+        <label className="check fit-label">
+          <input
+            type="checkbox"
+            checked={state.fitOnly}
+            onChange={(event) => patch((draft) => {
+              draft.fitOnly = event.target.checked;
+            })}
+          />
+          <span>Only offer choices that fit</span>
+        </label>
+        <label className="fit-target">
+          <span className="visually-hidden">Judge fit against</span>
+          <select
+            aria-label="All printers"
+            value={state.fitTarget}
+            onChange={(event) => patch((draft) => {
+              draft.fitTarget = event.target.value;
+            })}
+          >
+            <option value="every">All printers</option>
+            {enabled.map((printer) => (
+              <option key={printer.id} value={printer.id}>{printerLabel(printer)}</option>
+            ))}
+          </select>
+        </label>
+      </div>
       <button type="button" className="btn settings-btn" onClick={() => store.setSettingsOpen(true)}>
         <Gear /> Settings
       </button>

@@ -1,4 +1,4 @@
-import { scopeLabel } from "../../../planner.mjs";
+import { footprintLine } from "../../../planner.mjs";
 import { HELP } from "../help";
 import { INTERIOR_LABEL, LAYOUT_LABEL, ROOF_LABEL, depthOptionLabel, labeledChoices, layerTitle, patternName } from "../labels";
 import { facadeCatalog, heightCatalog, layerFitNotes, layoutCatalog } from "../stack";
@@ -22,12 +22,9 @@ export function Design() {
     fitOnly: state.fitOnly,
     current: state.stack.roof?.type || "none",
   }, (value) => ROOF_LABEL[String(value)] || String(value));
-  const who = scopeLabel(bom?.judged);
-  const fitLine = !state.stack.layers.length
-    ? "Depth and roof stay available before the first layer."
-    : bom?.judged?.scope === "every"
-      ? "Fits every enabled printer — change this with the All printers dropdown in the header."
-      : `Choices are judged against ${who}.`;
+  const fitLine = state.stack.layers.length
+    ? footprintLine(state.fitTarget, state.settings.printers.find((printer) => printer.id === state.fitTarget))
+    : "Depth and roof stay available before the first layer.";
   const mods = state.stack.mods || {};
   const backbone = String(mods.backbone || "none");
   const pegboard = String(mods.pegboard || "none");
