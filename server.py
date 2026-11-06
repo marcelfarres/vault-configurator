@@ -93,9 +93,8 @@ def settings_of(body):
 
 
 def biggest_printer(s):
-    ps = [p for p in s["printers"] if p.get("enabled", True)]
-    if s["mode"] != "both":
-        ps = [p for p in ps if p["id"] == s["mode"]] or ps
+    """The biggest printer this export will actually use. Same list as plan()."""
+    ps = plates.printers_for_export(s)
     return max(ps, key=lambda p: p["bed"][0] * p["bed"][1]) if ps else None
 
 

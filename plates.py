@@ -49,21 +49,30 @@ def catalog_printer(name, pid):
     return {**src, "bed": list(src["bed"]), "id": pid, "maxH": src["z"], "enabled": True, "nozzle": "0.4", "preset": ""}
 
 
+def fleet_printer(catalog_name, pid, display_name):
+    """A shop row. `name` is the label the user sees; `profile` stays the slicer machine id."""
+    row = catalog_printer(catalog_name, pid)
+    row["name"] = display_name
+    row["forExport"] = True
+    return row
+
+
 # Personal fleet. H2C and the other catalog rows stay available from Add printer.
 # H2D is one row per nozzle: each nozzle reaches only part of the physical plate.
+# Display names are the sample fleet (editable in Manage shop). Profiles stay the slicer ids.
 DEFAULT_PRINTERS = [
-    catalog_printer("Snapmaker U1", "u1"),
-    catalog_printer("Bambu Lab P1S", "p1s"),
-    catalog_printer("Bambu Lab H2D · left nozzle", "h2d-left"),
-    catalog_printer("Bambu Lab H2D · right nozzle", "h2d-right"),
+    fleet_printer("Snapmaker U1", "u1", "U1"),
+    fleet_printer("Bambu Lab P1S", "p1s", "P1S"),
+    fleet_printer("Bambu Lab H2D · left nozzle", "h2d-left", "H2D left"),
+    fleet_printer("Bambu Lab H2D · right nozzle", "h2d-right", "H2D right"),
 ]
 MATERIALS = ["PLA", "PETG", "PETG-CF", "PETG-GF", "ASA", "ABS", "TPU"]
-DEFAULT_FILAMENTS = [  # one slot per colour role; `preset` = slicer filament preset per printer id
-    {"name": "light grey", "color": "#9da3a8", "material": "PETG", "preset": {}},
-    {"name": "dark grey", "color": "#4a4d50", "material": "PETG", "preset": {}},
-    {"name": "black", "color": "#222426", "material": "PETG", "preset": {}},
-    {"name": "orange", "color": "#ff7a1a", "material": "PETG", "preset": {}},
-    {"name": "black (soft)", "color": "#1a1a1a", "material": "TPU", "preset": {}},
+DEFAULT_FILAMENTS = [  # shelf stock, not colour-role names; `preset` = slicer filament preset per printer id
+    {"name": "Charcoal", "color": "#2a2b2e", "material": "PLA", "preset": {}},
+    {"name": "Cream", "color": "#ece6d9", "material": "PLA", "preset": {}},
+    {"name": "Gold", "color": "#c8a256", "material": "PLA", "preset": {}},
+    {"name": "Army Blue", "color": "#3b4f6b", "material": "PLA", "preset": {}},
+    {"name": "Silver Grey", "color": "#a9adb3", "material": "TPU", "preset": {}},
 ]
 DEFAULT_SETTINGS = {
     "estimateFromPreset": True, "spoolman": "",
@@ -314,6 +323,22 @@ def plate_fingerprint(plates):
     return hashlib.sha1(json.dumps(rows, separators=(",", ":")).encode()).hexdigest()[:16]
 
 
+def printers_for_export(settings):
+    """Shop printers that are enabled and ticked under Plates → Export for.
+
+    A missing ``forExport`` counts as selected, so a saved fleet from before that
+    checkbox still packs. ``mode`` can still narrow the set to one printer.
+    Fit judging does not call this: turning a printer off for this export does
+    not remove it from "every enabled printer".
+    """
+    s = settings or {}
+    printers = [p for p in s.get("printers") or [] if p.get("enabled", True) and p.get("forExport", True)]
+    mode = s.get("mode")
+    if mode and mode != "both":
+        return [p for p in printers if p.get("id") == mode]
+    return printers
+
+
 def plan(parts, settings, stats_fn):
     """parts: BOM lines (with qty). Returns plates and per-part fit info.
 
@@ -322,9 +347,7 @@ def plan(parts, settings, stats_fn):
     'size' = large and small parts of one colour stay on separate plates;
     'module' = a module's parts of one colour stay on their own plates."""
     s = {**DEFAULT_SETTINGS, **settings}
-    printers = [p for p in s["printers"] if p.get("enabled", True)]
-    if s["mode"] != "both":
-        printers = [p for p in printers if p["id"] == s["mode"]] or printers
+    printers = printers_for_export(s)
     gap, edge = float(s["spacing"]), float(s["edge"])
     items, unplaceable, load = [], [], {p["id"]: 0.0 for p in printers}
     for line in parts:
@@ -628,7 +651,7 @@ def sample_plan():
     u1 = next(p for p in DEFAULT_PRINTERS if p["id"] == "u1")
     result = plan(parts, {"printers": [u1], "mode": "u1", "groupBy": "color"}, lambda f: stats[f])
     result["synthetic"] = True
-    result["label"] = "Synthetic rectangles on a Snapmaker U1 bed. Not VAULT parts."
+    result["label"] = f"Synthetic rectangles on a {u1['name']} bed. Not VAULT parts."
     return result
 
 
@@ -636,9 +659,7 @@ def plan_tests(parts, settings, kinds, stats_fn):
     """Test plates: per printer, one plate per selected kind holding one of each part of that kind
     (an assembly's parts together), so settings can be tuned before the real export."""
     s = {**DEFAULT_SETTINGS, **settings}
-    printers = [p for p in s["printers"] if p.get("enabled", True)]
-    if s["mode"] != "both":
-        printers = [p for p in printers if p["id"] == s["mode"]] or printers
+    printers = printers_for_export(s)
     plates = []
     for p in printers:
         for kind in kinds:

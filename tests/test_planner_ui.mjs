@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { reconcileProgress, plateKey, partFitsScope, layerNotes, migratePrinters, decorateChoices, visiblePartRows, checkedCount, depthLabel, repairStackCatalog, catalogChoicesFor } from "../planner.mjs";
+import { reconcileProgress, plateKey, partFitsScope, layerNotes, migratePrinters, migrateShop, legalExportMode, LEGACY_FILAMENTS, LEGACY_ROLE_NAMES, LEGACY_PRINTER_NAMES, decorateChoices, visiblePartRows, checkedCount, depthLabel, repairStackCatalog, catalogChoicesFor, printerLabel, spoolLabel, normalizeTheme, themeIsDark, THEME_STORAGE_KEY } from "../planner.mjs";
 
 const plate = { printer: "u1", slots: [0], items: [{ part: "Guide", x: 1, y: 2, rot: 0 }] };
 const key = plateKey(plate);
@@ -147,5 +147,103 @@ const roof = catalogChoicesFor("roof", { choices: null, catalog: roofs, fitOnly:
 assert.deepEqual(roof.options.map((option) => option.value), roofs);
 assert.equal(roof.options.find((option) => option.value === "none").selected, true);
 assert.ok(roof.options.every((option) => !option.disabled));
+
+assert.equal(printerLabel({ name: "U1", profile: "Snapmaker U1" }), "U1");
+assert.equal(printerLabel({ name: "Snapmaker U1", profile: "Snapmaker U1" }), "Snapmaker U1");
+assert.equal(printerLabel({ name: "Bambu Lab H2D · left nozzle" }), "Bambu Lab H2D · left nozzle");
+assert.equal(printerLabel({ profile: "Snapmaker U1" }), "");
+assert.equal(spoolLabel({ name: "Charcoal", material: "PLA" }), "Charcoal · PLA");
+assert.equal(spoolLabel({ name: "Silver Grey", material: "TPU" }), "Silver Grey · TPU");
+assert.equal(spoolLabel({ name: "Cream", material: "" }), "Cream");
+assert.equal(THEME_STORAGE_KEY, "vault-theme");
+assert.equal(normalizeTheme(null), "system");
+assert.equal(normalizeTheme("nope"), "system");
+assert.equal(normalizeTheme("light"), "light");
+assert.equal(themeIsDark("dark", false), true);
+assert.equal(themeIsDark("light", true), false);
+assert.equal(themeIsDark("system", true), true);
+assert.equal(themeIsDark("system", false), false);
+assert.equal(themeIsDark(undefined, true), true);
+
+assert.deepEqual(LEGACY_FILAMENTS.map((row) => row.name), ["light grey", "dark grey", "black", "orange", "black (soft)"]);
+assert.deepEqual(LEGACY_FILAMENTS.map((row) => row.color), ["#9da3a8", "#4a4d50", "#222426", "#ff7a1a", "#1a1a1a"]);
+assert.deepEqual(LEGACY_ROLE_NAMES, ["Elegoo", "PETG accent", "TPU tyres", "Body", "Drawer interior", "Knobs & handles", "Knobs", "Accent", "TPU"]);
+assert.deepEqual(LEGACY_PRINTER_NAMES, {
+  u1: "Snapmaker U1",
+  p1s: "Bambu Lab P1S",
+  "h2d-left": "Bambu Lab H2D · left nozzle",
+  "h2d-right": "Bambu Lab H2D · right nozzle",
+});
+
+const shopDefaults = {
+  filaments: [
+    { name: "Charcoal", color: "#2a2b2e", material: "PLA", preset: {} },
+    { name: "Cream", color: "#ece6d9", material: "PLA", preset: {} },
+    { name: "Gold", color: "#c8a256", material: "PLA", preset: {} },
+    { name: "Army Blue", color: "#3b4f6b", material: "PLA", preset: {} },
+    { name: "Silver Grey", color: "#a9adb3", material: "TPU", preset: {} },
+  ],
+  printers: [
+    { id: "u1", name: "U1" },
+    { id: "p1s", name: "P1S" },
+  ],
+};
+const savedShop = {
+  filaments: [
+    { name: "light grey", color: "#9da3a8", material: "PETG", preset: { u1: "keep" } },
+    { name: "Cream already", color: "#ffffff", material: "PLA" },
+    { name: "Body", color: "#111111", material: "PETG" },
+    { name: "orange", color: "#ff7a1a", material: "ASA" },
+    { name: "black (soft)", color: "#1a1a1a", material: "TPU" },
+  ],
+  printers: [
+    { id: "u1", name: "Snapmaker U1", bed: [270, 270] },
+    { id: "p1s", name: "Shop P1S", bed: [256, 256] },
+  ],
+};
+migrateShop(savedShop, shopDefaults);
+assert.equal(savedShop.filaments[0].name, "Charcoal");
+assert.equal(savedShop.filaments[0].color, "#2a2b2e");
+assert.equal(savedShop.filaments[0].material, "PLA");
+assert.deepEqual(savedShop.filaments[0].preset, { u1: "keep" });
+assert.equal(savedShop.filaments[1].name, "Cream already");
+assert.equal(savedShop.filaments[2].name, "Gold");
+assert.equal(savedShop.filaments[2].color, "#c8a256");
+assert.equal(savedShop.filaments[2].material, "PLA");
+assert.equal(savedShop.filaments[3].name, "orange");
+assert.equal(savedShop.filaments[3].material, "ASA");
+assert.equal(savedShop.filaments[4].name, "Silver Grey");
+assert.equal(savedShop.printers[0].name, "U1");
+assert.deepEqual(savedShop.printers[0].bed, [270, 270]);
+assert.equal(savedShop.printers[0].forExport, undefined);
+assert.equal(savedShop.printers[1].name, "Shop P1S");
+assert.equal(shopDefaults.filaments[0].name, "Charcoal");
+
+const aimed = {
+  mode: "p1s",
+  printers: [
+    { id: "u1", enabled: true, forExport: true },
+    { id: "p1s", enabled: false, forExport: true },
+  ],
+};
+assert.equal(legalExportMode(aimed), "both");
+assert.equal(aimed.mode, "both");
+const tickedOff = {
+  mode: "u1",
+  printers: [
+    { id: "u1", enabled: true, forExport: false },
+    { id: "p1s", enabled: true },
+  ],
+};
+assert.equal(legalExportMode(tickedOff), "both");
+const kept = {
+  mode: "u1",
+  printers: [
+    { id: "u1", enabled: true },
+    { id: "p1s", enabled: true, forExport: false },
+  ],
+};
+assert.equal(legalExportMode(kept), "u1");
+assert.equal(legalExportMode({ mode: "both", printers: [] }), "both");
 
 console.log("test_planner_ui ok");

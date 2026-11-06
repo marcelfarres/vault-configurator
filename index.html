@@ -4,18 +4,32 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>VAULT planner</title>
+<script>
+(function(){
+  try{
+    var v=localStorage.getItem("vault-theme");
+    var dark=v==="dark"||(v!=="light"&&matchMedia("(prefers-color-scheme: dark)").matches);
+    document.documentElement.classList.toggle("dark",!!dark);
+  }catch(e){}
+})();
+</script>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
 <style>
-:root{--bg:#141516;--panel:#1d1f21;--panel2:#242729;--line:#33373a;--text:#e8e6e1;--muted:#9a9a93;--accent:#e0a96d;--ok:#8fd19e;--warn:#f0b35b;--bad:#f07a7a}
+:root{color-scheme:light;--bg:#f7f6f3;--panel:#fffcf8;--panel2:#f3f2ee;--line:#e4e2dc;--text:#1c1c1f;--muted:#5e5e66;--accent:#1f6f6c;--ok:#1d7a45;--warn:#8a5a12;--bad:#a33b3b;--bed:#e6e7ea;--teal:#2f6f6c;--on-solid:#f7f6f3;--export-on:#e7f3f2;--export-ink:#1d4f4c;--onboard:#f8f1e4;--preview:#f3f2ee;--preview-stroke:#1c1d20;--preview-ink:#3c3e42}
+html.dark{color-scheme:dark;--bg:#121314;--panel:#1c1e21;--panel2:#26282c;--line:#3a3d42;--text:#eceae6;--muted:#a7a79f;--accent:#8fd0cc;--ok:#8fd19e;--warn:#f0b35b;--bad:#f29b9b;--bed:#e6e7ea;--teal:#8fd0cc;--on-solid:#141516;--export-on:#1a3332;--export-ink:#d7f3f1;--onboard:#2a241c;--preview:#1b2838;--preview-stroke:#f4f1ea;--preview-ink:#d9d6cf}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,Segoe UI,Roboto,sans-serif}
-header{padding:12px 22px;border-bottom:1px solid var(--line);display:flex;gap:18px;align-items:baseline;flex-wrap:wrap}
-header h1{margin:0;font-size:20px;letter-spacing:.14em}
+header{position:sticky;top:0;z-index:40;padding:12px 22px 10px;border-bottom:1px solid var(--line);background:color-mix(in srgb,var(--panel) 92%,transparent);backdrop-filter:saturate(1.2) blur(8px);display:flex;gap:14px 22px;align-items:center;flex-wrap:wrap}
+header h1{margin:0;font-size:18px;letter-spacing:.16em;font-weight:650}
 header .sub{color:var(--muted);font-size:13px}
-nav{display:flex;gap:6px;padding:12px 22px 0}
-nav button{background:var(--panel);border:1px solid var(--line);border-bottom:none;border-radius:8px 8px 0 0;padding:8px 16px;color:var(--muted)}
-nav button.active{color:var(--accent);background:var(--panel2);font-weight:600}
-nav button b{display:inline-block;width:18px;height:18px;border-radius:9px;background:var(--line);color:var(--text);font-size:11px;line-height:18px;text-align:center;margin-right:6px}
+.brand{display:flex;align-items:baseline;gap:12px}
+.project-actions,.header-shop,.fit-controls,.enabled-summary,.filament-summary{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.header-shop{margin-left:auto;gap:14px 18px}
+.eyebrow{font-size:12px;color:var(--muted)}
+nav{display:flex;gap:2px;padding:0 22px;background:var(--panel);border-bottom:1px solid var(--line)}
+nav button{background:transparent;border:none;border-bottom:2px solid transparent;border-radius:0;padding:10px 14px;color:var(--muted)}
+nav button.active{color:var(--text);border-bottom-color:var(--teal);font-weight:650}
+nav button b{display:inline-block;min-width:1.1em;margin-right:6px;background:none;color:inherit;font-weight:500;font-size:11px;opacity:.6}
 main{padding:14px 22px}
 .tab{display:none}
 .tab.active{display:block}
@@ -31,8 +45,12 @@ input[type=number]{width:70px}
 input[type=color]{padding:0;width:34px;height:28px}
 input[type=checkbox]{width:auto}
 button{cursor:pointer}
-button.primary{background:var(--accent);color:#1a1a1a;border-color:var(--accent);font-weight:600}
+button.primary{background:var(--text);color:var(--on-solid);border-color:var(--text);font-weight:600}
+button.ghost{background:transparent;border-color:transparent;color:var(--text)}
+button.ghost:hover{background:var(--panel2)}
 button.small{padding:2px 7px;font-size:12px}
+button.manage{background:var(--panel);border-color:var(--line);font-weight:600}
+button.manage[aria-expanded="true"]{background:var(--text);color:var(--on-solid);border-color:var(--text)}
 .row{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center}
 .layer{border:1px solid var(--line);border-radius:8px;padding:10px;margin:8px 0;background:var(--panel2)}
 .layer .title{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;font-weight:600}
@@ -57,11 +75,11 @@ tr.sub td{padding-left:22px;color:var(--muted)}
 .swatch{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;margin-right:4px;border:1px solid #555}
 textarea{width:100%;height:60px}
 details summary{cursor:pointer;color:var(--muted)}
-#schematic svg{width:100%;height:auto;background:#1a1c1e;border-radius:8px}
-.svgtxt{font:30px system-ui;fill:#b5b5ae}
+#schematic svg{width:100%;height:auto;background:var(--preview);color:var(--preview-stroke);border-radius:8px}
+.svgtxt{font:30px system-ui;fill:var(--preview-ink)}
 .progress{height:8px;background:var(--line);border-radius:4px;overflow:hidden;margin:6px 0}
 .progress div{height:100%;background:var(--accent);width:0;transition:width .3s}
-#pop{position:fixed;z-index:50;max-width:420px;max-height:85vh;overflow:auto;background:#2a2d30;border:1px solid #555;border-radius:8px;padding:10px 12px;font-size:13px;box-shadow:0 8px 30px #0008;display:none}
+#pop{position:fixed;z-index:50;max-width:420px;max-height:85vh;overflow:auto;background:#2a2d30;color:#eceae6;border:1px solid #555;border-radius:8px;padding:10px 12px;font-size:13px;box-shadow:0 8px 30px #0008;display:none}
 #pop img{display:block;max-width:400px;margin-top:8px;border-radius:6px}
 #helpPanel{min-height:520px}#helpBody{max-height:620px;overflow:auto}
 #helpBody>b{color:var(--accent);display:block;margin-bottom:4px}#helpBody img,#pop img{display:block;max-width:100%;max-height:420px;margin-top:8px;border-radius:6px;cursor:zoom-in}
@@ -84,9 +102,37 @@ details{margin:8px 0}details>summary{padding:4px 0}details[open]>summary{color:v
 .partpic{display:inline-flex;flex-direction:column;align-items:center;font-size:11px;color:var(--muted);margin:4px 6px 0 0;max-width:80px;text-align:center}
 .projectbar{display:flex;gap:8px 12px;align-items:center;flex-wrap:wrap;padding:8px 22px;border-bottom:1px solid var(--line);background:#191b1d}
 .fleet{display:flex;gap:6px;flex-wrap:wrap}
-.fleet button[aria-pressed="true"]{background:var(--accent);color:#1a1a1a;border-color:var(--accent);font-weight:600}
-.bed{width:100%;max-width:440px;height:auto;background:#101214;border-radius:8px;border:1px solid var(--line)}
-.onboard{border:1px solid var(--warn);background:#2a241c;border-radius:10px;padding:12px 14px;margin:12px 22px 0}
+.status-chip{display:inline-flex;align-items:center;padding:2px 8px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--muted);font-size:12px;cursor:default}
+.export-chip{border-radius:8px;padding:8px 14px;background:var(--panel);color:var(--text)}
+.export-chip.on{border-color:var(--teal);background:var(--export-on);color:var(--export-ink);font-weight:600}
+.export-chip:disabled{opacity:.4}
+.bed{width:100%;max-width:440px;height:auto;background:var(--bed);border-radius:8px;border:1px solid var(--line)}
+.banner{background:var(--panel2);border-radius:8px;padding:8px 12px;color:var(--muted);font-size:13px}
+.page-title{margin:0 0 4px;font-size:26px;letter-spacing:-.02em;font-weight:650}
+.lede{margin:0 0 18px;color:var(--muted)}
+.section-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.visually-hidden{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.fit-text{white-space:nowrap}
+.fit-controls{flex:0 0 auto}
+.shop-wrap{max-width:1040px;margin:0 auto;padding:28px 22px 64px}
+.shop-grid{display:grid;grid-template-columns:200px 1fr;gap:28px}
+@media(max-width:800px){.shop-grid{grid-template-columns:1fr}}
+.shop-nav button{display:block;width:100%;text-align:left;margin:0 0 4px;background:transparent;border-color:transparent}
+.shop-nav button.on{background:var(--panel);border-color:var(--line);font-weight:650}
+.printer-card,.filament-card{display:flex;gap:14px;align-items:center;border:1px solid var(--line);border-radius:10px;background:var(--panel);padding:14px 16px;margin:8px 0}
+.printer-card.off{opacity:.6}
+.printer-card .grow,.filament-card .grow{flex:1;min-width:0}
+#printerEditor{border:none;border-radius:12px;padding:0;width:min(440px,calc(100vw - 32px));max-height:min(86vh,760px);color:var(--text);background:var(--panel)}
+#printerEditor::backdrop{background:#1c1c1f66}
+#printerEditor form{padding:18px 18px 22px;overflow:auto;max-height:min(86vh,760px)}
+body.shop-open #tabs,body.shop-open main{display:none}
+.theme-group{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--panel)}
+.theme-group button{border:0;border-radius:0;background:transparent;padding:6px 12px}
+.theme-group button+button{border-left:1px solid var(--line)}
+.theme-group button[aria-pressed="true"]{background:var(--text);color:var(--on-solid);font-weight:650}
+.settings-tools{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.project-status{margin:0;padding:4px 22px 0}
+.onboard{border:1px solid var(--warn);background:var(--onboard);border-radius:10px;padding:12px 14px;margin:12px 22px 0}
 .onboard p{margin:6px 0}
 label.check{display:inline-flex;align-items:center;gap:.4rem;min-block-size:2.75rem;cursor:pointer}
 input[type=checkbox]{accent-color:var(--accent);inline-size:1.1em;block-size:1.1em}
@@ -97,34 +143,59 @@ header a{color:var(--muted)}
 </style>
 </head>
 <body>
-<header><h1>VAULT</h1><span class="sub">planner · design, parts, plates, assemble</span><span id="meta" class="sub"></span><a class="source" href="https://github.com/vcolombo/vault-configurator">Source · AGPL-3.0</a></header>
-<div class="projectbar">
- <label>Project <input id="name" placeholder="name this stack"></label>
- <button type="button" id="saveProject" class="small">Save project</button>
- <label>Saved <select id="projectList"></select></label>
- <button type="button" id="newProject" class="small">New</button>
- <button type="button" id="deleteProject" class="small">Delete saved</button>
- <span id="projectStatus" class="note"></span>
- <span class="muted">Printers</span>
- <span id="fleet" class="fleet"></span>
- <label class="check"><input type="checkbox" id="fitOnly"> Only offer choices that fit</label>
- <label>against <select id="fitTarget"></select></label>
- <span id="fitScope" class="note"></span>
-</div>
+<header>
+ <div class="brand"><h1>VAULT</h1><label class="project-name">Project <input id="name" placeholder="name this stack"></label></div>
+ <div class="project-actions">
+  <button type="button" id="saveProject" class="ghost">Save project</button>
+  <label class="ghost">Load <select id="projectList"></select></label>
+  <button type="button" id="newProject" class="ghost">New</button>
+  <button type="button" id="deleteProject" class="ghost">Delete saved</button>
+ </div>
+ <div class="header-shop">
+  <div class="enabled-summary"><span class="eyebrow">Enabled</span><span id="fleet" class="fleet"></span></div>
+  <div class="filament-summary"><span id="filamentSwatches" class="swatches"></span><span id="filamentCount" class="note">0 filaments</span></div>
+  <div class="fit-controls">
+   <label class="check fit-label" for="fitOnly"><input type="checkbox" id="fitOnly"><span class="fit-text">Only offer choices that fit</span></label>
+   <span id="fit-filter-label" class="visually-hidden">All printers</span>
+   <select id="fitTarget" aria-labelledby="fit-filter-label"></select>
+  </div>
+  <button type="button" id="manageShop" class="manage" aria-expanded="false" aria-controls="shop">Settings</button>
+ </div>
+ <span id="meta" class="sub"></span>
+ <a class="source" href="https://github.com/vcolombo/vault-configurator">Source · AGPL-3.0</a>
+</header>
+<p id="projectStatus" class="note project-status"></p>
 <div id="onboard" class="onboard" hidden></div>
-<nav><button data-tab="stack"><b>1</b>Design</button><button data-tab="parts"><b>2</b>Parts</button><button data-tab="plates"><b>3</b>Plates</button><button data-tab="assemble"><b>4</b>Assemble</button></nav>
+<nav id="tabs"><button data-tab="stack"><b>1</b>Design</button><button data-tab="parts"><b>2</b>Parts</button><button data-tab="plates"><b>3</b>Plates</button><button data-tab="assemble"><b>4</b>Assemble</button></nav>
 <main>
 
 <!-- ============================ 1 STACK ============================ -->
 <div class="tab" id="tab-stack"><div class="cols">
 <div>
+ <h2 class="page-title">Compose your stack</h2>
+ <p class="lede">Pick a depth, stack layers so the first layer is the top of the stack, finish with a roof.</p>
  <section>
-  <h2>Stack</h2>
-  <div class="row"><label data-help="depth">Depth <select id="depth"></select></label>
-   <button id="addLayer" class="primary">+ Add layer on top</button>
-   <button id="clear">Start over</button></div>
-  <p class="note">Layers are listed top-down, like the drawing: the last card is the base layer. <label><input type="checkbox" id="helpOn" checked> Explain an option when you click it, in the Help box under the drawing</label></p>
+  <h2>Footprint</h2>
+  <div class="row"><label data-help="depth">Depth <select id="depth"></select></label></div>
+  <p id="footprintBanner" class="banner">Fits every enabled printer — change this with the All printers dropdown in the header.</p>
+  <p id="fitScope" class="note"></p>
+ </section>
+ <section>
+  <div class="section-head">
+   <div><h2>Layers</h2><p class="note">Top of the list is the top of the stack.</p></div>
+   <div class="row"><button id="addLayer" class="primary" type="button">+ Add layer</button><button id="clear" type="button">Start over</button></div>
+  </div>
+  <p class="note"><label><input type="checkbox" id="helpOn" checked> Explain an option when you click it, in the Help box under the drawing</label></p>
   <div id="layers"></div>
+  <details><summary>Import a stack from ussadesign.com (Compose a stack)</summary>
+   <p class="note"><b>PDF:</b> on the VAULT page press <b>Export</b> (the site prints its "Your build" summary as a PDF) and load that file here. The PDF lists modules and facades but not their order or the depth, so check the layer order afterwards. The first row after import is the top of the stack.</p>
+   <div class="row"><input type="file" id="importPdf" accept=".pdf,application/pdf"><span id="importStatus" class="note"></span></div>
+   <p class="note"><b>JSON:</b> or open DevTools → Console on the VAULT page, run <code>localStorage["vault-composer-v1"]</code> and paste the result (keeps the layer order).</p>
+   <textarea id="importBox" placeholder='{"version":2,"layers":[{"type":"Drawers","layout":"S","height":2,"facades":[[1,1]]}]}'></textarea>
+   <button id="importBtn">Import layers</button></details>
+ </section>
+ <section>
+  <h2>Finish</h2>
   <h3 data-help="roof">Roof</h3>
   <div class="row"><label data-help="roof">Type <select id="roofType">
     </select></label>
@@ -142,24 +213,18 @@ header a{color:var(--muted)}
    <label data-help="pegboard">Pegboard <select data-mod="pegboard"><option value="none">none</option><option value="ussa">USSA</option><option value="ikea">IKEA Skadis</option></select></label>
    <label data-help="wallmount"><input type="checkbox" data-mod="wallmount"> Wall mounts</label>
   </div>
-  <details><summary>Import a stack from ussadesign.com (Compose a stack)</summary>
-   <p class="note"><b>PDF:</b> on the VAULT page press <b>Export</b> (the site prints its "Your build" summary as a PDF) and load that file here. The PDF lists modules and facades but not their order or the depth, so check the layer order afterwards.</p>
-   <div class="row"><input type="file" id="importPdf" accept=".pdf,application/pdf"><span id="importStatus" class="note"></span></div>
-   <p class="note"><b>JSON:</b> or open DevTools → Console on the VAULT page, run <code>localStorage["vault-composer-v1"]</code> and paste the result (keeps the layer order).</p>
-   <textarea id="importBox" placeholder='{"version":2,"layers":[{"type":"Drawers","layout":"S","height":2,"facades":[[1,1]]}]}'></textarea>
-   <button id="importBtn">Import layers</button></details>
  </section>
 </div>
 <div>
  <section>
-  <h2>What you are building</h2>
+  <div class="section-head"><h2>Preview</h2><span class="note">front</span></div>
   <p class="note">Front view built from the designer's own render sheets, as on ussadesign.com (original finish); roof, base, wheels and handle are drawn to the same scale around it. Parts mounted on the back (backbone, pegboards, wall mounts, connectors, stationary handle) appear in a separate BACK view.</p>
   <div id="schematic"></div>
   <div id="warnings"></div>
  </section>
  <section>
   <h2>Parts in this stack</h2>
-  <p class="note">Every required part stays in this list. “Only offer choices that fit” disables other sizes and depths that do not fit the printer named above. A size you already chose stays selected and is marked.</p>
+  <p class="note">Every required part stays in this list. “Only offer choices that fit” disables other sizes and depths that do not fit the printer named in the All printers dropdown. A size you already chose stays selected and is marked.</p>
   <div id="designParts"></div>
  </section>
  <section id="helpPanel"><h2>Help</h2><div id="helpBody" class="note">Click a dotted option on the left (or open its list): what each choice gives you, the real parts in your size and the manual page appear here.</div></section>
@@ -168,6 +233,8 @@ header a{color:var(--muted)}
 
 <!-- ============================ 2 PARTS ============================ -->
 <div class="tab" id="tab-parts">
+ <h2 class="page-title">Parts &amp; colours</h2>
+ <p class="lede">What this build needs, and which filament each part prints in.</p>
  <section>
   <h2>Totals</h2>
   <div class="cards" id="cards"></div>
@@ -175,8 +242,17 @@ header a{color:var(--muted)}
   <div id="warnings2"></div>
  </section>
  <section>
+  <h2 data-help="roles">What prints in which colour</h2>
+  <p class="note">Per build. Your shop inventory stays untouched. Every part is tagged with a colour role from the designer's renders. Pick the spool for each role.</p>
+  <table id="roles"><thead><tr><th>Colour role</th><th>Filament</th><th>Parts of your stack</th></tr></thead><tbody></tbody></table>
+  <details><summary data-help="kindRoles">Give a whole part group another colour (e.g. all facades in the accent colour)</summary>
+   <p class="note">Each row is one group of parts in your stack, pictured in the colour they get right now. Choose a colour role in the last column to move the whole group to another filament; "keep" leaves the designer's tagging.</p>
+   <table id="kindRoles"><thead><tr><th>Part group</th><th>Parts, in their current colour</th><th>Change the whole group to</th></tr></thead><tbody></tbody></table>
+  </details>
+ </section>
+ <section>
   <h2>Printed parts</h2>
-  <p class="note">Colour = which filament slot prints the part. Tagged by default from the designer's renders; set the whole stack or one module at once here, or a single part in its row. <span data-help="drawer-parts">Drawer parts</span> · <span data-help="sustainer-parts">Sustainer parts</span></p>
+  <p class="note">Colour = which shop spool prints the part. Tagged by default from the designer's renders; set the whole stack or one module at once here, or a single part in its row. <span data-help="drawer-parts">Drawer parts</span> · <span data-help="sustainer-parts">Sustainer parts</span></p>
   <div class="row"><label data-help="roles">Colour for ALL parts <select id="allRole"></select></label><label><input type="checkbox" id="mergeParts"> Join identical parts across layers (one row per part, quantities added up)</label></div>
   <p class="note">Quantities follow the stack (divider and pegboard counts are set on the Stack tab). Click any picture to open the part in 3D.</p>
   <table id="parts"><thead><tr><th></th><th>Part</th><th>Group</th><th class="num">Qty</th><th>Colour</th><th class="num">g</th><th class="num">time</th><th>size mm</th><th>fits</th></tr></thead><tbody></tbody></table>
@@ -189,48 +265,14 @@ header a{color:var(--muted)}
 
 <!-- ============================ 3 PLATES ============================ -->
 <div class="tab" id="tab-plates"><div class="linear">
+ <h2 class="page-title">Plates &amp; export</h2>
+ <p class="lede">Choose which shop printers to export for. Everything else is already set.</p>
  <section>
-  <h2>Step 1 · Printers</h2>
-  <table id="printers"><thead><tr><th>Use</th><th>Printer</th><th>Bed X</th><th>Bed Y</th><th>Z</th><th data-help="noTall">No tall parts</th><th data-help="maxH">Max part height</th><th></th></tr></thead><tbody></tbody></table>
-  <div class="row"><label data-help="addPrinter">Add printer <select id="addPrinter"></select></label></div>
-  <details><summary>Slicer, nozzle and presets per printer</summary>
-   <table id="slicers"><thead><tr><th>Printer</th><th>Slicer</th><th>Profile</th><th>Nozzle</th><th data-help="machine">Machine preset</th><th data-help="defaultPreset">Default process preset</th></tr></thead><tbody></tbody></table>
-   <p class="note">Presets are read from the slicers' own folders (your presets first). "0.20mm" in a process preset name is the layer height, not the nozzle; the nozzle is the column before it. The exported file is a full project: it opens with this machine, this process preset and the filaments from step 2 already set, with your colours. H2C bed is 325 × 320 × 320: what one nozzle alone reaches.</p>
-  <p class="note">H2D · both nozzles (split) is optional, from Add printer. It is not a 350 mm single-nozzle bed. Bambu’s guide says the plate is 350 mm wide and each nozzle reaches 325 mm. A part that fits inside one nozzle stays on that nozzle. A part wider than 325 mm and at most 350 mm is cut on one vertical plane into two parts of the same object, each kept inside one nozzle’s reach. The cut is the shared band between x = 25 mm and x = 325 mm. The file is not marked ready to print: load the same material in both nozzles, confirm the two parts in Bambu Studio, and do not add supports in both exclusive strips. A part wider than 350 mm is refused. An angled cut stays a manual step in the slicer.</p>
-   <div id="presetUpload" style="display:none">
-    <h3>Send your slicer presets to this server</h3>
-    <p class="note">This page runs on a server, which has no slicer of its own. Pick a slicer's settings folder on your computer: its printer, process and filament presets (yours and the built-in ones, JSON files only) are copied here. Pick it again whenever you change a preset in the slicer. Your browser asks to confirm the upload of many files.</p>
-    <table><thead><tr><th>Slicer</th><th>Windows (paste into the folder picker's address bar)</th><th>macOS (⌘⇧G in the picker)</th><th>Linux</th><th>On this server</th></tr></thead><tbody>
-     <tr><td>Bambu Studio</td><td><code>%APPDATA%\BambuStudio</code></td><td><code>~/Library/Application Support/BambuStudio</code></td><td><code>~/.config/BambuStudio</code></td><td id="up-bambu" class="note"></td></tr>
-     <tr><td>Anycubic Slicer Next</td><td><code>%APPDATA%\AnycubicSlicerNext</code></td><td><code>~/Library/Application Support/AnycubicSlicerNext</code></td><td><code>~/.config/AnycubicSlicerNext</code></td><td id="up-anycubic" class="note"></td></tr>
-     <tr><td>OrcaSlicer</td><td><code>%APPDATA%\OrcaSlicer</code></td><td><code>~/Library/Application Support/OrcaSlicer</code></td><td><code>~/.config/OrcaSlicer</code></td><td id="up-orca" class="note"></td></tr>
-    </tbody></table>
-    <div class="row"><label>Slicer folder <input type="file" id="presetDir" webkitdirectory></label><span id="presetUploadStatus" class="note"></span></div>
-   </div>
-  </details>
- </section>
- <section>
-  <h2>Step 2 · Filaments &amp; colours</h2>
-  <details id="spoolmanBox"><summary data-help="spoolman">Connect to Spoolman first (optional): fills the slots below from your real spools</summary>
-   <div class="row"><label>Server <input id="spoolman" placeholder="http://192.168.1.10:7912" style="width:220px"></label><button id="spoolmanBtn" class="small">Load spools</button><span id="spoolmanStatus" class="note"></span></div>
-   <p class="note">Per slot: pick the filament (brand · material), then one of the colours you have of it. The slot's colour, material and name follow.</p>
-   <table id="spools"><thead><tr><th>Slot</th><th>Filament</th><th>Colour you own</th></tr></thead><tbody></tbody></table>
-  </details>
-  <p class="note">Colour slots: pick the colour, then the material (written into the 3MF; the slicer's filament preset is chosen from it). A name is optional. Slots no part of this stack uses are hidden.</p>
-  <table id="filaments"><thead><tr><th>#</th><th>Colour</th><th>Material</th><th>Name (optional)</th><th>Prints</th></tr></thead><tbody></tbody></table>
-  <details><summary>Filament preset per printer (slicer)</summary><table id="filPresets"><thead><tr><th>#</th><th>Filament</th></tr></thead><tbody></tbody></table></details>
-  <h3 data-help="roles">What prints in which colour</h3>
-  <p class="note">Every part is tagged with a colour role from the designer's renders. Pick the filament for each role; the pictures show real parts of your stack in that colour.</p>
-  <table id="roles"><thead><tr><th>Colour role</th><th>Filament</th><th>Parts of your stack</th></tr></thead><tbody></tbody></table>
-  <details><summary data-help="kindRoles">Give a whole part group another colour (e.g. all facades in the accent colour)</summary>
-   <p class="note">Each row is one group of parts in your stack, pictured in the colour they get right now. Choose a colour role in the last column to move the whole group to another filament; "keep" leaves the designer's tagging.</p>
-   <table id="kindRoles"><thead><tr><th>Part group</th><th>Parts, in their current colour</th><th>Change the whole group to</th></tr></thead><tbody></tbody></table>
-  </details>
- </section>
- <section>
-  <h2>Step 3 · Plates &amp; export</h2>
-  <p class="note">One 3MF project per printer, several plates inside, every plate a single filament. Parts of one colour are packed together (MaxRects, 90° rotation allowed); the biggest parts go to the biggest printer.</p>
-  <div class="row"><button id="planBtn" type="button">Preview plates</button><button id="exportBtn" class="primary" type="button">Export 3MF (one project per printer)</button><span id="exportStatus" class="note"></span></div>
+  <h2>Export for</h2>
+  <div class="row" id="exportFor"></div>
+  <div class="row"><label data-help="groupBy">Group by <select id="groupBy"><option value="color">Colour</option><option value="size">Size</option><option value="module">Module</option></select></label></div>
+  <div class="row"><button id="planBtn" type="button">Preview plates</button><button id="exportBtn" class="primary" type="button">Export 3MF</button><span id="exportStatus" class="note"></span></div>
+  <p class="note">One 3MF project per selected printer, several plates inside, every plate a single filament. Parts of one colour are packed together (MaxRects, 90° rotation allowed); the biggest parts go to the biggest selected printer.</p>
   <p id="handoffNote" class="note"></p>
   <div id="profileEmpty" class="note" hidden></div>
   <div id="sampleBox" hidden>
@@ -241,8 +283,7 @@ header a{color:var(--muted)}
   <div class="row"><button id="saveStack" data-help="stackFile">Save stack (.json)</button><label data-help="stackFile">Load stack <input type="file" id="loadStack" accept=".json,application/json"></label><span id="stackFileStatus" class="note">a file to keep versions of a stack or share it; the stack.json in an export loads too</span></div>
   <div class="progress" id="progressBar" style="display:none"><div></div></div>
   <details><summary>Packing and estimate options</summary>
-   <div class="row"><label data-help="mode">Send parts to <select id="mode"><option value="both">all printers (balance print time)</option></select></label>
-    <label data-help="groupBy">Group plates by <select id="groupBy"><option value="color">one colour · fewest plates</option><option value="size">big and small · large parts on their own plates</option><option value="module">keep a module together</option></select></label></div>
+   <div class="row"><label data-help="mode">Send parts to <select id="mode"><option value="both">all printers selected above (balance print time)</option></select></label></div>
    <div class="row"><label data-help="spacing">Part spacing <input type="number" id="spacing" step="1" min="0"> mm</label><label data-help="edge">Bed edge <input type="number" id="edge" step="1" min="0"> mm</label></div>
    <div class="row"><label data-help="estimate"><input type="checkbox" id="estimateFromPreset"> Weight estimate uses the process preset's walls and infill</label><span id="estimateInfo" class="note"></span></div>
    <div class="row" id="estimateManual"><label data-help="estimate">Shell <input type="number" id="wallMm" step="0.1" min="0.2" max="3"> mm</label><label data-help="estimate">Infill <input type="number" id="infill" step="0.01" min="0.05" max="1"></label></div>
@@ -251,7 +292,7 @@ header a{color:var(--muted)}
   <div id="plates"></div>
  </section>
  <section>
-  <details><summary><b>Step 4 · Tune a process preset per part group (optional)</b></summary>
+  <details><summary><b>Tune a process preset per part group (optional)</b></summary>
    <p class="note">Tick <b>test</b> on the groups you want to tune, press <b>Export test plates</b>: each printer gets a TEST file with one plate per group holding one of each part (an assembly's parts together). Tune and save a preset in the slicer, press <b>Rescan presets</b>, pick it here; the real export then applies it. Per-part rows override the group.</p>
    <div class="row"><button id="rescan">Rescan presets</button><button id="testBtn">Export test plates</button><span id="testStatus" class="note"></span></div>
    <table id="presetTable"><thead><tr><th>Test</th><th>Group / part</th></tr></thead><tbody></tbody></table>
@@ -273,11 +314,70 @@ header a{color:var(--muted)}
  </section>
 </div></div>
 </main>
+<div id="shop" class="shop-wrap" hidden>
+ <div class="section-head">
+  <div><h2 class="page-title">Settings</h2><p class="lede">Printers and filament on hand, plus how this planner looks. Shop setup is used by every build.</p></div>
+  <div class="settings-tools">
+   <div class="theme-group" role="group" aria-label="Theme">
+    <button type="button" data-theme="light" aria-pressed="false">Light</button>
+    <button type="button" data-theme="dark" aria-pressed="false">Dark</button>
+    <button type="button" data-theme="system" aria-pressed="true" title="Follow system">System</button>
+   </div>
+   <button type="button" id="closeShop">Close</button>
+  </div>
+ </div>
+ <div class="shop-grid">
+  <nav class="shop-nav" aria-label="Shop">
+   <button type="button" data-shop="printers" class="on">Printers</button>
+   <button type="button" data-shop="filaments">Filaments</button>
+  </nav>
+  <div>
+   <div id="shop-printers">
+    <div class="section-head"><h3>Fleet</h3><label data-help="addPrinter">Add printer <select id="addPrinter"></select></label></div>
+    <div id="printerCards"></div>
+   </div>
+   <div id="shop-filaments" hidden>
+    <div class="section-head"><div><h3>Inventory</h3><p class="note">Just what's on the shelf. Colour assignments happen per build in Parts.</p></div><button type="button" id="addFilament">+ Add filament</button></div>
+    <div id="filamentList"></div>
+    <details id="spoolmanBox"><summary data-help="spoolman">Connect to Spoolman (optional): fills the shelf from your real spools</summary>
+     <div class="row"><label>Server <input id="spoolman" placeholder="http://192.168.1.10:7912" style="width:220px"></label><button id="spoolmanBtn" class="small" type="button">Load spools</button><span id="spoolmanStatus" class="note"></span></div>
+     <p class="note">Per spool: pick the filament (brand · material), then one of the colours you have of it. The spool's colour, material and name follow.</p>
+     <table id="spools"><thead><tr><th>Spool</th><th>Filament</th><th>Colour you own</th></tr></thead><tbody></tbody></table>
+    </details>
+    <details><summary>Filament preset per printer (slicer)</summary><table id="filPresets"><thead><tr><th>#</th><th>Filament</th></tr></thead><tbody></tbody></table></details>
+   </div>
+  </div>
+ </div>
+</div>
+<dialog id="printerEditor" aria-labelledby="printerEditorTitle" closedby="any">
+ <form method="dialog">
+  <h2 id="printerEditorTitle">Printer</h2>
+  <p class="note">Bed and slicer settings for this printer. The name here is the label on Enabled, All printers, and Export for.</p>
+  <div id="printerBasics"></div>
+  <details>
+   <summary>Advanced · slicer presets</summary>
+   <table id="slicers"><thead><tr><th>Slicer</th><th>Profile</th><th>Nozzle</th><th data-help="machine">Machine preset</th><th data-help="defaultPreset">Default process preset</th></tr></thead><tbody></tbody></table>
+   <p class="note">Presets are read from the slicers' own folders (your presets first). "0.20mm" in a process preset name is the layer height, not the nozzle; the nozzle is the column before it. The exported file is a full project: it opens with this machine, this process preset and the filaments from Settings already set, with your colours. H2C bed is 325 × 320 × 320: what one nozzle alone reaches.</p>
+   <p class="note">H2D · both nozzles (split) is optional, from Add printer. It is not a 350 mm single-nozzle bed. Bambu’s guide says the plate is 350 mm wide and each nozzle reaches 325 mm. A part that fits inside one nozzle stays on that nozzle. A part wider than 325 mm and at most 350 mm is cut on one vertical plane into two parts of the same object, each kept inside one nozzle’s reach. The cut is the shared band between x = 25 mm and x = 325 mm. The file is not marked ready to print: load the same material in both nozzles, confirm the two parts in Bambu Studio, and do not add supports in both exclusive strips. A part wider than 350 mm is refused. An angled cut stays a manual step in the slicer.</p>
+   <div id="presetUpload" style="display:none">
+    <h3>Send your slicer presets to this server</h3>
+    <p class="note">This page runs on a server, which has no slicer of its own. Pick a slicer's settings folder on your computer: its printer, process and filament presets (yours and the built-in ones, JSON files only) are copied here. Pick it again whenever you change a preset in the slicer. Your browser asks to confirm the upload of many files.</p>
+    <table><thead><tr><th>Slicer</th><th>Windows (paste into the folder picker's address bar)</th><th>macOS (⌘⇧G in the picker)</th><th>Linux</th><th>On this server</th></tr></thead><tbody>
+     <tr><td>Bambu Studio</td><td><code>%APPDATA%\BambuStudio</code></td><td><code>~/Library/Application Support/BambuStudio</code></td><td><code>~/.config/BambuStudio</code></td><td id="up-bambu" class="note"></td></tr>
+     <tr><td>Anycubic Slicer Next</td><td><code>%APPDATA%\AnycubicSlicerNext</code></td><td><code>~/Library/Application Support/AnycubicSlicerNext</code></td><td><code>~/.config/AnycubicSlicerNext</code></td><td id="up-anycubic" class="note"></td></tr>
+     <tr><td>OrcaSlicer</td><td><code>%APPDATA%\OrcaSlicer</code></td><td><code>~/Library/Application Support/OrcaSlicer</code></td><td><code>~/.config/OrcaSlicer</code></td><td id="up-orca" class="note"></td></tr>
+    </tbody></table>
+    <div class="row"><label>Slicer folder <input type="file" id="presetDir" webkitdirectory></label><span id="presetUploadStatus" class="note"></span></div>
+   </div>
+  </details>
+  <div class="row"><button type="submit" class="primary" value="close">Done</button></div>
+ </form>
+</dialog>
 <div id="pop"></div>
 <div id="lightbox"></div>
 <div id="viewer"><div class="bar"><b id="viewerTitle"></b><span id="viewerStatus" class="note"></span><span id="viewerExport" class="note"></span><span style="flex:1"></span><span class="note">drag to orbit · wheel to zoom · right-drag to pan</span><button type="button" id="viewerStl" class="small">Download STL</button><button type="button" id="viewer3mf" class="small">Export this part</button><button type="button" id="viewerClose">Close</button></div><canvas id="viewerCanvas"></canvas></div>
 <script type="module">
-import { reconcileProgress, plateKey, partFitsScope, layerNotes, migratePrinters, decorateChoices, visiblePartRows, checkedCount, catalogChoicesFor, repairStackCatalog, depthLabel } from "./planner.mjs";
+import { reconcileProgress, plateKey, partFitsScope, layerNotes, migratePrinters, migrateShop, legalExportMode, decorateChoices, visiblePartRows, checkedCount, catalogChoicesFor, repairStackCatalog, depthLabel, printerLabel, spoolLabel, normalizeTheme, themeIsDark, THEME_STORAGE_KEY } from "./planner.mjs";
 const $=s=>document.querySelector(s);
 const el=(t,a={},...c)=>{const n=document.createElement(t);for(const[k,v]of Object.entries(a)){if(k==='class')n.className=v;else if(k.startsWith('on'))n[k]=v;else if(v!==undefined&&v!==null)n.setAttribute(k,v)}for(const x of c)n.append(x);return n};
 const svg=(t,a={},...c)=>{const n=document.createElementNS('http://www.w3.org/2000/svg',t);for(const[k,v]of Object.entries(a))n.setAttribute(k,v);for(const x of c)n.append(x);return n};
@@ -406,15 +506,16 @@ $('#viewerStl').onclick=()=>{if(!viewerFile)return;const name=viewerFile.split(/
 $('#viewer3mf').onclick=async()=>{if(!viewerFile)return;$('#viewerExport').textContent='Exporting this part…';try{const r=await api('/api/export_part',{file:viewerFile,name:$('#viewerTitle').textContent,settings:state.settings,role:'main'});const a=el('a',{href:r.download,download:r.file},'Download '+r.file);$('#viewerExport').replaceChildren(r.warning?el('span',{class:'warn'},r.warning+' · '):'One-part 3MF · ',a);if(META.handoff!=='none')$('#viewerExport').append(handoffButtons(r.file))}catch(e){$('#viewerExport').replaceChildren(el('span',{class:'bad'},e.message))}};
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){$('#viewer').style.display='none';if(V)V.run=false;$('#lightbox').style.display='none';pop.style.display='none'}});
 
-function defaultState(){return {tab:'stack',stack:{name:'my-vault',depth:5,layers:[],roof:{type:'none',topHandle:true},mods:{backbone:'none',pegboard:'none'}},settings:JSON.parse(JSON.stringify(META.defaults)),overrides:{},tests:{},projects:[],activeProjectId:'',fitOnly:false,fitTarget:'',progress:{layoutKey:'',plates:{},hardware:{},assemble:{}}}}
+function defaultState(){return {tab:'stack',stack:{name:'my-vault',depth:5,layers:[],roof:{type:'none',topHandle:true},mods:{backbone:'none',pegboard:'none'}},settings:JSON.parse(JSON.stringify(META.defaults)),overrides:{},tests:{},projects:[],activeProjectId:'',fitOnly:false,fitTarget:'every',progress:{layoutKey:'',plates:{},hardware:{},assemble:{}}}}
 function save(){localStorage.setItem('vault-configurator',JSON.stringify(state))}
 function load(){try{const raw=localStorage.getItem('vault-configurator');if(raw&&!localStorage.getItem('vault-configurator-backup-v1'))localStorage.setItem('vault-configurator-backup-v1',raw);const s=JSON.parse(raw);if(s&&s.stack&&s.settings){const d=JSON.parse(JSON.stringify(META.defaults));s.settings={...d,...s.settings};
  if(!s.settings.filaments||s.settings.filaments.length<5||!('box' in (s.settings.roles||{}))){s.settings.filaments=d.filaments;s.settings.roles=d.roles}
- s.settings.filaments.forEach((f,i)=>{if(/^(Elegoo|PETG accent|TPU tyres)/.test(f.name||''))f.name=d.filaments[i].name});  // drop the old brand-named defaults
- s.settings.filaments.forEach(f=>{f.preset=f.preset||{};f.material=f.material||'PETG'});
  s.settings.printers=s.settings.printers.map(p=>({...(d.printers.find(x=>x.id===p.id)||{}),...p}));if(!s.settings.spoolman)s.settings.spoolman=d.spoolman;
  s.settings.printers.forEach(p=>{if(p.id==='h2c'&&p.bed[0]===330){p.bed=[325,320];p.z=320;p.maxH=Math.min(p.maxH||320,320)}});  /* an old saved value is the two-nozzle union, not what one nozzle prints */
  s.settings.printers=migratePrinters(s.settings.printers,d.printers);
+ migrateShop(s.settings,d);
+ legalExportMode(s.settings);
+ s.settings.filaments.forEach(f=>{f.preset=f.preset||{};f.material=f.material||'PLA'});
  s.settings.presets=s.settings.presets||{};s.settings.kindRoles=s.settings.kindRoles||{};s.tests=s.tests||{};s.tab=s.tab||'stack';if(!['color','module','size'].includes(s.settings.groupBy))s.settings.groupBy='color';
  s.projects=Array.isArray(s.projects)?s.projects:[];s.activeProjectId=s.activeProjectId||'';s.fitOnly=!!s.fitOnly;s.fitTarget=s.fitTarget||'all';
  repairStackCatalog(s.stack, META.depths, META.roofs);
@@ -422,15 +523,16 @@ function load(){try{const raw=localStorage.getItem('vault-configurator');if(raw&
 function baseFamily(){const l=state.stack.layers[0];return l?FAM[l.layout]:null}
 function newLayer(){const base=baseFamily();const layout=base?META.allowed[base][0]:'S';const h=FAM[layout]==='XL'?1:2;return {type:'Drawers',layout,height:h,facades:META.layouts[layout].map(()=>[h]),interior:'none',key:'key',labels:true,rails:false,manualSupports:false,variant:'Flat',baseplate:false,gridW:1,gridD:1,divW:1,divD:2}}
 /* ---------------------------------------------------------------- tabs */
-function showTab(id){state.tab=id;document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active',b.dataset.tab===id));document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.id==='tab-'+id));save();if(id==='plates'&&state.stack.layers.length)refreshPlan()}
+function showTab(id){state.tab=id;document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('active',b.dataset.tab===id));document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.id==='tab-'+id));save();if(id==='plates'&&state.stack.layers.length)refreshPlan()}
 async function refreshPlan(){try{const r=await api('/api/plan',{stack:state.stack,settings:state.settings,overrides:state.overrides});syncProgress(r.plan);renderPlan(r.plan)}catch(e){const host=$('#exportStatus');if(host)host.replaceChildren(el('span',{class:'bad'},e.message))}}
-document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
+document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
 
 /* ---------------------------------------------------------------- stack editor (top layer first) */
-function renderLayers(){const box=$('#layers');box.replaceChildren();if(!state.stack.layers.length)box.append(el('p',{class:'note'},'No layers yet. The first layer is the base and sets the family (S, M, L or XL) for the whole stack.'));
+function renderLayers(){const box=$('#layers');box.replaceChildren();if(!state.stack.layers.length)box.append(el('p',{class:'note'},'No layers yet. Add a layer: the first row is the top of the stack, and that layer sets the width family (S, M, L or XL).'));
  [...state.stack.layers.keys()].reverse().forEach(i=>{const l=state.stack.layers[i];
   const card=el('div',{class:'layer','data-layer':i});
-  const title=el('div',{class:'title'},el('span',{},`Layer ${i+1}${i===0?' · base (bottom)':i===state.stack.layers.length-1?' · top':''} — ${LAYOUT_LABEL[l.layout]||l.layout} · ${l.height}U · ${l.type}`),
+  const place=state.stack.layers.length===1?' · top · base':i===state.stack.layers.length-1?' · top':i===0?' · base':'';
+  const title=el('div',{class:'title'},el('span',{},`Layer ${i+1}${place} — ${LAYOUT_LABEL[l.layout]||l.layout} · ${l.height}U · ${l.type}`),
    el('span',{},el('button',{class:'small',title:'move up',onclick:()=>move(i,1)},'↑'),' ',el('button',{class:'small',title:'move down',onclick:()=>move(i,-1)},'↓'),' ',el('button',{class:'small',onclick:()=>{state.stack.layers.splice(i,1);changed(true)}},'✕')));
   const choiceLayer=()=>{const rows=bom&&bom.choices&&bom.choices.layers;return rows&&rows[i]||null};
   const sel=(entries,val,fn,label)=>{const s=el('select',{onchange:e=>{fn(e.target.value);changed(true)}});const list=(entries&&entries.length)?entries:[{value:val,current:true}];const judged=list.some(e=>Object.prototype.hasOwnProperty.call(e,'fits'));const dec=judged&&state.fitOnly?decorateChoices(list.map(e=>({...e,current:String(e.value)===String(val)})),true):null;list.forEach(e=>{const item=dec&&dec.items.find(x=>String(x.value)===String(e.value));const text=label(e.value)+(item&&item.mark?' · '+item.mark:'');const o=el('option',{value:e.value,selected:String(e.value)===String(val)?'':null,title:(item&&item.reason)||e.reason||''},text);if(item&&item.disabled)o.disabled=true;s.append(o)});if(dec&&dec.warning)s.dataset.warning=dec.warning;return s};
@@ -481,7 +583,8 @@ function drawSchematic(){const st=state.stack,box=$('#schematic');box.replaceChi
  const vw=leftPad+Wpx+rightPad,vh=top+stackPx+bottom;
  const root=svg('svg',{viewBox:`0 0 ${vw} ${vh}`}),g=svg('g',{transform:`translate(${leftPad},${top})`});root.append(g);
  const defs=svg('defs');defs.innerHTML=`<linearGradient id="gm" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#d9dcdf"/><stop offset="1" stop-color="#aeb2b6"/></linearGradient><linearGradient id="gd" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#4a4d50"/><stop offset="1" stop-color="#2b2d2f"/></linearGradient><linearGradient id="gt" x1="0" x2="1" y1="0" y2="0"><stop offset="0" stop-color="#1f2123"/><stop offset=".5" stop-color="#3b3e41"/><stop offset="1" stop-color="#1f2123"/></linearGradient><pattern id="peg" width="24" height="24" patternUnits="userSpaceOnUse"><rect width="24" height="24" fill="#1a1c1e" fill-opacity=".45"/><circle cx="12" cy="12" r="4" fill="#e0a96d" fill-opacity=".7"/></pattern>`;root.append(defs);
- const R=(x,y,w,h,fill,extra={})=>g.append(svg('rect',{x,y,width:w,height:h,fill,stroke:'#55595d','stroke-width':1,rx:4,...extra}));
+ const ink='currentColor',edge='3';
+ const R=(x,y,w,h,fill,extra={})=>g.append(svg('rect',{x,y,width:w,height:h,fill,stroke:ink,'stroke-width':edge,rx:4,...extra}));
  const T=(x,y,t,anchor='start')=>g.append(svg('text',{x,y,'text-anchor':anchor,class:'svgtxt'},t));
  const LX=Wpx+(wheelR?WHEEL_OUT+WHEEL_W:0)*px+36;
  const floorY=stackPx;
@@ -489,14 +592,15 @@ function drawSchematic(){const st=state.stack,box=$('#schematic');box.replaceChi
  if(baseH){R(0,floorY+gap,Wpx,baseH*px,'url(#gm)');legend.push([floorY+gap+baseH*px/2,[`${fam}${st.depth} base`]])}
  if(feetH)R(Wpx/2-FEET_W/2*px,floorY+gap+baseH*px,FEET_W*px,feetH*px,'url(#gd)');
  if(wheelR){const cy=floorY+gap+baseH*px/2,wy=cy-WHEEL_D/2*px;
-  [[-(WHEEL_OUT+WHEEL_W)*px,-WHEEL_OUT*px,0],[Wpx+WHEEL_OUT*px,Wpx+(WHEEL_OUT+WHEEL_W)*px,Wpx]].forEach(([x0,x1,bx])=>{g.append(svg('line',{x1:bx,y1:cy,x2:(x0+x1)/2,y2:cy,stroke:'#8e9296','stroke-width':16*px}));
-   R(x0,wy,x1-x0,WHEEL_D*px,'url(#gt)',{rx:WHEEL_W*px/2,stroke:'#111'});for(let k=1;k<10;k++)g.append(svg('line',{x1:x0+4,y1:wy+k*WHEEL_D*px/10,x2:x1-4,y2:wy+k*WHEEL_D*px/10,stroke:'#55595d','stroke-width':2}))});
+  [[-(WHEEL_OUT+WHEEL_W)*px,-WHEEL_OUT*px,0],[Wpx+WHEEL_OUT*px,Wpx+(WHEEL_OUT+WHEEL_W)*px,Wpx]].forEach(([x0,x1,bx])=>{g.append(svg('line',{x1:bx,y1:cy,x2:(x0+x1)/2,y2:cy,stroke:ink,'stroke-width':16*px}));
+   R(x0,wy,x1-x0,WHEEL_D*px,'url(#gt)',{rx:WHEEL_W*px/2,stroke:ink});for(let k=1;k<10;k++)g.append(svg('line',{x1:x0+4,y1:wy+k*WHEEL_D*px/10,x2:x1-4,y2:wy+k*WHEEL_D*px/10,stroke:ink,'stroke-width':2}))});
   legend.push([cy+WHEEL_D/2*px-20,['wheels Ø160, TPU tyres, M16 axle']])}
  let y=0;const rowY=[];
  [...rows].reverse().forEach((r,ri)=>{const i=rows.length-1-ri,l=r.layer,layoutW=r.colW.reduce((a,b)=>a+b,0);let x=(Wpx-layoutW)/2;
   r.cols.forEach((parts,c)=>{let py=y;parts.forEach(p=>{const cw=r.colW[c],v=p.crop;const fw=v?v.width:cw,fh=v?v.height:CAL.vertical[p.unit].height,fx=x+(cw-fw)/2;
-    if(v){const crop=svg('svg',{x:fx,y:py,width:fw,height:fh,viewBox:`${v.x} ${v.y} ${fw} ${fh}`,overflow:'hidden'});const img=svg('image',{href:v.src,width:1600,height:1200});img.addEventListener('error',()=>{crop.replaceChildren();crop.append(svg('rect',{x:v.x,y:v.y,width:fw,height:fh,fill:'#c9ccd0',stroke:'#55595d'}))});crop.append(img);g.append(crop)}
+    if(v){const crop=svg('svg',{x:fx,y:py,width:fw,height:fh,viewBox:`${v.x} ${v.y} ${fw} ${fh}`,overflow:'hidden'});const img=svg('image',{href:v.src,width:1600,height:1200});img.addEventListener('error',()=>{crop.replaceChildren();crop.append(svg('rect',{x:v.x,y:v.y,width:fw,height:fh,fill:'#c9ccd0',stroke:ink,'stroke-width':edge}))});crop.append(img);g.append(crop)}
     else R(fx,py,fw,fh,'#c9ccd0');
+    g.append(svg('rect',{x:fx,y:py,width:fw,height:fh,fill:'none',stroke:ink,'stroke-width':edge,class:'preview-outline'}));
     if(l.type==='Drawers'&&l.key!=='key'){const cx=fx+fw/2,cy=py+fh-65;g.append(svg('circle',{cx,cy,r:48,fill:'#a8acaf',stroke:l.key==='hidden'?'#3b3e41':'none','stroke-width':3}));if(l.key==='hidden')g.append(svg('rect',{x:cx-30,y:cy-9,width:60,height:18,rx:9,fill:'#8e9296',stroke:'#3b3e41','stroke-width':2}))}
     py+=fh});x+=r.colW[c]});
   rowY[i]={y,h:r.h};
@@ -505,21 +609,21 @@ function drawSchematic(){const st=state.stack,box=$('#schematic');box.replaceChi
   const detail=['module','box','facade'].map(k=>parts.filter(p=>p.kind===k).map(p=>`${p.qty}× ${short(p.name)}`).join(', ')).filter(Boolean);
   if(l.type==='Drawers'&&l.key!=='key')detail.push(l.key==='hidden'?'hidden key (flush, drawn as a disc)':'no lock (drawn as a plain disc)');
   legend.push([y+r.h/2,[`Layer ${i+1} · ${LAYOUT_LABEL[l.layout]} ${st.depth} · ${l.height}U ${l.type.toLowerCase()}`,...detail]]);
-  g.append(svg('line',{x1:Wpx+4,y1:y+r.h/2,x2:LX-10,y2:y+r.h/2,stroke:'#55595d','stroke-dasharray':'6 6'}));
+  g.append(svg('line',{x1:Wpx+4,y1:y+r.h/2,x2:LX-10,y2:y+r.h/2,stroke:ink,'stroke-dasharray':'6 6'}));
   y+=r.h+gap});
  if(roofH){const ry=-gap-roofH*px;if(roof.type==='heavyweight'){R(0,ry,Wpx*0.3,roofH*px,'url(#gm)');R(Wpx*0.7,ry,Wpx*0.3,roofH*px,'url(#gm)');R(Wpx*0.3,ry+roofH*px-12*px,Wpx*0.4,12*px,'url(#gd)')}
-  else{R(0,ry,Wpx,roofH*px,roof.type==='bowl'?'#d6d8db':'url(#gm)');if(roof.type==='grid'){for(let gx=42;gx<W;gx+=42)g.append(svg('line',{x1:gx*px,y1:ry,x2:gx*px,y2:ry+roofH*px,stroke:'#8c9094'}));if(roof.topHandle!==false)R(Wpx/2-HANDLE_W/2*px,ry-HANDLE_H*px,HANDLE_W*px,HANDLE_H*px,'url(#gd)',{rx:12})}}
+  else{R(0,ry,Wpx,roofH*px,roof.type==='bowl'?'#d6d8db':'url(#gm)');if(roof.type==='grid'){for(let gx=42;gx<W;gx+=42)g.append(svg('line',{x1:gx*px,y1:ry,x2:gx*px,y2:ry+roofH*px,stroke:ink}));if(roof.topHandle!==false)R(Wpx/2-HANDLE_W/2*px,ry-HANDLE_H*px,HANDLE_W*px,HANDLE_H*px,'url(#gd)',{rx:12})}}
   legend.push([ry+roofH*px/2,[{grid:'grid roof'+(roof.topHandle!==false?' + top handle':''),table:'table roof',bowl:'bowl roof',undertable:'under-table roof',heavyweight:'heavyweight roof'}[roof.type]]])}
- if(casters){const cy=floorY+gap+baseH*px+feetH*px+30*px;[0.15,0.85].forEach(k=>{g.append(svg('line',{x1:W*k*px,y1:cy-30*px,x2:W*k*px,y2:cy,stroke:'#8e9296','stroke-width':6}));g.append(svg('circle',{cx:W*k*px,cy:cy,r:25*px,fill:'url(#gt)',stroke:'#111'}))});legend.push([cy,['4 casters, M8 (hardware)']])}
+ if(casters){const cy=floorY+gap+baseH*px+feetH*px+30*px;[0.15,0.85].forEach(k=>{g.append(svg('line',{x1:W*k*px,y1:cy-30*px,x2:W*k*px,y2:cy,stroke:ink,'stroke-width':6}));g.append(svg('circle',{cx:W*k*px,cy:cy,r:25*px,fill:'url(#gt)',stroke:ink}))});legend.push([cy,['4 casters, M8 (hardware)']])}
  const bb=m.backbone&&m.backbone!=='none';
  if(bb&&m.pullout){const hy=-(handleH+roofH+CAL.gapMm)*px;R(-14*px,hy,8*px,handleH*px,'#9a9ea2');R(Wpx+6*px,hy,8*px,handleH*px,'#9a9ea2');R(-14*px,hy,Wpx+28*px,12*px,'url(#gd)',{rx:10});legend.push([hy+6,['pull-out handle, M16 rods (on the backbone)']])}
  // BACK view: everything bolted to the rear of the modules, drawn as a second elevation to the right
  const backMods=[bb&&`backbone (${m.backbone})`,bb&&m.stationary&&'stationary handle',bb&&m.connectors&&'module connectors',m.pegboard&&m.pegboard!=='none'&&`${m.pegboard==='ikea'?'IKEA Skadis':'USSA'} pegboards`,m.wallmount&&'wall mounts'].filter(Boolean);
  if(backMods.length){const BX=LX+700;const b=svg('g',{transform:`translate(${BX},0)`});g.append(b);
-  const BR=(x,y,w,h,fill,extra={})=>b.append(svg('rect',{x,y,width:w,height:h,fill,stroke:'#55595d','stroke-width':1,rx:3,...extra}));
+  const BR=(x,y,w,h,fill,extra={})=>b.append(svg('rect',{x,y,width:w,height:h,fill,stroke:ink,'stroke-width':edge,rx:3,...extra}));
   b.append(svg('text',{x:0,y:-14,class:'svgtxt',fill:'#e0a96d'},'BACK (what is bolted on the rear)'));
-  rowY.forEach(r=>BR(0,r.y,Wpx,r.h,'#2c2f32',{stroke:'#6a6e72'}));
-  if(roofH)BR(0,-gap-roofH*px,Wpx,roofH*px,'#2c2f32',{stroke:'#6a6e72'});if(baseH)BR(0,floorY+gap,Wpx,baseH*px,'#2c2f32',{stroke:'#6a6e72'});
+  rowY.forEach(r=>BR(0,r.y,Wpx,r.h,'#2c2f32',{stroke:ink}));
+  if(roofH)BR(0,-gap-roofH*px,Wpx,roofH*px,'#2c2f32',{stroke:ink});if(baseH)BR(0,floorY+gap,Wpx,baseH*px,'#2c2f32',{stroke:ink});
   rowY.forEach((r,i)=>{const l=state.stack.layers[i],hU=Math.min(l.height,2),boardH=(hU===1?47:99)*px;const n=l.height===4?2:1;
    for(let k=0;k<n;k++){const y0=r.y+(r.h-n*boardH-(n-1)*6)/2+k*(boardH+6);
     if(bb){if(m.backbone==='wide')BR(0,y0,Wpx,boardH,'url(#gd)');else [0.08,0.72].forEach(f=>BR(Wpx*f,y0,Wpx*0.2,boardH,'url(#gd)'));
@@ -543,48 +647,56 @@ function presetsFor(p,kind='presets'){const s=sl(p);if(!s)return [];return (s[ki
 function presetSelect(rows,value,fn,allowInherit,inheritLabel='(inherit)'){const s=el('select',{onchange:e=>{fn(e.target.value);changed()}});if(allowInherit)s.append(el('option',{value:''},inheritLabel));if(!rows.length)s.append(el('option',{value:''},'(no presets found)'));
  const grp=(label,list)=>{if(!list.length)return;const og=el('optgroup',{label});list.forEach(r=>og.append(el('option',{value:r.name,...(r.name===value?{selected:''}:{})},r.name+(r.nkeys&&!r.material?` · ${r.nkeys} keys`:'')+(r.material?` · ${r.material}`:''))));s.append(og)};
  grp('your presets',rows.filter(r=>r.user));grp('system presets',rows.filter(r=>!r.user));if(value&&!rows.some(r=>r.name===value))s.append(el('option',{value,selected:''},value+' (not found)'));return s}
-function renderSetup(){const s=state.settings;const tb=$('#printers tbody');tb.replaceChildren();
- s.printers.forEach(p=>{const tr=el('tr');const f=(k,type='number')=>el('input',{type,value:p[k],onchange:e=>{p[k]=type==='number'?+e.target.value:e.target.value;changed()}});
-  const noTall=(p.maxH||p.z)<p.z;
-  tr.append(el('td',{},el('input',{type:'checkbox',...(p.enabled?{checked:''}:{}),onchange:e=>{p.enabled=e.target.checked;changed()}})),el('td',{},f('name','text')),
-   el('td',{},el('input',{type:'number',value:p.bed[0],onchange:e=>{p.bed[0]=+e.target.value;changed()}})),el('td',{},el('input',{type:'number',value:p.bed[1],onchange:e=>{p.bed[1]=+e.target.value;changed()}})),
-   el('td',{},f('z')),el('td',{},el('input',{type:'checkbox',...(noTall?{checked:''}:{}),onchange:e=>{p.maxH=e.target.checked?Math.min(p.maxH||120,p.z-1):p.z;changed();renderSetup()}})),
-   el('td',{},noTall?f('maxH'):el('span',{class:'note'},`${p.z} (all)`)),
-   el('td',{},el('button',{class:'small',title:'remove this printer',onclick:()=>{s.printers.splice(s.printers.indexOf(p),1);if(s.mode===p.id)s.mode='both';renderSetup();changed()}},'×')));tb.append(tr)});
+let editingId=null;
+function ensurePrinterPresets(){state.settings.printers.forEach(p=>{const rows=presetsFor(p);if(!p.preset||!rows.some(r=>r.name===p.preset))p.preset=(rows.find(r=>!r.user&&/0\.20mm Standard/.test(r.name))||rows.find(r=>!r.user)||rows[0]||{}).name||'';
+  const machines=(sl(p)?sl(p).machines:[]).filter(r=>r.name.toLowerCase().includes((p.profile||'').toLowerCase())&&(!p.nozzle||r.name.includes(p.nozzle)));const want=`${p.profile} ${p.nozzle} nozzle`;if(!p.machine||!machines.some(r=>r.name===p.machine))p.machine=(machines.find(r=>r.name===want)||machines[0]||{}).name||''})}
+function paintPrinterName(p){$('#printerEditorTitle').textContent=printerLabel(p)||'Printer';renderFleet();renderExportFor();renderPresetTable();if(lastPlan)$('#plates').replaceChildren(),renderPlan(lastPlan,lastFiles,lastOpts||{})}
+function renderSetup(){const s=state.settings;ensurePrinterPresets();const box=$('#printerCards');box.replaceChildren();
+ s.printers.forEach(p=>{const enable=el('input',{type:'checkbox','aria-label':`Enable ${printerLabel(p)}`,...(p.enabled?{checked:''}:{}),onchange:e=>{p.enabled=e.target.checked;if(!p.enabled&&state.fitTarget===p.id)state.fitTarget='every';legalExportMode(s);syncExportMode();changed();renderSetup()}});
+  const nameEl=el('b',{},printerLabel(p)||'Untitled');
+  box.append(el('div',{class:'printer-card'+(p.enabled?'':' off')},el('div',{class:'grow'},nameEl,el('div',{class:'note'},`bed ${p.bed[0]}×${p.bed[1]} · Z ${p.z}`)),el('label',{class:'check'},enable,p.enabled?' Enabled':' Off'),el('button',{type:'button',onclick:()=>openPrinter(p.id)},'Edit'),el('button',{type:'button',class:'small',title:'remove this printer',onclick:()=>{s.printers.splice(s.printers.indexOf(p),1);if(editingId===p.id){$('#printerEditor').close();editingId=null}legalExportMode(s);syncExportMode();changed();renderSetup()}},'×')))});
  const add=$('#addPrinter'),groups={};add.replaceChildren(el('option',{value:''},'choose a printer…'));
  META.printerCatalog.forEach((c,i)=>{const v=c.name.match(/^(Bambu Lab|\S+)/)[0];(groups[v]=groups[v]||el('optgroup',{label:v})).append(el('option',{value:i},c.name))});
- add.append(...Object.values(groups),el('option',{value:'custom'},'Custom printer (type its bed size in the new row)'));
+ add.append(...Object.values(groups),el('option',{value:'custom'},'Custom printer'));
  add.onchange=e=>{if(!e.target.value)return;const c=e.target.value==='custom'?{name:'My printer',profile:'',bed:[220,220],z:250,slicer:'orca'}:META.printerCatalog[+e.target.value];
-  const base=c.name.toLowerCase().replace(/[^a-z0-9]+/g,'-');let id=base,n=2;while(s.printers.some(p=>p.id===id))id=`${base}-${n++}`;
-  s.printers.push({...c,bed:[...c.bed],id,maxH:c.z,enabled:true,nozzle:'0.4',preset:''});renderSetup();changed()};
- const mode=$('#mode');mode.replaceChildren(el('option',{value:'both'},'all printers (balance print time)'));s.printers.forEach(p=>mode.append(el('option',{value:p.id},p.name+' only')));mode.value=s.mode;
+  const base=(c.profile||c.name).toLowerCase().replace(/[^a-z0-9]+/g,'-');let id=base||'printer',n=2;while(s.printers.some(p=>p.id===id))id=`${base}-${n++}`;
+  const row={...c,bed:[...c.bed],id,maxH:c.z,enabled:true,forExport:true,nozzle:'0.4',preset:''};if(e.target.value==='custom')row.name='My printer';
+  s.printers.push(row);add.value='';renderSetup();changed();openPrinter(id)};
+ syncExportMode();
  $('#groupBy').value=s.groupBy;$('#spacing').value=s.spacing;$('#edge').value=s.edge;$('#wallMm').value=s.wallMm;$('#infill').value=s.infill;$('#secondsPerGram').value=s.secondsPerGram;$('#spoolman').value=s.spoolman||'';
  $('#estimateFromPreset').checked=s.estimateFromPreset!==false;$('#estimateManual').style.display=s.estimateFromPreset!==false?'none':'';
- renderSlicers();renderFilaments();renderColours();renderPresetTable();renderFleet()}
-function renderSlicers(){const s=state.settings;const st=$('#slicers tbody');st.replaceChildren();
- s.printers.forEach(p=>{const rows=presetsFor(p);if(!p.preset||!rows.some(r=>r.name===p.preset))p.preset=(rows.find(r=>!r.user&&/0\.20mm Standard/.test(r.name))||rows.find(r=>!r.user)||rows[0]||{}).name||'';
-  const machines=(sl(p)?sl(p).machines:[]).filter(r=>r.name.toLowerCase().includes((p.profile||'').toLowerCase())&&(!p.nozzle||r.name.includes(p.nozzle)));const want=`${p.profile} ${p.nozzle} nozzle`;if(!p.machine||!machines.some(r=>r.name===p.machine))p.machine=(machines.find(r=>r.name===want)||machines[0]||{}).name||'';
-  const slSel=el('select',{onchange:e=>{p.slicer=e.target.value;changed();renderSetup()}});Object.entries(PRESETS||{}).forEach(([k,v])=>slSel.append(el('option',{value:k,...(p.slicer===k?{selected:''}:{})},v.label+(v.installed?'':' (not installed)'))));
-  const nozzles=[...new Set((sl(p)?sl(p).presets:[]).filter(r=>r.printers.some(x=>x.toLowerCase().includes((p.profile||'').toLowerCase()))).map(r=>r.nozzle).filter(Boolean))].sort();
-  const nz=el('select',{onchange:e=>{p.nozzle=e.target.value;p.machine='';changed();renderSetup()}});(nozzles.length?nozzles:[p.nozzle]).forEach(n=>nz.append(el('option',{value:n,...(p.nozzle===n?{selected:''}:{})},n+' mm')));
-  st.append(el('tr',{},el('td',{},p.name),el('td',{},slSel),el('td',{},el('input',{type:'text',value:p.profile||'',style:'width:130px',onchange:e=>{p.profile=e.target.value;changed();renderSetup()}})),el('td',{},nz),
-   el('td',{},presetSelect(machines,p.machine,v=>{p.machine=v},false)),el('td',{},presetSelect(rows,p.preset,v=>{p.preset=v},false))))})}
+ renderSlicers();renderFilaments();renderColours();renderPresetTable();renderFleet();renderExportFor()}
+function renderPrinterBasics(p){const host=$('#printerBasics');host.replaceChildren();
+ const name=el('input',{type:'text',value:p.name,oninput:e=>{p.name=e.target.value;paintPrinterName(p);save()}});
+ const num=(label,value,fn)=>el('label',{},label+' ',el('input',{type:'number',value,onchange:e=>{fn(+e.target.value);changed();renderSetup();if(editingId===p.id)renderPrinterBasics(p)}}));
+ const noTall=(p.maxH||p.z)<p.z;
+ host.append(el('label',{},'Name ',name),el('div',{class:'row'},num('X',p.bed[0],v=>{p.bed[0]=v}),num('Y',p.bed[1],v=>{p.bed[1]=v}),num('Z',p.z,v=>{p.z=v;if(!noTall)p.maxH=v})),
+  el('label',{class:'check'},el('input',{type:'checkbox',...(noTall?{checked:''}:{}),onchange:e=>{p.maxH=e.target.checked?Math.min(p.maxH||120,p.z-1):p.z;changed();renderPrinterBasics(p)}}),' No tall parts'),
+  noTall?num('Max part height',p.maxH,v=>{p.maxH=v}):el('p',{class:'note'},`Max part height ${p.z} mm (all)`))}
+function openPrinter(id){editingId=id;const p=state.settings.printers.find(x=>x.id===id);if(!p)return;renderPrinterBasics(p);renderSlicers();const dlg=$('#printerEditor');if(!dlg.open)dlg.showModal()}
+function renderSlicers(){const s=state.settings;const st=$('#slicers tbody');if(!st)return;st.replaceChildren();ensurePrinterPresets();
+ const p=s.printers.find(x=>x.id===editingId);if(!p)return;
+ const rows=presetsFor(p);
+ const machines=(sl(p)?sl(p).machines:[]).filter(r=>r.name.toLowerCase().includes((p.profile||'').toLowerCase())&&(!p.nozzle||r.name.includes(p.nozzle)));
+ const slSel=el('select',{onchange:e=>{p.slicer=e.target.value;changed();renderSlicers()}});Object.entries(PRESETS||{}).forEach(([k,v])=>slSel.append(el('option',{value:k,...(p.slicer===k?{selected:''}:{})},v.label+(v.installed?'':' (not installed)'))));
+ const nozzles=[...new Set((sl(p)?sl(p).presets:[]).filter(r=>r.printers.some(x=>x.toLowerCase().includes((p.profile||'').toLowerCase()))).map(r=>r.nozzle).filter(Boolean))].sort();
+ const nz=el('select',{onchange:e=>{p.nozzle=e.target.value;p.machine='';changed();renderSlicers()}});(nozzles.length?nozzles:[p.nozzle]).forEach(n=>nz.append(el('option',{value:n,...(p.nozzle===n?{selected:''}:{})},n+' mm')));
+ st.append(el('tr',{},el('td',{},slSel),el('td',{},el('input',{type:'text',value:p.profile||'',style:'width:130px',onchange:e=>{p.profile=e.target.value;changed();renderSlicers()}})),el('td',{},nz),
+  el('td',{},presetSelect(machines,p.machine,v=>{p.machine=v},false)),el('td',{},presetSelect(rows,p.preset,v=>{p.preset=v},false))))}
 const thumb=(file,color,size=44)=>{if(!file)return '';const u='/thumb/'+encodeURIComponent(file),label=file.split(/[\\/]/).pop().replace(/\.stl$/i,'').replace(/┬▓/g,'²');return el('span',{class:'thumb','data-file':file,'data-color':color,'data-label':label,title:'click to open in 3D',style:`width:${size}px;height:${size}px;background:${color};-webkit-mask-image:url("${u}");mask-image:url("${u}")`},el('img',{src:u,loading:'lazy'}))};
 const slotColor=role=>{const s=state.settings;return s.filaments[s.roles[role]??0].color};
 const examples=(parts,color,n=5)=>{const seen=new Set();const out=el('span',{class:'thumbs'});parts.forEach(p=>{if(p.file&&!seen.has(p.file)&&seen.size<n){seen.add(p.file);out.append(thumb(p.file,color))}});return out};
+function removeFilament(i){const s=state.settings;if(s.filaments.length<2)return;s.filaments.splice(i,1);Object.keys(s.roles||{}).forEach(r=>{let slot=s.roles[r]??0;if(slot===i)slot=0;else if(slot>i)slot-=1;s.roles[r]=Math.min(slot,s.filaments.length-1)});renderSetup();changed()}
 function renderFilaments(){const s=state.settings,ps=s.printers.filter(p=>p.enabled);
- const ft=$('#filaments tbody');ft.replaceChildren();
- const usedRoles=bom&&bom.parts.length?new Set(bom.parts.map(p=>p.role)):new Set(ROLES());
+ const ft=$('#filamentList');if(ft){ft.replaceChildren();
  const mats=[...new Set([...(META.materials||[]),...SPOOLS.map(x=>x.material).filter(Boolean),...s.filaments.map(f=>f.material).filter(Boolean)])];
- s.filaments.forEach((f,i)=>{const roles=ROLES().filter(r=>(s.roles[r]??0)===i&&usedRoles.has(r));if(!roles.length)return;
-  const mat=el('select',{onchange:e=>{f.material=e.target.value;changed();renderFilaments()}});mats.forEach(m=>mat.append(el('option',{value:m,...(f.material===m?{selected:''}:{})},m)));
-  ft.append(el('tr',{},el('td',{},String(i+1)),el('td',{},el('input',{type:'color',value:f.color,onchange:e=>{f.color=e.target.value;changed();renderColours()}})),el('td',{},mat),
-   el('td',{},el('input',{type:'text',value:f.name,placeholder:'e.g. Elegoo rapid PETG',style:'width:95%',onchange:e=>{f.name=e.target.value;changed();renderColours()}})),
-   el('td',{class:'note'},roles.map(r=>META.roleLabels[r].split(' (')[0]).join(', '))))});
+ s.filaments.forEach((f,i)=>{const mat=el('select',{onchange:e=>{f.material=e.target.value;changed();renderFilaments();renderColours()}});mats.forEach(m=>mat.append(el('option',{value:m,...(f.material===m?{selected:''}:{})},m)));
+  const sw=el('input',{type:'color',value:f.color,'aria-label':`Colour for ${f.name||'filament'}`,onchange:e=>{f.color=e.target.value;changed();renderColours();renderFleet()}});
+  ft.append(el('div',{class:'filament-card'},sw,el('input',{type:'text',class:'grow',value:f.name,placeholder:'nickname, not a role',style:'flex:1',oninput:e=>{f.name=e.target.value;renderColours();renderFleet();save()}}),mat,el('button',{type:'button',class:'small','aria-label':`Remove ${f.name||'filament'}`,onclick:()=>removeFilament(i)},'×')))})}
  const sp=$('#spools tbody');sp.replaceChildren();
  // Spoolman: first the filament (brand · material), then one of the colours you own of it; identical spools are folded together
  const types={};SPOOLS.forEach(x=>{const t=`${x.vendor} · ${x.material}`.trim();const c=(types[t]=types[t]||{});const k=x.name+'|'+x.color;(c[k]=c[k]||{...x,n:0,g:0}).n++;c[k].g+=x.remaining_g||0});
- if(SPOOLS.length)s.filaments.forEach((f,i)=>{if(!usedRoles.size||!ROLES().some(r=>(s.roles[r]??0)===i&&usedRoles.has(r)))return;
+ if(SPOOLS.length)s.filaments.forEach((f,i)=>{
   const cur=SPOOLS.find(x=>x.id===f.spool);const curType=f.spoolType||(cur?`${cur.vendor} · ${cur.material}`.trim():'');
   const colour=el('div',{class:'swatches'});  // real colour chips, not names: a <select> cannot show colour
   const fillColours=t=>{colour.replaceChildren();const list=Object.values(types[t]||{});if(!list.length){colour.append(el('span',{class:'note'},t?'':'pick a filament first'));return}
@@ -593,18 +705,18 @@ function renderFilaments(){const s=state.settings,ps=s.printers.filter(p=>p.enab
   const type=el('select',{onchange:e=>{f.spoolType=e.target.value;save();fillColours(f.spoolType)}});type.append(el('option',{value:''},'(filament: brand · material)'));Object.keys(types).sort().forEach(t=>type.append(el('option',{value:t,...(curType===t?{selected:''}:{})},`${t} · ${Object.keys(types[t]).length} colours`)));
   fillColours(curType);sp.append(el('tr',{},el('td',{},el('span',{class:'swatch',style:`background:${f.color}`}),`slot ${i+1}`),el('td',{},type),el('td',{},colour)))});
  else sp.append(el('tr',{},el('td',{class:'note'},'Enter the server URL and press Load spools; each slot can then take a spool\'s name, colour and material.')));
- const fp=$('#filPresets');fp.querySelector('thead tr').replaceChildren(el('th',{},'#'),el('th',{},'Filament'),...ps.map(p=>el('th',{},p.name)));const fb=fp.querySelector('tbody');fb.replaceChildren();
+ const fp=$('#filPresets');fp.querySelector('thead tr').replaceChildren(el('th',{},'#'),el('th',{},'Filament'),...ps.map(p=>el('th',{},printerLabel(p))));const fb=fp.querySelector('tbody');fb.replaceChildren();
  s.filaments.forEach((f,i)=>{const tr=el('tr',{},el('td',{},String(i+1)),el('td',{},f.name));ps.forEach(p=>{const rows=presetsFor(p,'filaments');const base=(f.material||'').toLowerCase().split(/[-_+ ]/)[0];  /* PETG-HF lists the PETG presets */
    const mat=rows.filter(r=>(r.material||'').toLowerCase().includes(base)||r.name.toLowerCase().includes(base));const auto=bom&&bom.filamentPresets&&(bom.filamentPresets[p.id]||[])[i];
    tr.append(el('td',{},presetSelect(mat.length?mat:rows,f.preset[p.id]||'',v=>{f.preset[p.id]=v},true,auto?`(auto: ${auto})`:'(auto: by material)')))});fb.append(tr)})}
 function renderColours(){const s=state.settings,parts=bom?bom.parts:[];
- const rt=$('#roles tbody');rt.replaceChildren();ROLES().forEach(r=>{if(parts.length&&!parts.some(p=>p.role===r))return;const sel=el('select',{onchange:e=>{s.roles[r]=+e.target.value;changed();renderFilaments();renderColours()}});s.filaments.forEach((f,i)=>sel.append(el('option',{value:i,...(s.roles[r]===i?{selected:''}:{})},`${i+1} · ${f.name}`)));
+ const rt=$('#roles tbody');rt.replaceChildren();ROLES().forEach(r=>{if(parts.length&&!parts.some(p=>p.role===r))return;const sel=el('select',{onchange:e=>{s.roles[r]=+e.target.value;changed();renderFilaments();renderColours()}});s.filaments.forEach((f,i)=>sel.append(el('option',{value:i,...(s.roles[r]===i?{selected:''}:{})},spoolLabel(f))));
   rt.append(el('tr',{},el('td',{},META.roleLabels[r]),el('td',{},el('span',{class:'swatch',style:`background:${slotColor(r)}`}),sel),el('td',{},parts.length?examples(parts.filter(p=>p.role===r),slotColor(r)):el('span',{class:'note'},'build a stack first'))))});
  const kt=$('#kindRoles tbody');kt.replaceChildren();META.kinds.forEach(k=>{const kp=parts.filter(p=>p.kind===k);if(parts.length&&!kp.length)return;
-  const sel=el('select',{onchange:e=>{if(e.target.value)s.kindRoles[k]=e.target.value;else delete s.kindRoles[k];changed();renderColours()}});sel.append(el('option',{value:''},'keep (as tagged by the designer)'));ROLES().forEach(r=>sel.append(el('option',{value:r,...(s.kindRoles[k]===r?{selected:''}:{})},`${META.roleLabels[r].split(' (')[0]} → ${s.filaments[s.roles[r]??0].name}`)));
-  const role=s.kindRoles[k]||(kp[0]&&kp[0].role)||'main';kt.append(el('tr',{},el('td',{},k,el('div',{class:'note'},`${[...new Set(kp.map(p=>p.name))].length} parts · now ${s.filaments[s.roles[role]??0].name}`)),el('td',{},examples(kp,slotColor(role),4)),el('td',{},el('span',{class:'swatch',style:`background:${slotColor(role)}`}),sel)))})}
+  const sel=el('select',{onchange:e=>{if(e.target.value)s.kindRoles[k]=e.target.value;else delete s.kindRoles[k];changed();renderColours()}});sel.append(el('option',{value:''},'keep (as tagged by the designer)'));ROLES().forEach(r=>sel.append(el('option',{value:r,...(s.kindRoles[k]===r?{selected:''}:{})},`${META.roleLabels[r].split(' (')[0]} → ${spoolLabel(s.filaments[s.roles[r]??0])}`)));
+  const role=s.kindRoles[k]||(kp[0]&&kp[0].role)||'main';kt.append(el('tr',{},el('td',{},k,el('div',{class:'note'},`${[...new Set(kp.map(p=>p.name))].length} parts · now ${spoolLabel(s.filaments[s.roles[role]??0])}`)),el('td',{},examples(kp,slotColor(role),4)),el('td',{},el('span',{class:'swatch',style:`background:${slotColor(role)}`}),sel)))})}
 
-function renderPresetTable(){const s=state.settings,tb=$('#presetTable tbody');tb.replaceChildren();const ps=s.printers.filter(p=>p.enabled);$('#presetTable thead tr').replaceChildren(el('th',{},'Test'),el('th',{},'Group / part'),...ps.map(p=>el('th',{},p.name)));
+function renderPresetTable(){const s=state.settings,tb=$('#presetTable tbody');tb.replaceChildren();const ps=s.printers.filter(p=>p.enabled);$('#presetTable thead tr').replaceChildren(el('th',{},'Test'),el('th',{},'Group / part'),...ps.map(p=>el('th',{},printerLabel(p))));
  if(!bom){tb.append(el('tr',{},el('td',{colspan:2+ps.length,class:'note'},'Build a stack first.')));return}
  const kinds={};bom.parts.forEach(p=>{(kinds[p.kind]=kinds[p.kind]||[]).push(p.name)});
  const pre=pid=>(s.presets[pid]=s.presets[pid]||{byKind:{},byPart:{}});
@@ -633,9 +745,9 @@ function renderBom(){const cards=$('#cards'),pt=$('#parts tbody'),ht=$('#hardwar
  const s=state.settings;let pieces=0,grams=0,sec=0;const perFil={};const files=new Set();
  bom.parts.forEach(p=>{const q=+p.qty;pieces+=q;grams+=(p.grams||0)*q;sec+=(p.seconds||0)*q;if(p.file)files.add(p.file);const k=s.roles[p.role]??0;perFil[k]=(perFil[k]||0)+(p.grams||0)*q});
  cards.append(el('div',{class:'card'},el('b',{},String(pieces)),el('span',{},`printed pieces · ${files.size} files`)),el('div',{class:'card'},el('b',{},`≈${Math.round(grams)} g`),el('span',{},'filament, all parts')),el('div',{class:'card'},el('b',{},'≈'+fmtH(sec)),el('span',{},'print time (sheet + estimate)')),
-  ...Object.entries(perFil).map(([k,g])=>el('div',{class:'card'},el('b',{style:`color:${s.filaments[k].color}`},`≈${Math.round(g)} g`),el('span',{},s.filaments[k].name))));
+  ...Object.entries(perFil).map(([k,g])=>el('div',{class:'card'},el('b',{style:`color:${s.filaments[k].color}`},`≈${Math.round(g)} g`),el('span',{},spoolLabel(s.filaments[k])))));
  bom.warnings.forEach(x=>{$('#warnings').append(el('div',{class:'warn'},'⚠ '+x));$('#warnings2').append(el('div',{class:'warn'},'⚠ '+x))});
- const roleSel=(value,fn,blank)=>{const r=el('select',{onchange:e=>{fn(e.target.value);changed()}});r.append(el('option',{value:''},blank));ROLES().forEach(x=>r.append(el('option',{value:x,...(value===x?{selected:''}:{})},`${s.filaments[s.roles[x]??0].name} (${x})`)));return r};
+ const roleSel=(value,fn,blank)=>{const r=el('select',{onchange:e=>{fn(e.target.value);changed()}});r.append(el('option',{value:''},blank));ROLES().forEach(x=>r.append(el('option',{value:x,...(value===x?{selected:''}:{})},`${META.roleLabels[x].split(' (')[0]} → ${spoolLabel(s.filaments[s.roles[x]??0])}`)));return r};
  const setRole=(parts,v)=>parts.forEach(p=>{const k=p.group+'|'+p.name;if(v)state.overrides[k]={...(state.overrides[k]||{}),role:v};else if(state.overrides[k]){delete state.overrides[k].role}});
  const uniform=parts=>{const r=new Set(parts.map(p=>p.role));return r.size===1?[...r][0]:''};
  const all=roleSel(uniform(bom.parts),v=>setRole(bom.parts,v),'(as tagged / mixed)');all.id='allRole';$('#allRole').replaceWith(all);
@@ -644,7 +756,7 @@ function renderBom(){const cards=$('#cards'),pt=$('#parts tbody'),ht=$('#hardwar
  const visible=visiblePartRows(rows);
  let g='';visible.forEach(p=>{if(!state.merge&&p.group!==g){g=p.group;const gp=bom.parts.filter(x=>x.group===g);pt.append(el('tr',{},el('td',{class:'group',colspan:4},g),el('td',{colspan:5},roleSel(uniform(gp),v=>setRole(gp,v),'(as tagged / mixed) — set whole module'))))}
   const role=roleSel(uniform(p.parts),v=>setRole(p.parts,v),'(as tagged)');const col=s.filaments[s.roles[p.role]??0].color;
-  const fits=p.fits?Object.entries(p.fits).map(([id,ok])=>el('span',{class:'chip '+(ok?'ok':'bad')},(s.printers.find(x=>x.id===id)||{name:id}).name.replace(/^(Bambu Lab|\S+) /,'')+(ok?' ✓':' ✗'))):[el('span',{class:'bad'},'file missing')];
+  const fits=p.fits?Object.entries(p.fits).map(([id,ok])=>el('span',{class:'chip '+(ok?'ok':'bad')},printerLabel(s.printers.find(x=>x.id===id)||{name:id})+(ok?' ✓':' ✗'))):[el('span',{class:'bad'},'file missing')];
   const where=state.merge?el('div',{class:'note'},'in: '+p.groups.map(x=>x.split(' · ')[0]).join(', ')):'';
   pt.append(el('tr',{},el('td',{},thumb(p.file,col)),el('td',{},p.name,p.note?el('div',{class:'note'},p.note):'',where),el('td',{class:'note'},p.kind),el('td',{class:'num'},String(p.qty)),el('td',{},el('span',{class:'swatch',style:`background:${col}`}),role),el('td',{class:'num'},p.grams!=null?Math.round(p.grams)+(p.site_grams!=null?'':'*'):'?'),el('td',{class:'num'},p.seconds!=null?fmtH(p.seconds):'?'),el('td',{},p.size?p.size.map(v=>Math.round(v)).join('×'):'?'),el('td',{},...fits)))});
  bom.hardware.forEach(h=>{ht.append(hardwareRow(h));});
@@ -654,25 +766,31 @@ function renderBom(){const cards=$('#cards'),pt=$('#parts tbody'),ht=$('#hardwar
 
 function optionFits(){return bom&&bom.optionFits}
 function scopeIds(){return ((bom&&bom.judged&&bom.judged.printers)||[]).map(p=>p.id)}
-function scopeLabel(){if(!bom||!bom.judged)return 'the selected printer';if(bom.judged.scope==='every')return 'every enabled printer';const name=(bom.judged.printers[0]&&bom.judged.printers[0].name)||'';return name.replace(/^Bambu Lab /,'').replace(/^Snapmaker /,'')||'the selected printer'}
+function scopeLabel(){if(!bom||!bom.judged)return 'the selected printer';if(bom.judged.scope==='every')return 'every enabled printer';return (bom.judged.printers[0]&&bom.judged.printers[0].name)||'the selected printer'}
 function layerFitNotes(i){const matrix=optionFits()&&optionFits().layers;if(matrix)return layerNotes(matrix[i]||{reasons:[]},[],[],i+1);return layerNotes(null,bom&&bom.parts,scopeIds(),i+1).map(n=>n.endsWith('does not fit')?`${n} ${scopeLabel()}`:n)}
 function syncProgress(plan){const hw=bom?bom.hardware.map(h=>({item:h.item,qty:+h.qty})):[];const asm=bom?bom.parts.map(p=>({key:p.group+'|'+p.name,qty:+p.qty})):[];const rec=reconcileProgress(state.progress,plan?plan.fingerprint:state.progress.layoutKey,plan?plan.plates:null,hw,asm);state.progress=rec.progress;state.progressNote=rec.note||'';save();return rec.note}
 function plateProgressText(total){return `${checkedCount(state.progress).plates}/${total} plates marked printed. This is a manual check, not a connection to a printer.`}
 function paintCatalogSelect(select,view,label){if(!select||!view)return;select.replaceChildren();view.options.forEach(o=>{const node=el('option',{value:o.value,selected:o.selected?'':null,title:o.reason||''},label(o.value)+(o.mark?' · '+o.mark:''));if(o.disabled)node.disabled=true;select.append(node)});select.dataset.warning=view.warning||'';const chosen=view.options.find(o=>o.selected);if(chosen)select.value=String(chosen.value)}
-function applyGlobalChoiceGates(){const choices=bom&&bom.choices;paintCatalogSelect($('#depth'),catalogChoicesFor('depth',{choices,catalog:META&&META.depths,fitOnly:state.fitOnly,current:state.stack.depth}),depthLabel);paintCatalogSelect($('#roofType'),catalogChoicesFor('roof',{choices,catalog:META&&META.roofs,fitOnly:state.fitOnly,current:state.stack.roof&&state.stack.roof.type}),v=>ROOF_LABEL[v]||v);const host=$('#fitScope');if(!host)return;const who=scopeLabel();if(!state.fitOnly)host.textContent='All choices stay available. Every required part stays in the list. A part that does not fit '+who+' is marked, not removed.';else if(bom&&bom.judged&&bom.judged.scope==='every')host.textContent='A choice is offered only when every required part fits every enabled printer. The current choice stays selected when it does not. The parts list is never filtered.';else host.textContent='Choices are judged only against '+who+', using each part’s real mesh size. Other enabled printers are still used when you export. A saved choice that does not fit stays selected and is marked.'}
+function footprintBanner(){const host=$('#footprintBanner');if(!host||!state)return;const target=state.fitTarget||'every';if(target==='every'||target==='all'){host.textContent='Fits every enabled printer — change this with the All printers dropdown in the header.';return}const p=state.settings.printers.find(x=>x.id===target);host.textContent=`Fits ${p?printerLabel(p):'the selected printer'} — change this with the All printers dropdown in the header.`}
+function applyGlobalChoiceGates(){const choices=bom&&bom.choices;paintCatalogSelect($('#depth'),catalogChoicesFor('depth',{choices,catalog:META&&META.depths,fitOnly:state.fitOnly,current:state.stack.depth}),depthLabel);paintCatalogSelect($('#roofType'),catalogChoicesFor('roof',{choices,catalog:META&&META.roofs,fitOnly:state.fitOnly,current:state.stack.roof&&state.stack.roof.type}),v=>ROOF_LABEL[v]||v);footprintBanner();const host=$('#fitScope');if(!host)return;const who=scopeLabel();if(!state.fitOnly)host.textContent='All choices stay available. Every required part stays in the list. A part that does not fit '+who+' is marked, not removed.';else if(bom&&bom.judged&&bom.judged.scope==='every')host.textContent='A choice is offered only when every required part fits every enabled printer. The current choice stays selected when it does not. The parts list is never filtered.';else host.textContent='Choices are judged only against '+who+', using each part’s real mesh size. Other enabled printers are still used when you export. A saved choice that does not fit stays selected and is marked.'}
 function renderMeta(prep){const archive=!META||!META.files?'archive not connected':(prep&&prep.total&&prep.done<prep.total?`measuring geometry ${prep.done}/${prep.total}`:'archive indexed');let print='';if(bom&&state&&state.stack.layers.length){const ids=scopeIds();const bad=bom.parts.filter(p=>partFitsScope(p,ids)==='unfit');const missing=bom.parts.filter(p=>partFitsScope(p,ids)==='missing');const who=scopeLabel();if(!ids.length)print=' · no printer is enabled';else if(!bad.length&&!missing.length)print=` · required parts fit ${who}`;else print=' · '+[bad.length?`${bad.length} required part${bad.length===1?'':'s'} do not fit ${who}`:'',missing.length?`${missing.length} file${missing.length===1?'':'s'} missing`:''].filter(Boolean).join(' · ')}$('#meta').textContent=`${META?META.files:0} STL files indexed · ${archive}${print}`}
-function renderFleet(){const box=$('#fleet');if(!box)return;box.replaceChildren();state.settings.printers.forEach(p=>{const b=el('button',{type:'button',class:'small','aria-pressed':p.enabled?'true':'false',onclick:()=>{p.enabled=!p.enabled;if(state.fitTarget===p.id)state.fitTarget='';changed();renderSetup()}},p.name.replace(/^Bambu Lab /,'').replace(/^Snapmaker /,''));box.append(b)});const sel=$('#fitTarget');if(!sel)return;if(state.fitTarget==='all')state.fitTarget='every';if(state.fitTarget!=='every'&&!state.settings.printers.some(p=>p.enabled&&p.id===state.fitTarget)){const first=state.settings.printers.find(p=>p.enabled);if(first)state.fitTarget=first.id}const cur=state.fitTarget||'every';sel.replaceChildren(el('option',{value:'every',...(cur==='every'?{selected:''}:{})},'every enabled printer — must fit each'));state.settings.printers.filter(p=>p.enabled).forEach(p=>sel.append(el('option',{value:p.id,...(cur===p.id?{selected:''}:{})},p.name.replace(/^Bambu Lab /,'').replace(/^Snapmaker /,''))));applyGlobalChoiceGates()}
+function exportPrinters(){return state.settings.printers.filter(p=>p.enabled!==false&&p.forExport!==false)}
+function syncExportMode(){const mode=$('#mode');if(!mode||!state)return;const exporting=exportPrinters();mode.replaceChildren(el('option',{value:'both'},'all printers selected above (balance print time)'));exporting.forEach(p=>mode.append(el('option',{value:p.id},printerLabel(p)+' only')));mode.value=state.settings.mode||'both'}
+function renderExportFor(){const box=$('#exportFor');if(!box||!state)return;box.replaceChildren();state.settings.printers.forEach(p=>{const on=p.enabled!==false&&p.forExport!==false;const b=el('button',{type:'button',class:'export-chip'+(on?' on':''),'aria-pressed':on?'true':'false',onclick:()=>{if(p.enabled===false)return;p.forExport=p.forExport===false;legalExportMode(state.settings);syncExportMode();changed();renderExportFor()}},printerLabel(p));if(p.enabled===false)b.disabled=true;b.append(el('span',{class:'note'},` ${p.bed[0]}×${p.bed[1]}`));box.append(b)})}
+function renderFleet(){const box=$('#fleet');if(!box||!state)return;box.replaceChildren();const enabled=state.settings.printers.filter(p=>p.enabled!==false);if(!enabled.length)box.append(el('span',{class:'note'},'none'));enabled.forEach(p=>box.append(el('span',{class:'status-chip'},printerLabel(p))));const sw=$('#filamentSwatches');const count=$('#filamentCount');if(sw){sw.replaceChildren();state.settings.filaments.forEach(f=>sw.append(el('span',{class:'swatch',title:spoolLabel(f),style:`background:${f.color}`})))}if(count)count.textContent=`${state.settings.filaments.length} filament${state.settings.filaments.length===1?'':'s'}`;const sel=$('#fitTarget');if(!sel)return;if(!state.fitTarget||state.fitTarget==='all')state.fitTarget='every';if(state.fitTarget!=='every'&&!state.settings.printers.some(p=>p.enabled&&p.id===state.fitTarget))state.fitTarget='every';const cur=state.fitTarget||'every';sel.replaceChildren(el('option',{value:'every',...(cur==='every'?{selected:''}:{})},'All printers'));state.settings.printers.filter(p=>p.enabled).forEach(p=>sel.append(el('option',{value:p.id,...(cur===p.id?{selected:''}:{})},printerLabel(p))));applyGlobalChoiceGates()}
 function renderDesignParts(){const box=$('#designParts');if(!box)return;box.replaceChildren();if(!bom||!bom.parts.length){box.append(el('p',{class:'note'},META&&META.files?'Add a layer. Quantities, size and fit show up here.':'No archive is connected, so part files cannot be listed yet. You can still arrange the stack.'));return}const who=scopeLabel();visiblePartRows(bom.parts).forEach(p=>{const col=state.settings.filaments[state.settings.roles[p.role]??0].color;const fit=partFitsScope(p,scopeIds());const size=p.size?p.size.map(v=>Number(v).toFixed(1)).join('×'):'?';box.append(el('div',{class:'partline'},thumb(p.file,col,48)||el('span'),el('div',{},el('b',{},`${p.qty}× ${p.name}`),el('div',{class:'note'},`${p.group} · ${size} mm · ${p.seconds!=null?fmtH(p.seconds):'time ?'}`)),el('span',{class:fit==='fits'?'ok':'bad'},fit==='missing'?'file missing':fit==='fits'?`fits ${who}`:`does not fit ${who}`)))})}
 function hardwareRow(h){const st=state.progress.hardware[h.item];const checked=!!(st&&st.done);const box=el('input',{type:'checkbox',...(checked?{checked:''}:{}),onchange:e=>{state.progress.hardware[h.item]={...(state.progress.hardware[h.item]||{}),qty:h.qty,done:e.target.checked};save();renderAssemble()}});return el('tr',{},el('td',{},el('label',{class:'check'},box,' Have')),el('td',{},h.item),el('td',{class:'num'},String(h.qty)),el('td',{class:'note'},h.notes))}
 function renderAssemble(){const steps=$('#assembleSteps');const hw=$('#assembleHw tbody');const note=$('#hwProgress');if(hw)hw.replaceChildren();const rows=bom?bom.hardware:[];if(hw)rows.forEach(h=>hw.append(hardwareRow(h)));const done=checkedCount(state.progress).hardware;if(note)note.textContent=bom?`${done}/${rows.length} hardware lines checked. Checks stay in this browser and clear when a quantity changes.`:'Add a layer to list hardware.';if(!steps)return;steps.replaceChildren();if(!bom||!bom.parts.length){steps.append(el('p',{class:'note'},'Add a layer. The checklist follows that stack.'));return}let last='';bom.parts.forEach(p=>{const key=p.group+'|'+p.name;const st=(state.progress.assemble||{})[key];if(p.group!==last){last=p.group;steps.append(el('h3',{},p.group))}const tick=el('input',{type:'checkbox',...(st&&st.done?{checked:''}:{}),onchange:e=>{state.progress.assemble[key]={...(state.progress.assemble[key]||{}),qty:p.qty,done:e.target.checked};save()}});steps.append(el('label',{class:'check'},tick,` ${p.qty}× ${p.name}`))})}
-function bedSvg(plate){const bed=plate.bed||[256,256];const bw=bed[0],bh=bed[1];const root=svg('svg',{viewBox:`0 0 ${bw} ${bh}`,class:'bed',role:'img','aria-label':`Plate preview, ${bw} by ${bh} millimetres`});root.append(svg('rect',{x:0,y:0,width:bw,height:bh,fill:'#101214',stroke:'#6a6e72'}));const g=svg('g',{transform:`translate(0,${bh}) scale(1,-1)`});root.append(g);plate.items.forEach(it=>{const pts=(it.corners||[]).map(([x,y])=>`${Number(x).toFixed(2)},${Number(y).toFixed(2)}`).join(' ');const col=(state.settings.filaments[it.slot]||{}).color||'#c9ccd0';g.append(svg('polygon',{points:pts,fill:col,'fill-opacity':'0.9',stroke:'#111','stroke-width':'0.8'}))});return root}
+function strokeFor(hex){const h=String(hex||'').replace('#','');const full=h.length===3?h.split('').map(c=>c+c).join(''):h;const n=parseInt(full,16);if(!Number.isFinite(n)||full.length<6)return '#1c1d20';const r=(n>>16)&255,g=(n>>8)&255,b=n&255;const lum=(0.2126*r+0.7152*g+0.0722*b)/255;return lum<0.45?'#f7f6f3':'#1c1d20'}
+function bedSvg(plate){const bed=plate.bed||[256,256];const bw=bed[0],bh=bed[1];const root=svg('svg',{viewBox:`0 0 ${bw} ${bh}`,class:'bed',role:'img','aria-label':`Plate preview, ${bw} by ${bh} millimetres`});root.append(svg('rect',{x:0,y:0,width:bw,height:bh,fill:'#e6e7ea'}));const g=svg('g',{transform:`translate(0,${bh}) scale(1,-1)`});root.append(g);const step=Math.max(8,Math.round(Math.min(bw,bh)/12));for(let x=step;x<bw;x+=step)g.append(svg('line',{x1:x,y1:0,x2:x,y2:bh,stroke:'#c8c9ce','stroke-width':'0.4'}));for(let y=step;y<bh;y+=step)g.append(svg('line',{x1:0,y1:y,x2:bw,y2:y,stroke:'#c8c9ce','stroke-width':'0.4'}));const strokeW=Math.max(0.8,Math.min(bw,bh)*0.005);plate.items.forEach(it=>{const pts=(it.corners||[]).map(([x,y])=>`${Number(x).toFixed(2)},${Number(y).toFixed(2)}`).join(' ');const col=(state.settings.filaments[it.slot]||{}).color||'#c9ccd0';g.append(svg('polygon',{points:pts,fill:col,stroke:strokeFor(col),'stroke-width':String(strokeW),'stroke-linejoin':'round'}))});return root}
 function handoffButtons(basename){const go=async app=>{try{const r=await api('/api/handoff',{app,file:basename});$('#exportStatus').textContent='Opened '+r.opened}catch(e){$('#exportStatus').replaceChildren(el('span',{class:'bad'},e.message))}};if(!META||META.handoff==='none')return el('span',{class:'note'},' Download the 3MF and open it in Bambu Studio or OrcaSlicer.');const btn=(app,label)=>el('button',{type:'button',class:'small',onclick:()=>go(app)},label);const bits=[btn('folder',META.handoff==='mac'?'Show in Finder':'Show in Explorer')];if(META.handoff==='mac')bits.push(btn('bambu','Open in Bambu Studio'),btn('orca','Open in OrcaSlicer'));else bits.push(btn('bambu','Open 3MF'));return el('span',{},' ',...bits)}
-function renderOnboard(){const box=$('#onboard');if(!box)return;if(META.files){box.hidden=true;box.replaceChildren();return}box.hidden=false;const via=META.archiveVia==='environment'?'VAULT_ARCHIVE is set, but that folder does not contain 01. DRAWERS. ':'';box.replaceChildren(el('strong',{},'Point the planner at your VAULT folder'),el('p',{},via+'The archive is not part of this program. Set VAULT_ARCHIVE to the folder that contains 01. DRAWERS, 02. SUSTAINERS and 03. MODIFICATIONS. The path is yours: nothing in the repository names a computer or a share.'),el('p',{},'On a desktop, the starter asks once and remembers the choice in archive-path.txt next to the app. Delete that file to pick a different folder. In a container — Unraid, Docker, or another NAS — set VAULT_ARCHIVE to the path on the host. The stack mounts it read-only inside the container (the compose file uses /archive). Change the host path in the stack settings, not in the image.'),el('p',{},'The STL files stay in that folder. They are not copied into the image, the repository, or a named project. You can arrange a stack before the folder is connected. Pictures, weights and 3MF export need the files. A container cannot open Bambu Studio or OrcaSlicer; download the 3MF and open it on the computer that has the slicer. To embed presets, use “Send your slicer presets” on the Plates step.'),el('p',{},META.handoffNote||''))}
+function renderOnboard(){const box=$('#onboard');if(!box)return;if(META.files){box.hidden=true;box.replaceChildren();return}box.hidden=false;const via=META.archiveVia==='environment'?'VAULT_ARCHIVE is set, but that folder does not contain 01. DRAWERS. ':'';box.replaceChildren(el('strong',{},'Point the planner at your VAULT folder'),el('p',{},via+'The archive is not part of this program. Set VAULT_ARCHIVE to the folder that contains 01. DRAWERS, 02. SUSTAINERS and 03. MODIFICATIONS. The path is yours: nothing in the repository names a computer or a share.'),el('p',{},'On a desktop, the starter asks once and remembers the choice in archive-path.txt next to the app. Delete that file to pick a different folder. In a container — Unraid, Docker, or another NAS — set VAULT_ARCHIVE to the path on the host. The stack mounts it read-only inside the container (the compose file uses /archive). Change the host path in the stack settings, not in the image.'),el('p',{},'The STL files stay in that folder. They are not copied into the image, the repository, or a named project. You can arrange a stack before the folder is connected. Pictures, weights and 3MF export need the files. A container cannot open Bambu Studio or OrcaSlicer; download the 3MF and open it on the computer that has the slicer. To embed presets, open Settings, edit a printer, and use Advanced.'),el('p',{},META.handoffNote||''))}
 function renderProfileNote(){const host=$('#profileEmpty');if(!host||!PRESETS)return;const any=Object.values(PRESETS).some(v=>v.installed);host.hidden=any;if(any)return;host.textContent='No slicer presets were found where this planner is running. The 3MF still downloads. On a container or NAS, send your Bambu Studio or OrcaSlicer settings folder from the browser. Opening the slicer itself only works when the planner process is on that same computer.'}
 const uid=()=>Math.random().toString(36).slice(2,10)+Date.now().toString(36);
 function renderProjects(){const sel=$('#projectList');if(!sel)return;sel.replaceChildren(el('option',{value:''},'working copy'));(state.projects||[]).forEach(p=>sel.append(el('option',{value:p.id,...(p.id===state.activeProjectId?{selected:''}:{})},p.name||'untitled')))}
 
-function renderPlan(plan,files,opts={}){const box=opts.box||$('#plates');box.replaceChildren();const s=state.settings;const name=id=>(s.printers.find(p=>p.id===id)||{name:id}).name;
+let lastPlan=null,lastFiles=null,lastOpts=null;
+function renderPlan(plan,files,opts={}){const box=opts.box||$('#plates');if(box===$('#plates')){lastPlan=plan;lastFiles=files;lastOpts=opts}box.replaceChildren();const s=state.settings;const name=id=>printerLabel(s.printers.find(p=>p.id===id)||{name:id});
  if(opts.synthetic)box.append(el('p',{class:'warn'},plan.label||'Synthetic sample. Not VAULT parts.'));
  else if(state.progressNote)box.append(el('p',{class:'warn'},state.progressNote));
  if(files)files.forEach(f=>{const base=f.file.split(/[\\/]/).pop();const line=el('div',{class:f.warning?'warn':'ok'},`✓ ${base} — ${f.plates} plates, ${f.items} parts${f.outside&&!f.outside.length?', every piece checked on its plate':''}${f.warning?' · ⚠ '+f.warning:''} `);line.append(el('a',{href:'/api/download_file?name='+encodeURIComponent(base),download:base},'Download'));line.append(handoffButtons(base));box.append(line)});
@@ -723,6 +841,20 @@ $('#helpOn').onchange=e=>{state.help=e.target.checked;save()};
 ['#name','#depth','#roofType','#topHandle','#mode','#groupBy','#spacing','#edge','#wallMm','#infill','#secondsPerGram','#spoolman','#estimateFromPreset'].forEach(q=>$(q).addEventListener('change',()=>changed()));
 $('#mergeParts').onchange=e=>{state.merge=e.target.checked;save();renderBom()};
 document.querySelectorAll('[data-mod]').forEach(i=>i.addEventListener('change',()=>changed()));
+function setShop(open){document.body.classList.toggle('shop-open',!!open);$('#shop').hidden=!open;$('#manageShop').setAttribute('aria-expanded',open?'true':'false')}
+function showShopSection(name){$('#shop-printers').hidden=name!=='printers';$('#shop-filaments').hidden=name!=='filaments';document.querySelectorAll('.shop-nav button').forEach(b=>b.classList.toggle('on',b.dataset.shop===name))}
+$('#manageShop').onclick=()=>setShop($('#shop').hidden);
+$('#closeShop').onclick=()=>setShop(false);
+document.querySelectorAll('.shop-nav button').forEach(b=>b.onclick=()=>showShopSection(b.dataset.shop));
+$('#addFilament').onclick=()=>{state.settings.filaments.push({name:'New filament',color:'#8a8f96',material:'PLA',preset:{}});renderSetup();changed()};
+const printerDialog=$('#printerEditor');
+printerDialog.addEventListener('click',e=>{if(e.target===printerDialog)printerDialog.close()});
+printerDialog.addEventListener('close',()=>{editingId=null});
+function storedTheme(){try{return normalizeTheme(localStorage.getItem(THEME_STORAGE_KEY))}catch{return 'system'}}
+function paintTheme(preference){const v=normalizeTheme(preference);document.querySelectorAll('[data-theme]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.theme===v?'true':'false'));document.documentElement.classList.toggle('dark',themeIsDark(v,matchMedia('(prefers-color-scheme: dark)').matches))}
+document.querySelectorAll('[data-theme]').forEach(b=>b.onclick=()=>{const v=normalizeTheme(b.dataset.theme);try{localStorage.setItem(THEME_STORAGE_KEY,v)}catch{}paintTheme(v)});
+paintTheme(storedTheme());
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{if(storedTheme()==='system')paintTheme('system')});
 
 (async()=>{META=await (await fetch('/api/meta')).json();PRESETS=await (await fetch('/api/presets')).json();state=load();
  renderMeta();

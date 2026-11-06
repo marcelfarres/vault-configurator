@@ -59,6 +59,12 @@ def test_quantities():
 def test_fleet_and_sample():
     ids = {p["id"] for p in plates.DEFAULT_PRINTERS}
     assert ids == {"u1", "p1s", "h2d-left", "h2d-right"}
+    by_name = {p["id"]: p for p in plates.DEFAULT_PRINTERS}
+    assert by_name["u1"]["name"] == "U1" and by_name["u1"]["profile"] == "Snapmaker U1"
+    assert by_name["p1s"]["name"] == "P1S" and by_name["p1s"]["profile"] == "Bambu Lab P1S"
+    assert by_name["h2d-left"]["profile"] == "Bambu Lab H2D"
+    assert [f["name"] for f in plates.DEFAULT_FILAMENTS] == ["Charcoal", "Cream", "Gold", "Army Blue", "Silver Grey"]
+    assert all(f["name"] not in {"Body", "Drawer interior", "Knobs & handles", "Accent", "TPU"} for f in plates.DEFAULT_FILAMENTS)
     sample = plates.sample_plan()
     assert sample["synthetic"] and sample["placed"] == 5
     for plate in sample["plates"]:
@@ -76,6 +82,33 @@ def test_fleet_and_sample():
     assert plates.fits(wide, by_id["u1"]) is None
     right = by_id["h2d-right"]
     assert right["origin"] == [25, 0]
+
+
+def test_export_for_does_not_change_fit_scope():
+    """Export for picks printers for this pack. Shop enable still feeds the fit control."""
+    u1 = next(p for p in plates.DEFAULT_PRINTERS if p["id"] == "u1")
+    p1s = dict(next(p for p in plates.DEFAULT_PRINTERS if p["id"] == "p1s"))
+    p1s["forExport"] = False
+    small = [{"name": "bit", "file": "small", "qty": 1, "role": "main", "group": "g", "kind": "other"}]
+
+    def stats(_path):
+        return {"size": [20, 20, 10], "volume_cm3": 1, "area_cm2": 4}
+
+    packed = plates.plan(small, {"printers": [u1, p1s], "mode": "both"}, stats)
+    assert {pl["printer"] for pl in packed["plates"]} == {"u1"}
+    # A mode that names a printer not ticked for this export packs nothing, not the rest of the fleet.
+    missed = plates.plan(small, {"printers": [u1, p1s], "mode": "p1s"}, stats)
+    assert missed["plates"] == []
+    h2d = dict(next(p for p in plates.DEFAULT_PRINTERS if p["id"] == "h2d-left"))
+    h2d["forExport"] = False
+    assert [p["id"] for p in plates.printers_for_export({"printers": [u1, h2d], "mode": "both"})] == ["u1"]
+    assert plates.printers_for_export({"printers": [u1, h2d], "mode": "h2d-left"}) == []
+    assert server.biggest_printer({"printers": [u1, h2d], "mode": "both"})["id"] == "u1"
+    assert server.biggest_printer({"printers": [u1, h2d], "mode": "h2d-left"}) is None
+    judged, scope = stackfit.judged_printers({"printers": [u1, p1s]}, "every")
+    assert scope == "every" and {p["id"] for p in judged} == {"u1", "p1s"}
+    assert "Snapmaker U1" not in plates.sample_plan()["label"] or u1["name"] == "Snapmaker U1"
+    assert u1["name"] in plates.sample_plan()["label"]
 
 
 def test_handoff_policy():
@@ -153,8 +186,13 @@ def test_server_hides_archive_path_and_rejects_open():
     assert meta["handoff"] == "none"
     assert "Download" in meta["handoffNote"] or "download" in meta["handoffNote"]
     page = call("/")[1].decode()
-    for text in ("VAULT_ARCHIVE", "Unraid", "Only offer choices that fit", "Save project", "data-tab=\"assemble\"", "Show a sample plate"):
+    for text in ("VAULT_ARCHIVE", "Unraid", "Only offer choices that fit", "Save project", "data-tab=\"assemble\"", "Show a sample plate",
+                 ">Settings</button>", "What prints in which colour", "Export for", "Top of the list is the top of the stack",
+                 "All printers dropdown in the header", "Just what's on the shelf", 'aria-label="Theme"',
+                 'data-theme="light"', 'data-theme="dark"', 'data-theme="system"'):
         assert text in page, text
+    for banned in ("Step 1 · Printers", "Step 2 · Filaments", "bottom-up", "data-tab=\"shop\"", "#101214", "shortName", "replace(/^Snapmaker", '<select id="theme"', "Manage shop"):
+        assert banned not in page, banned
     code, body = call("/api/handoff", {"file": "../../etc/passwd", "app": "bambu"})
     assert code == 403
     assert b"passwd" not in body or b"Refusing" in body or b"only" in body.lower() or b"exported" in body.lower()
@@ -279,6 +317,7 @@ if __name__ == "__main__":
     test_unknown_height_becomes_one()
     test_xl7_h2d_choices_keep_invalid_selection()
     test_fleet_and_sample()
+    test_export_for_does_not_change_fit_scope()
     test_handoff_policy()
     test_server_hides_archive_path_and_rejects_open()
     print("test_planner ok")

@@ -1,5 +1,44 @@
 /** Pure helpers for saved progress, plate keys, and the depth/roof selects. No DOM, no network. */
 
+export const THEME_STORAGE_KEY = "vault-theme";
+
+/** light | dark | system. Anything else, including a missing value, is System. */
+export function normalizeTheme(value) {
+  return value === "light" || value === "dark" || value === "system" ? value : "system";
+}
+
+/** Whether the page should use the dark palette. System follows the OS flag passed in. */
+export function themeIsDark(preference, prefersDark) {
+  const mode = normalizeTheme(preference);
+  if (mode === "dark") return true;
+  if (mode === "light") return false;
+  return !!prefersDark;
+}
+
+/**
+ * `both`, or one id that is enabled and ticked for export. Anything else becomes `both`.
+ * A missing `forExport` counts as ticked. This writes the settings object; it does not read the page.
+ */
+export function legalExportMode(settings) {
+  if (!settings) return "both";
+  const live = (settings.printers || []).filter((printer) => printer.enabled !== false && printer.forExport !== false);
+  if (settings.mode !== "both" && !live.some((printer) => printer.id === settings.mode)) settings.mode = "both";
+  return settings.mode;
+}
+
+/** The shop Name field, unchanged. Profiles and slicer preset ids are not display names. */
+export function printerLabel(printer) {
+  if (!printer || printer.name == null || printer.name === "") return "";
+  return String(printer.name);
+}
+
+/** Shelf stock as shown on a Parts role dropdown: nickname, then material. */
+export function spoolLabel(filament) {
+  const name = filament && filament.name ? String(filament.name) : "Unnamed";
+  const material = filament && filament.material ? String(filament.material) : "";
+  return material ? `${name} · ${material}` : name;
+}
+
 export function plateKey(plate) {
   const items = (plate.items || [])
     .map((item) => `${item.part}@${item.x},${item.y},${item.rot}`)
@@ -70,6 +109,71 @@ export function layerNotes(layerEntry, parts, ids, layerNumber) {
     else if (fit === "unfit") notes.push(`${part.qty}× ${part.name} does not fit`);
   }
   return notes;
+}
+
+/** Shelf rows shipped before nicknames. A saved row is still one of these only when every field matches. */
+export const LEGACY_FILAMENTS = [
+  { name: "light grey", color: "#9da3a8", material: "PETG" },
+  { name: "dark grey", color: "#4a4d50", material: "PETG" },
+  { name: "black", color: "#222426", material: "PETG" },
+  { name: "orange", color: "#ff7a1a", material: "PETG" },
+  { name: "black (soft)", color: "#1a1a1a", material: "TPU" },
+];
+
+/** Inventory that was named as a colour role, or an old brand default. Exact name only. */
+export const LEGACY_ROLE_NAMES = [
+  "Elegoo",
+  "PETG accent",
+  "TPU tyres",
+  "Body",
+  "Drawer interior",
+  "Knobs & handles",
+  "Knobs",
+  "Accent",
+  "TPU",
+];
+
+/** Display names the sample fleet used before the Name field was the label. */
+export const LEGACY_PRINTER_NAMES = {
+  u1: "Snapmaker U1",
+  p1s: "Bambu Lab P1S",
+  "h2d-left": "Bambu Lab H2D · left nozzle",
+  "h2d-right": "Bambu Lab H2D · right nozzle",
+};
+
+function sameShelf(row, legacy) {
+  return !!row && !!legacy
+    && row.name === legacy.name
+    && String(row.color || "").toLowerCase() === legacy.color
+    && row.material === legacy.material;
+}
+
+/**
+ * Replace a saved shop row with the current default, in one assignment, when that row is still a default.
+ * A hand-edited name, colour, or material stays. Missing `forExport` is left missing.
+ */
+export function migrateShop(settings, defaults) {
+  if (!settings || !defaults) return settings;
+  const nextFilaments = Array.isArray(defaults.filaments) ? defaults.filaments : [];
+  if (Array.isArray(settings.filaments)) {
+    settings.filaments = settings.filaments.map((row, index) => {
+      const fresh = nextFilaments[index];
+      const legacy = LEGACY_FILAMENTS[index];
+      const stillDefault = sameShelf(row, legacy) || LEGACY_ROLE_NAMES.includes(row && row.name);
+      if (!fresh || !stillDefault) return row;
+      return { ...JSON.parse(JSON.stringify(fresh)), preset: (row && row.preset) || {} };
+    });
+  }
+  const nextPrinters = Array.isArray(defaults.printers) ? defaults.printers : [];
+  if (Array.isArray(settings.printers)) {
+    settings.printers = settings.printers.map((row) => {
+      const fresh = nextPrinters.find((printer) => printer.id === row.id);
+      const legacyName = LEGACY_PRINTER_NAMES[row.id];
+      if (!fresh || !legacyName || row.name !== legacyName) return row;
+      return { ...row, name: fresh.name };
+    });
+  }
+  return settings;
 }
 
 /** Replace the untouched upstream H2C + Kobra pair with the fleet. A resized or extended list is kept. */
