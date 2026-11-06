@@ -59,7 +59,7 @@ def fleet_printer(catalog_name, pid, display_name):
 
 # Personal fleet. H2C and the other catalog rows stay available from Add printer.
 # H2D is one row per nozzle: each nozzle reaches only part of the physical plate.
-# Display names are the sample fleet (editable in Manage shop). Profiles stay the slicer ids.
+# Display names are the sample fleet. Profiles stay the slicer ids.
 DEFAULT_PRINTERS = [
     fleet_printer("Snapmaker U1", "u1", "U1"),
     fleet_printer("Bambu Lab P1S", "p1s", "P1S"),

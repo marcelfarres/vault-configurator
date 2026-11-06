@@ -1,0 +1,243 @@
+import { act, render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { beforeEach, expect, test, vi } from "vitest";
+import { App } from "./App";
+import { applyBomResult, applyPlanProgress, signature } from "./store";
+import type { Meta, PlannerState } from "./types";
+
+const printers = [
+  { id: "u1", name: "U1", profile: "Snapmaker U1", bed: [270, 270] as [number, number], z: 270, maxH: 270, enabled: true, forExport: true, slicer: "orca", nozzle: "0.4", preset: "" },
+  { id: "p1s", name: "P1S", profile: "Bambu Lab P1S", bed: [256, 256] as [number, number], z: 256, maxH: 256, enabled: true, forExport: true, slicer: "bambu", nozzle: "0.4", preset: "" },
+  { id: "h2d-left", name: "H2D left", profile: "Bambu Lab H2D", bed: [325, 320] as [number, number], z: 320, maxH: 320, enabled: true, forExport: false, slicer: "bambu", nozzle: "0.4", preset: "" },
+];
+
+const filaments = [
+  { name: "Charcoal", color: "#2a2b2e", material: "PLA", preset: {} },
+  { name: "Cream", color: "#ece6d9", material: "PLA", preset: {} },
+  { name: "Gold", color: "#c8a256", material: "PLA", preset: {} },
+  { name: "Army Blue", color: "#3b4f6b", material: "PLA", preset: {} },
+  { name: "Silver Grey", color: "#a9adb3", material: "TPU", preset: {} },
+];
+
+const meta = {
+  defaults: {
+    estimateFromPreset: true,
+    spoolman: "",
+    printers,
+    mode: "both",
+    spacing: 6,
+    edge: 0,
+    groupBy: "color",
+    filaments,
+    roles: { main: 0, box: 1, knob: 2, accent: 3, tpu: 4 },
+    kindRoles: {},
+    wallMm: 0.8,
+    infill: 0.21,
+    secondsPerGram: 90,
+    density: 1.27,
+    presets: {},
+  },
+  layouts: { S: ["S"], M: ["M"], L: ["L"], XL: ["XL"], SS: ["S", "S"], SM: ["S", "M"] },
+  allowed: { S: ["S"], M: ["M"], L: ["L", "SS"], XL: ["XL", "SM"] },
+  patterns: { 1: [[1]], 2: [[2], [1, 1]], 4: [[4], [2, 2]] },
+  width: { S: 164.8, M: 254, L: 329.6, XL: 418.8 },
+  depths: [3, 4, 5, 6, 7],
+  roofs: ["none", "grid", "table", "bowl", "undertable", "heavyweight"],
+  files: 0,
+  roles: ["main", "box", "knob", "accent", "tpu"],
+  roleLabels: {},
+  kinds: ["module"],
+  materials: ["PLA", "PETG", "TPU"],
+  printerCatalog: [],
+  families: ["S", "M", "L", "XL"],
+  layoutFamily: { S: "S", M: "M", L: "L", XL: "XL", SS: "L", SM: "XL" },
+  layerTypes: ["Drawers", "Sustainers"],
+  drawerInteriors: ["none", "baseplate", "grid"],
+  sustainerInteriors: ["Flat", "Dividers", "Sealed"],
+  heights: [1, 2, 4],
+  archiveVia: "environment",
+  archiveReady: false,
+  handoff: "none",
+  handoffNote: "Download the 3MF.",
+  local: true,
+} as Meta;
+
+function json(data: unknown, status = 200) {
+  return Promise.resolve(new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } }));
+}
+
+beforeEach(() => {
+  localStorage.clear();
+  document.documentElement.classList.remove("dark");
+  vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo, init?: RequestInit) => {
+    const url = String(input);
+    if (url.includes("/api/meta")) return json(meta);
+    if (url.includes("/api/presets")) return json({});
+    if (url.includes("/api/progress")) return json({ done: 0, total: 0 });
+    if (url.includes("/api/bom")) {
+      const body = JSON.parse(String(init?.body || "{}")) as { stack?: unknown; settings?: { printers?: Array<{ id: string; name: string; enabled?: boolean }> } };
+      const judged = (body.settings?.printers || []).filter((printer) => printer.enabled !== false).map((printer) => ({ id: printer.id, name: printer.name }));
+      return json({ parts: [], hardware: [], warnings: [], choices: null, stack: body.stack, judged: { scope: "every", printers: judged }, estimate: { wallMm: 0.8, infill: 0.21, preset: null, printer: "P1S" } });
+    }
+    if (url.includes("/api/plan")) return json({ plan: { plates: [], unplaceable: [], pieces: 0, placed: 0, fingerprint: "abc" } });
+    if (url.includes("/api/sample_plan")) return json({ synthetic: true, plates: [], label: "sample", unplaceable: [] });
+    return json({ error: url }, 500);
+  }));
+});
+
+test("design, settings theme, and export list follow the shop rules", async () => {
+  const user = userEvent.setup();
+  render(<App />);
+  expect(await screen.findByRole("heading", { name: "Compose your stack" })).toBeInTheDocument();
+  expect(screen.getByRole("tab", { name: "1 Design" })).toHaveAttribute("aria-selected", "true");
+  expect(screen.getByRole("tab", { name: "4 Assemble" })).toHaveAttribute("data-tab", "assemble");
+  expect(screen.queryByRole("tab", { name: /settings/i })).not.toBeInTheDocument();
+  expect(screen.queryByText("Manage shop")).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "U1" })).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Snapmaker U1" })).not.toBeInTheDocument();
+  expect(screen.getByText("VAULT_ARCHIVE is set, but that folder does not contain 01. DRAWERS.", { exact: false })).toBeInTheDocument();
+  expect(screen.getByText(/Unraid/)).toBeInTheDocument();
+
+  const depth = screen.getByLabelText("Depth");
+  expect(within(depth).getAllByRole("option")).toHaveLength(5);
+  expect(screen.getByLabelText("Roof")).not.toBeDisabled();
+
+  await user.click(screen.getByRole("button", { name: "Add layer" }));
+  expect(screen.getByRole("button", { name: "Edit S drawer" })).toHaveAttribute("aria-expanded", "true");
+  expect(screen.getByLabelText("Type")).toBeInTheDocument();
+  expect(screen.getByLabelText("Width")).toBeInTheDocument();
+  expect(screen.getByLabelText("Height")).toBeInTheDocument();
+  expect(screen.getByLabelText("Lock")).toBeInTheDocument();
+  expect(screen.getByRole("checkbox", { name: "labels" })).toBeInTheDocument();
+  expect(screen.getByRole("checkbox", { name: "geared rails" })).toBeInTheDocument();
+  expect(screen.getByRole("checkbox", { name: "manual support wall" })).toBeInTheDocument();
+
+  await user.click(screen.getByText("Depth"));
+  expect(screen.getByRole("heading", { name: "Depth" })).toBeInTheDocument();
+
+  await user.click(screen.getByRole("button", { name: "Settings" }));
+  expect(screen.getByRole("heading", { name: "Settings" })).toBeInTheDocument();
+  expect(screen.getByLabelText("Name for u1")).toHaveValue("U1");
+  expect(screen.getByLabelText("Profile for u1")).toHaveValue("Snapmaker U1");
+  await user.click(screen.getByRole("button", { name: "Appearance" }));
+  expect(screen.getByText("System follows your OS light/dark setting.")).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Dark" }));
+  expect(document.documentElement).toHaveClass("dark");
+  expect(localStorage.getItem("vault-theme")).toBe("dark");
+  await user.click(screen.getByRole("button", { name: "Light" }));
+  expect(document.documentElement).not.toHaveClass("dark");
+  await user.click(screen.getByRole("button", { name: "System" }));
+  expect(localStorage.getItem("vault-theme")).toBe("system");
+  await user.click(screen.getByRole("button", { name: "Close settings" }));
+
+  await user.click(screen.getByRole("tab", { name: "3 Plates" }));
+  const send = screen.getByLabelText("Send parts to");
+  expect([...send.querySelectorAll("option")].map((option) => option.value)).toEqual(["both", "u1", "p1s"]);
+  expect(screen.getByRole("button", { name: "Export H2D left" })).toHaveAttribute("aria-pressed", "false");
+  expect(screen.getByRole("button", { name: "Export U1" })).toHaveAttribute("aria-pressed", "true");
+  expect(screen.getByText("Packing with U1, P1S.")).toBeInTheDocument();
+  expect(screen.getByLabelText("All printers").querySelector("option[value='h2d-left']")).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Show a sample plate" })).toBeInTheDocument();
+});
+
+test("patch writes a legal export mode and fit target into saved state", async () => {
+  const user = userEvent.setup();
+  localStorage.setItem("vault-configurator", JSON.stringify({
+    tab: "plates",
+    fitTarget: "h2d-left",
+    stack: { name: "my-vault", depth: 5, layers: [], roof: { type: "none", topHandle: true }, mods: { backbone: "none", pegboard: "none" } },
+    settings: { ...meta.defaults, mode: "u1" },
+  }));
+  render(<App />);
+  expect(await screen.findByRole("heading", { name: "Plates & export" })).toBeInTheDocument();
+  expect(screen.getByLabelText("Send parts to")).toHaveValue("u1");
+  expect(screen.getByLabelText("All printers")).toHaveValue("h2d-left");
+  await user.click(screen.getByRole("button", { name: "H2D left" }));
+  const afterFit = JSON.parse(localStorage.getItem("vault-configurator") || "{}");
+  expect(afterFit.fitTarget).toBe("every");
+  expect(afterFit.settings.mode).toBe("u1");
+  await user.click(screen.getByRole("button", { name: "Export U1" }));
+  const afterExport = JSON.parse(localStorage.getItem("vault-configurator") || "{}");
+  expect(afterExport.settings.printers.find((printer: { id: string }) => printer.id === "u1").forExport).toBe(false);
+  expect(afterExport.settings.mode).toBe("both");
+  expect(screen.getByLabelText("Send parts to")).toHaveValue("both");
+  expect(screen.getByLabelText("All printers")).toHaveValue("every");
+});
+
+test("a BOM result keeps an assemble check and a stale stack is dropped", () => {
+  const layer = {
+    type: "Drawers", layout: "S", height: 2, facades: [[2]], interior: "none", key: "key",
+    labels: true, rails: false, manualSupports: false, variant: "Flat", baseplate: false, gridW: 1, gridD: 1, divW: 1, divD: 2,
+  };
+  const prev = {
+    tab: "assemble",
+    fitTarget: "every",
+    fitOnly: false,
+    help: true,
+    merge: false,
+    stack: { name: "my-vault", depth: 5, layers: [layer], roof: { type: "none", topHandle: true }, mods: {} },
+    settings: meta.defaults,
+    overrides: {},
+    tests: {},
+    projects: [],
+    activeProjectId: "",
+    progress: { layoutKey: "keep", plates: {}, hardware: {}, assemble: { "L1|Box": { qty: 1, done: true } } },
+  } as PlannerState;
+  const requestSig = signature(prev);
+  const bom = {
+    parts: [{ group: "L1", name: "Box", qty: 1, role: "main" }],
+    hardware: [],
+    warnings: [],
+    stack: prev.stack,
+  };
+  const kept = applyBomResult(prev, requestSig, bom);
+  expect(kept.progress.assemble?.["L1|Box"]?.done).toBe(true);
+  const edited = { ...prev, stack: { ...prev.stack, depth: 7 } };
+  expect(applyBomResult(edited, requestSig, bom)).toBe(edited);
+});
+
+test("a plan keeps the part rows already on prev and drops a stale stack", () => {
+  const layer = {
+    type: "Drawers", layout: "S", height: 2, facades: [[2]], interior: "none", key: "key",
+    labels: true, rails: false, manualSupports: false, variant: "Flat", baseplate: false, gridW: 1, gridD: 1, divW: 1, divD: 2,
+  };
+  const prev = {
+    tab: "plates",
+    fitTarget: "every",
+    fitOnly: false,
+    help: true,
+    merge: false,
+    stack: { name: "my-vault", depth: 5, layers: [layer], roof: { type: "none", topHandle: true }, mods: {} },
+    settings: meta.defaults,
+    overrides: {},
+    tests: {},
+    projects: [],
+    activeProjectId: "",
+    progress: {
+      layoutKey: "layout",
+      plates: {},
+      hardware: { Screws: { qty: 4, done: true } },
+      assemble: { "L1|Box": { qty: 1, done: true } },
+    },
+  } as PlannerState;
+  const requestSig = signature(prev);
+  const plan = { plates: [], fingerprint: "layout", pieces: 0, placed: 0 };
+  const kept = applyPlanProgress(prev, requestSig, plan, null);
+  expect(kept.state.progress.assemble?.["L1|Box"]?.done).toBe(true);
+  expect(kept.state.progress.hardware?.Screws?.done).toBe(true);
+  const edited = { ...prev, stack: { ...prev.stack, depth: 7 } };
+  expect(applyPlanProgress(edited, requestSig, plan, null).state).toBe(edited);
+});
+
+test("opening Plates requests a plan without another stack edit", async () => {
+  const user = userEvent.setup();
+  render(<App />);
+  await screen.findByRole("heading", { name: "Compose your stack" });
+  await user.click(screen.getByRole("button", { name: "Add layer" }));
+  await act(async () => { await new Promise((resolve) => setTimeout(resolve, 30)); });
+  const plans = () => vi.mocked(fetch).mock.calls.filter((call) => String(call[0]).includes("/api/plan")).length;
+  expect(plans()).toBe(0);
+  await user.click(screen.getByRole("tab", { name: "3 Plates" }));
+  await act(async () => { await new Promise((resolve) => setTimeout(resolve, 30)); });
+  expect(plans()).toBeGreaterThan(0);
+});

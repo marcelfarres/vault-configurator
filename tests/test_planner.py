@@ -6,6 +6,7 @@ not echo the path back.
 """
 import json
 import os
+import re
 import sys
 import tempfile
 import threading
@@ -107,7 +108,6 @@ def test_export_for_does_not_change_fit_scope():
     assert server.biggest_printer({"printers": [u1, h2d], "mode": "h2d-left"}) is None
     judged, scope = stackfit.judged_printers({"printers": [u1, p1s]}, "every")
     assert scope == "every" and {p["id"] for p in judged} == {"u1", "p1s"}
-    assert "Snapmaker U1" not in plates.sample_plan()["label"] or u1["name"] == "Snapmaker U1"
     assert u1["name"] in plates.sample_plan()["label"]
 
 
@@ -185,14 +185,34 @@ def test_server_hides_archive_path_and_rejects_open():
     assert meta["roofs"] == list(catalog.ROOFS)
     assert meta["handoff"] == "none"
     assert "Download" in meta["handoffNote"] or "download" in meta["handoffNote"]
-    page = call("/")[1].decode()
-    for text in ("VAULT_ARCHIVE", "Unraid", "Only offer choices that fit", "Save project", "data-tab=\"assemble\"", "Show a sample plate",
-                 ">Settings</button>", "What prints in which colour", "Export for", "Top of the list is the top of the stack",
-                 "All printers dropdown in the header", "Just what's on the shelf", 'aria-label="Theme"',
-                 'data-theme="light"', 'data-theme="dark"', 'data-theme="system"'):
-        assert text in page, text
-    for banned in ("Step 1 · Printers", "Step 2 · Filaments", "bottom-up", "data-tab=\"shop\"", "#101214", "shortName", "replace(/^Snapmaker", '<select id="theme"', "Manage shop"):
-        assert banned not in page, banned
+    status, raw = call("/")
+    assert status == 200
+    page = raw.decode()
+    chunks = [page]
+    for src in re.findall(r'src="([^"]+)"', page):
+        if src.startswith("/"):
+            code, body = call(src.split("?")[0])
+            assert code == 200, src
+            chunks.append(body.decode("utf-8", "replace"))
+    ui = "\n".join(chunks)
+    for text in (
+        "Only offer choices that fit", "Compose your stack", "Settings", "Appearance",
+        "vault-theme", "Add layer", "All printers", "Show a sample plate",
+        "VAULT_ARCHIVE", "Unraid", "4 Assemble", "Light", "Dark", "System",
+    ):
+        assert text in ui, text
+    assert '"data-tab"' in ui and 'id:"assemble"' in ui
+    classic = call("/classic")[1].decode()
+    for text in (
+        "VAULT_ARCHIVE", "Unraid", "Only offer choices that fit", "Save project", 'data-tab="assemble"',
+        "Show a sample plate", ">Settings</button>", "What prints in which colour", "Export for",
+        "Top of the list is the top of the stack", "All printers dropdown in the header",
+        "Just what's on the shelf", 'aria-label="Theme"', 'data-theme="light"', 'data-theme="dark"',
+        'data-theme="system"', "loadPlannerState", "defaultPlannerState",
+    ):
+        assert text in classic, text
+    for banned in ("Step 1 · Printers", "Step 2 · Filaments", "bottom-up", 'data-tab="shop"', "#101214", "shortName", "replace(/^Snapmaker", '<select id="theme"', "Manage shop", "material||'PETG'"):
+        assert banned not in ui and banned not in classic, banned
     code, body = call("/api/handoff", {"file": "../../etc/passwd", "app": "bambu"})
     assert code == 403
     assert b"passwd" not in body or b"Refusing" in body or b"only" in body.lower() or b"exported" in body.lower()

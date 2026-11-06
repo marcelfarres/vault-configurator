@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { reconcileProgress, plateKey, partFitsScope, layerNotes, migratePrinters, migrateShop, legalExportMode, LEGACY_FILAMENTS, LEGACY_ROLE_NAMES, LEGACY_PRINTER_NAMES, decorateChoices, visiblePartRows, checkedCount, depthLabel, repairStackCatalog, catalogChoicesFor, printerLabel, spoolLabel, normalizeTheme, themeIsDark, THEME_STORAGE_KEY } from "../planner.mjs";
+import { readFileSync } from "node:fs";
+import { reconcileProgress, plateKey, partFitsScope, layerNotes, migratePrinters, migrateShop, legalExportMode, legalFitTarget, exportCandidates, LEGACY_FILAMENTS, LEGACY_ROLE_NAMES, LEGACY_PRINTER_NAMES, decorateChoices, visiblePartRows, checkedCount, depthLabel, repairStackCatalog, catalogChoicesFor, printerLabel, spoolLabel, normalizeTheme, themeIsDark, THEME_STORAGE_KEY, printersForExport, biggestExportPrinter, scopeLabel, loadPlannerState, defaultPlannerState } from "../planner.mjs";
 
 const plate = { printer: "u1", slots: [0], items: [{ part: "Guide", x: 1, y: 2, rot: 0 }] };
 const key = plateKey(plate);
@@ -245,5 +246,83 @@ const kept = {
 };
 assert.equal(legalExportMode(kept), "u1");
 assert.equal(legalExportMode({ mode: "both", printers: [] }), "both");
+assert.deepEqual(exportCandidates(kept).map((printer) => printer.id), ["u1"]);
+
+const u1 = { id: "u1", name: "U1", bed: [270, 270], enabled: true, forExport: true };
+const p1s = { id: "p1s", name: "P1S", bed: [256, 256], enabled: true, forExport: false };
+const h2d = { id: "h2d-left", name: "H2D left", bed: [325, 320], enabled: true, forExport: true };
+assert.deepEqual(printersForExport({ printers: [u1, p1s, h2d], mode: "both" }).map((p) => p.id), ["u1", "h2d-left"]);
+assert.deepEqual(printersForExport({ printers: [u1, h2d], mode: "h2d-left" }).map((p) => p.id), ["h2d-left"]);
+assert.deepEqual(printersForExport({ printers: [u1, { ...h2d, forExport: false }], mode: "h2d-left" }), []);
+assert.equal(biggestExportPrinter({ printers: [u1, h2d], mode: "both" }).id, "h2d-left");
+assert.equal(biggestExportPrinter({ printers: [u1, { ...h2d, forExport: false }], mode: "both" }).id, "u1");
+assert.equal(biggestExportPrinter({ printers: [u1], mode: "p1s" }), null);
+assert.equal(scopeLabel({ scope: "every", printers: [u1, p1s] }), "every enabled printer");
+assert.equal(scopeLabel({ scope: "one", printers: [{ name: "U1", profile: "Snapmaker U1" }] }), "U1");
+assert.equal(scopeLabel(null), "the selected printer");
+
+const readerMeta = {
+  defaults: {
+    ...shopDefaults,
+    printers: [{ id: "u1", name: "U1", bed: [270, 270], enabled: true }, { id: "p1s", name: "P1S", bed: [256, 256], enabled: true }],
+    spoolman: "",
+    groupBy: "color",
+    roles: { main: 0, box: 1, knob: 2, accent: 3, tpu: 4 },
+    mode: "both",
+  },
+  depths,
+  roofs,
+};
+const loaded = loadPlannerState(JSON.stringify({
+  tab: "shop",
+  fitTarget: "all",
+  stack: { name: "kept", depth: 0, layers: [], roof: { type: "" } },
+  settings: {
+    printers: [{ id: "u1", name: "Snapmaker U1", bed: [270, 270], enabled: true }],
+    filaments: [
+      { name: "light grey", color: "#9da3a8", material: "PETG" },
+      { name: "Cream already", color: "#ffffff", material: "PLA" },
+      { name: "Body", color: "#111111", material: "PETG" },
+      { name: "orange", color: "#ff7a1a", material: "ASA" },
+      { color: "#111111" },
+    ],
+    roles: { main: 0, box: 1, knob: 2, accent: 3, tpu: 4 },
+    mode: "retired",
+  },
+}), readerMeta);
+assert.equal(loaded.tab, "stack");
+assert.equal(loaded.fitTarget, "every");
+assert.equal(loaded.settings.mode, "both");
+assert.equal(loaded.settings.filaments[4].material, "PLA");
+assert.equal(loaded.settings.printers[0].name, "U1");
+assert.equal(loaded.stack.depth, 5);
+assert.equal(loaded.stack.name, "kept");
+
+const illegalAim = loadPlannerState({
+  tab: "stack",
+  fitTarget: "gone",
+  stack: { name: "kept", depth: 5, layers: [], roof: { type: "none", topHandle: true }, mods: {} },
+  settings: {
+    printers: [
+      { id: "u1", name: "U1", enabled: false, forExport: true },
+      { id: "p1s", name: "P1S", enabled: true, forExport: false },
+    ],
+    filaments: shopDefaults.filaments,
+    roles: { main: 0, box: 1, knob: 2, accent: 3, tpu: 4 },
+    mode: "u1",
+  },
+}, readerMeta);
+assert.equal(illegalAim.settings.mode, "both");
+assert.equal(illegalAim.fitTarget, "every");
+const blankState = defaultPlannerState({ printers: [], mode: "missing" });
+assert.equal(blankState.settings.mode, "both");
+assert.equal(blankState.fitTarget, "every");
+
+const classic = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+assert.match(classic, /function load\(\)\{const raw=localStorage\.getItem\(STORAGE_KEY\);if\(raw&&!localStorage\.getItem\('vault-configurator-backup-v1'\)\)localStorage\.setItem\('vault-configurator-backup-v1',raw\);return loadPlannerState\(raw,META\)\}/);
+assert.match(classic, /function defaultState\(\)\{return defaultPlannerState\(META\.defaults\)\}/);
+assert.equal(classic.includes("material||'PETG'"), false);
+assert.equal(classic.includes("state.fitTarget='every'"), false);
+assert.equal(classic.includes("state.fitTarget||'all'"), false);
 
 console.log("test_planner_ui ok");

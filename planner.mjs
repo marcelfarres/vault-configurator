@@ -1,6 +1,7 @@
-/** Pure helpers for saved progress, plate keys, and the depth/roof selects. No DOM, no network. */
+/** Pure helpers for saved progress, plate keys, theme, and the shop. No DOM, no network. */
 
 export const THEME_STORAGE_KEY = "vault-theme";
+export const STORAGE_KEY = "vault-configurator";
 
 /** light | dark | system. Anything else, including a missing value, is System. */
 export function normalizeTheme(value) {
@@ -15,17 +16,6 @@ export function themeIsDark(preference, prefersDark) {
   return !!prefersDark;
 }
 
-/**
- * `both`, or one id that is enabled and ticked for export. Anything else becomes `both`.
- * A missing `forExport` counts as ticked. This writes the settings object; it does not read the page.
- */
-export function legalExportMode(settings) {
-  if (!settings) return "both";
-  const live = (settings.printers || []).filter((printer) => printer.enabled !== false && printer.forExport !== false);
-  if (settings.mode !== "both" && !live.some((printer) => printer.id === settings.mode)) settings.mode = "both";
-  return settings.mode;
-}
-
 /** The shop Name field, unchanged. Profiles and slicer preset ids are not display names. */
 export function printerLabel(printer) {
   if (!printer || printer.name == null || printer.name === "") return "";
@@ -37,6 +27,58 @@ export function spoolLabel(filament) {
   const name = filament && filament.name ? String(filament.name) : "Unnamed";
   const material = filament && filament.material ? String(filament.material) : "";
   return material ? `${name} · ${material}` : name;
+}
+
+/** Enabled shop printers ticked for this export. A missing forExport counts as ticked. Does not read mode. */
+export function exportCandidates(settings) {
+  const s = settings || {};
+  return (s.printers || []).filter((printer) => printer && printer.enabled !== false && printer.forExport !== false);
+}
+
+/**
+ * `both`, or one id that is enabled and ticked for export. Anything else becomes `both`.
+ * A missing `forExport` counts as ticked. This writes the settings object; it does not read the page.
+ */
+export function legalExportMode(settings) {
+  if (!settings) return "both";
+  const live = exportCandidates(settings);
+  if (settings.mode !== "both" && !live.some((printer) => printer.id === settings.mode)) settings.mode = "both";
+  return settings.mode || "both";
+}
+
+/** `every`, or one enabled printer id. `all`, empty, and a missing id become `every`. Writes the state object. */
+export function legalFitTarget(state) {
+  if (!state) return "every";
+  const enabled = ((state.settings && state.settings.printers) || []).filter((printer) => printer && printer.enabled !== false);
+  const target = state.fitTarget;
+  if (!target || target === "all" || target === "every" || !enabled.some((printer) => printer.id === target)) state.fitTarget = "every";
+  return state.fitTarget;
+}
+
+/** Export list after mode. A missing forExport counts as ticked. Does not write settings. */
+export function printersForExport(settings) {
+  const live = exportCandidates(settings);
+  const mode = settings && settings.mode;
+  if (mode && mode !== "both") return live.filter((printer) => printer.id === mode);
+  return live;
+}
+
+/** Biggest bed in the export list. Same rule the server uses for the weight estimate. */
+export function biggestExportPrinter(settings) {
+  const printers = printersForExport(settings);
+  if (!printers.length) return null;
+  return printers.reduce((best, printer) => {
+    const area = (printer.bed?.[0] || 0) * (printer.bed?.[1] || 0);
+    const bestArea = (best.bed?.[0] || 0) * (best.bed?.[1] || 0);
+    return area > bestArea ? printer : best;
+  });
+}
+
+/** Fit-control sentence. Uses the shop name, including a name the user typed. */
+export function scopeLabel(judged) {
+  if (!judged) return "the selected printer";
+  if (judged.scope === "every") return "every enabled printer";
+  return printerLabel((judged.printers || [])[0]) || "the selected printer";
 }
 
 export function plateKey(plate) {
@@ -269,4 +311,91 @@ export function checkedCount(progress) {
   const hardware = Object.values((progress && progress.hardware) || {}).filter((row) => row && row.done).length;
   const assemble = Object.values((progress && progress.assemble) || {}).filter((row) => row && row.done).length;
   return { plates, hardware, assemble };
+}
+
+const TABS = ["stack", "parts", "plates", "assemble"];
+
+export function defaultPlannerState(defaults) {
+  const state = {
+    tab: "stack",
+    stack: {
+      name: "my-vault",
+      depth: 5,
+      layers: [],
+      roof: { type: "none", topHandle: true },
+      mods: { backbone: "none", pegboard: "none" },
+    },
+    settings: JSON.parse(JSON.stringify(defaults || {})),
+    overrides: {},
+    tests: {},
+    projects: [],
+    activeProjectId: "",
+    fitOnly: false,
+    fitTarget: "every",
+    help: true,
+    merge: false,
+    progress: { layoutKey: "", plates: {}, hardware: {}, assemble: {} },
+  };
+  legalExportMode(state.settings);
+  legalFitTarget(state);
+  return state;
+}
+
+/** Saved browser state, with shop and catalog migrations applied. `raw` may be a JSON string. */
+export function loadPlannerState(raw, meta) {
+  const defaults = meta && meta.defaults;
+  const fresh = () => defaultPlannerState(defaults);
+  if (!defaults) return fresh();
+  try {
+    const saved = typeof raw === "string" ? JSON.parse(raw) : raw;
+    if (!saved || !saved.stack || !saved.settings) return fresh();
+    const blank = JSON.parse(JSON.stringify(defaults));
+    saved.settings = { ...blank, ...saved.settings };
+    if (!saved.settings.filaments || saved.settings.filaments.length < 5 || !("box" in (saved.settings.roles || {}))) {
+      saved.settings.filaments = blank.filaments;
+      saved.settings.roles = blank.roles;
+    }
+    saved.settings.printers = (saved.settings.printers || []).map((printer) => ({
+      ...(blank.printers.find((row) => row.id === printer.id) || {}),
+      ...printer,
+    }));
+    if (!saved.settings.spoolman) saved.settings.spoolman = blank.spoolman || "";
+    saved.settings.printers.forEach((printer) => {
+      if (printer.id === "h2c" && printer.bed && printer.bed[0] === 330) {
+        printer.bed = [325, 320];
+        printer.z = 320;
+        printer.maxH = Math.min(printer.maxH || 320, 320);
+      }
+    });
+    saved.settings.printers = migratePrinters(saved.settings.printers, blank.printers);
+    migrateShop(saved.settings, blank);
+    saved.settings.filaments.forEach((filament) => {
+      filament.preset = filament.preset || {};
+      filament.material = filament.material || "PLA";
+    });
+    saved.settings.presets = saved.settings.presets || {};
+    saved.settings.kindRoles = saved.settings.kindRoles || {};
+    saved.tests = saved.tests || {};
+    saved.tab = TABS.includes(saved.tab) ? saved.tab : "stack";
+    if (!["color", "module", "size"].includes(saved.settings.groupBy)) saved.settings.groupBy = "color";
+    saved.projects = Array.isArray(saved.projects) ? saved.projects : [];
+    saved.activeProjectId = saved.activeProjectId || "";
+    saved.fitOnly = !!saved.fitOnly;
+    saved.help = saved.help !== false;
+    saved.merge = !!saved.merge;
+    saved.overrides = saved.overrides || {};
+    repairStackCatalog(saved.stack, (meta && meta.depths) || [], (meta && meta.roofs) || []);
+    if (!saved.stack.mods) saved.stack.mods = { backbone: "none", pegboard: "none" };
+    saved.progress = saved.progress && typeof saved.progress === "object"
+      ? saved.progress
+      : { layoutKey: "", plates: {}, hardware: {}, assemble: {} };
+    saved.progress.plates = saved.progress.plates || {};
+    saved.progress.hardware = saved.progress.hardware || {};
+    saved.progress.assemble = saved.progress.assemble || {};
+    legalExportMode(saved.settings);
+    legalFitTarget(saved);
+    return saved;
+  } catch {
+    return fresh();
+  }
 }

@@ -2,6 +2,7 @@
 import copy
 import io
 import json
+import mimetypes
 import os
 import re
 import subprocess
@@ -15,6 +16,7 @@ import zipfile
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+UI_DIST = os.path.join(HERE, "web", "dist")
 # the VAULT archive (01. DRAWERS, 02. SUSTAINERS, 03. MODIFICATIONS, the manuals): next to this folder by
 # default, or wherever VAULT_ARCHIVE points (Docker mounts it at /archive)
 ROOT = os.path.abspath(os.environ.get("VAULT_ARCHIVE") or os.path.dirname(HERE))
@@ -311,6 +313,20 @@ class Handler(SimpleHTTPRequestHandler):
     def send_json(self, obj, code=200):
         self.send_bytes(json.dumps(obj).encode("utf-8"), "application/json; charset=utf-8", code)
 
+    def send_file(self, path, ctype, headers=()):
+        with open(path, "rb") as fh:
+            self.send_bytes(fh.read(), ctype, headers=headers)
+
+    def send_ui_asset(self, rel):
+        root = os.path.realpath(UI_DIST)
+        target = os.path.realpath(os.path.join(root, rel))
+        if target != root and not target.startswith(root + os.sep):
+            return self.send_json({"error": "not found"}, 404)
+        if not os.path.isfile(target):
+            return self.send_json({"error": "not found"}, 404)
+        ctype = mimetypes.guess_type(target)[0] or "application/octet-stream"
+        return self.send_file(target, ctype, headers=[("Cache-Control", "public, max-age=31536000, immutable")])
+
     def loopback(self):
         return self.client_address[0] in ("127.0.0.1", "::1")
 
@@ -332,14 +348,26 @@ class Handler(SimpleHTTPRequestHandler):
             self.send_bytes(f.read(), "image/png", headers=[("Cache-Control", "max-age=86400")])
 
     def do_GET(self):
-        if self.path in ("/", "/index.html"):
+        path = urllib.parse.urlparse(self.path).path
+        if path in ("/classic", "/classic/", "/classic/index.html"):
             self.path = "/index.html"
             return super().do_GET()
+        if path in ("/", "/index.html"):
+            ui = os.path.join(UI_DIST, "index.html")
+            if os.path.isfile(ui):
+                return self.send_file(ui, "text/html; charset=utf-8", headers=[("Cache-Control", "no-cache")])
+            self.path = "/index.html"
+            return super().do_GET()
+        if path.startswith("/ui/"):
+            return self.send_ui_asset(path[1:])
         if self.path == "/api/meta":
             return self.send_json({"defaults": plates.DEFAULT_SETTINGS, "layouts": catalog.LAYOUTS, "allowed": catalog.ALLOWED_LAYOUTS,
                                    "patterns": catalog.PATTERNS, "width": catalog.WIDTH, "depths": list(catalog.DEPTHS), "roofs": list(catalog.ROOFS),
                                    "files": len(INDEX.files), "progress": PROGRESS,
                                    "roles": catalog.ROLES, "roleLabels": catalog.ROLE_LABELS, "kinds": [k for k, _ in catalog.KINDS], "materials": plates.MATERIALS, "printerCatalog": plates.PRINTER_CATALOG,
+                                   "families": catalog.FAMILIES, "layoutFamily": catalog.LAYOUT_FAMILY, "layerTypes": list(catalog.LAYER_TYPES),
+                                   "drawerInteriors": list(catalog.DRAWER_INTERIORS), "sustainerInteriors": list(catalog.SUSTAINER_INTERIORS),
+                                   "heights": list(catalog.HEIGHTS), "widthMm": catalog.WIDTH,
                                    "build": BUILD, "assets": assets_bootstrap.count(os.path.join(HERE, "assets")), "local": self.local(),
                                    "archiveVia": "environment" if os.environ.get("VAULT_ARCHIVE") else "unspecified",
                                    "archiveReady": os.path.isdir(os.path.join(ROOT, "01. DRAWERS")),
