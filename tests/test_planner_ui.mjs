@@ -328,4 +328,104 @@ assert.equal(classic.includes("material||'PETG'"), false);
 assert.equal(classic.includes("state.fitTarget='every'"), false);
 assert.equal(classic.includes("state.fitTarget||'all'"), false);
 
+const styles = readFileSync(new URL("../web/src/styles.css", import.meta.url), "utf8");
+const root = cssBlock(styles, ":root");
+const dark = cssBlock(styles, "html.dark");
+const part = cssBlock(styles, ".bed-part");
+const strokeWidth = cssDecl(part, "stroke-width");
+assert.match(strokeWidth, /^[0-9.]+px$/);
+assert.ok(Number.parseFloat(strokeWidth) >= 2, strokeWidth);
+assert.equal(cssDecl(part, "vector-effect"), "non-scaling-stroke");
+assert.equal(cssDecl(part, "stroke"), "var(--bed-outline)");
+
+const lightBed = oklchToLinear(cssDecl(root, "--bed"));
+const darkBed = oklchToLinear(cssDecl(dark, "--bed"));
+const lightEdge = paintedEdge(cssDecl(root, "--bed-outline"), lightBed);
+const darkEdge = paintedEdge(cssDecl(dark, "--bed-outline"), darkBed);
+const spools = {
+  charcoal: hexToLinear("#2a2b2e"),
+  cream: hexToLinear("#ece6d9"),
+  gold: hexToLinear("#c8a256"),
+  navy: hexToLinear("#3b4f6b"),
+};
+// Dark plate: the edge has to separate charcoal and navy. Cream stays readable from its fill.
+assertContrast("dark edge on plate", luminance(darkEdge), luminance(darkBed));
+assertContrast("dark edge on charcoal", luminance(darkEdge), luminance(spools.charcoal));
+assertContrast("dark edge on navy", luminance(darkEdge), luminance(spools.navy));
+assert.ok(contrastRatio(luminance(spools.cream), luminance(darkBed)) >= 4.5, "dark plate moved toward cream");
+// Light plate: the edge has to separate cream and gold. Charcoal stays readable from its fill.
+assertContrast("light edge on plate", luminance(lightEdge), luminance(lightBed));
+assertContrast("light edge on cream", luminance(lightEdge), luminance(spools.cream));
+assertContrast("light edge on gold", luminance(lightEdge), luminance(spools.gold));
+assertContrast("charcoal on light plate", luminance(spools.charcoal), luminance(lightBed));
+
 console.log("test_planner_ui ok");
+
+function cssBlock(css, selector) {
+  const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = css.match(new RegExp(escaped + "\\s*\\{([^}]*)\\}"));
+  assert.ok(match, selector);
+  return match[1];
+}
+
+function cssDecl(block, name) {
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = block.match(new RegExp(escaped + "\\s*:\\s*([^;]+);"));
+  assert.ok(match, name);
+  return match[1].trim();
+}
+
+function assertContrast(label, a, b) {
+  const ratio = contrastRatio(a, b);
+  assert.ok(ratio >= 3, `${label} contrast ${ratio.toFixed(2)} is below 3`);
+}
+
+function contrastRatio(a, b) {
+  const lighter = Math.max(a, b);
+  const darker = Math.min(a, b);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+function luminance(linear) {
+  return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
+}
+
+function paintedEdge(value, bed) {
+  const parsed = parseOklch(value);
+  return parsed.rgb.map((channel, index) => channel * parsed.alpha + bed[index] * (1 - parsed.alpha));
+}
+
+function parseOklch(value) {
+  const match = value.match(/^oklch\(\s*([0-9.]+)\s+([0-9.]+)\s+([0-9.]+)(?:\s*\/\s*([0-9.]+)(%)?)?\s*\)$/);
+  assert.ok(match, value);
+  const alpha = match[4] == null ? 1 : match[5] ? Number(match[4]) / 100 : Number(match[4]);
+  return { rgb: oklchToLinear(value), alpha };
+}
+
+function oklchToLinear(value) {
+  const match = String(value).match(/^oklch\(\s*([0-9.]+)\s+([0-9.]+)\s+([0-9.]+)/);
+  assert.ok(match, value);
+  const L = Number(match[1]);
+  const C = Number(match[2]);
+  const h = Number(match[3]);
+  const rad = (h * Math.PI) / 180;
+  const a = C * Math.cos(rad);
+  const b = C * Math.sin(rad);
+  const l_ = L + 0.3963377774 * a + 0.2158037573 * b;
+  const m_ = L - 0.1055613458 * a - 0.0638541728 * b;
+  const s_ = L - 0.0894841775 * a - 1.2914855480 * b;
+  const l = l_ ** 3;
+  const m = m_ ** 3;
+  const s3 = s_ ** 3;
+  return [
+    4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s3,
+    -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s3,
+    -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s3,
+  ];
+}
+
+function hexToLinear(hex) {
+  const n = Number.parseInt(hex.slice(1), 16);
+  const channel = (c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+  return [channel(((n >> 16) & 255) / 255), channel(((n >> 8) & 255) / 255), channel((n & 255) / 255)];
+}

@@ -279,6 +279,48 @@ test("the first row is the top module, and that module stays in the base family"
   expect([...screen.getByLabelText("Width").querySelectorAll("option")].map((option) => option.value)).toEqual(["S"]);
 });
 
+test("a body nest keeps the charcoal fill and leaves the edge to the plate outline", async () => {
+  const layer = {
+    type: "Drawers", layout: "S", height: 2, facades: [[2]], interior: "none", key: "key",
+    labels: true, rails: false, manualSupports: false, variant: "Flat", baseplate: false,
+    gridW: 1, gridD: 1, divW: 1, divD: 2,
+  };
+  localStorage.setItem("vault-configurator", JSON.stringify({
+    tab: "plates",
+    stack: { name: "my-vault", depth: 5, layers: [layer], roof: { type: "none", topHandle: true }, mods: {} },
+    settings: meta.defaults,
+  }));
+  vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo) => {
+    const url = String(input);
+    if (url.includes("/api/meta")) return json(meta);
+    if (url.includes("/api/presets")) return json({});
+    if (url.includes("/api/progress")) return json({ done: 0, total: 0 });
+    if (url.includes("/api/bom")) return json({ parts: [], hardware: [], warnings: [], choices: null, judged: { scope: "every", printers: [] }, estimate: { wallMm: 0.8, infill: 0.21, preset: null, printer: "P1S" } });
+    if (url.includes("/api/plan")) {
+      return json({
+        plan: {
+          fingerprint: "nest",
+          unplaceable: [],
+          plates: [
+            { printer: "p1s", name: "Body", slots: [0], bed: [256, 256], items: [{ part: "Module", slot: 0, corners: [[8, 8], [120, 8], [120, 70], [8, 70]] }] },
+            { printer: "p1s", name: "Drawers", slots: [1], bed: [256, 256], items: [{ part: "Drawer", slot: 1, corners: [[8, 8], [120, 8], [120, 70], [8, 70]] }] },
+          ],
+        },
+      });
+    }
+    return json({ error: url }, 500);
+  }));
+  render(<App />);
+  expect(await screen.findByRole("heading", { name: "Plate 1 · Body" })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Plate 2 · Drawers" })).toBeInTheDocument();
+  const parts = document.querySelectorAll(".bed-part");
+  expect(parts).toHaveLength(2);
+  expect(parts[0]).toHaveAttribute("fill", "#2a2b2e");
+  expect(parts[1]).toHaveAttribute("fill", "#ece6d9");
+  expect(parts[0].getAttribute("stroke")).toBeNull();
+  expect(parts[1].getAttribute("stroke")).toBeNull();
+});
+
 test("opening Plates requests a plan without another stack edit", async () => {
   const user = userEvent.setup();
   render(<App />);
