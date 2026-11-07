@@ -8,6 +8,7 @@ import {
   plateKey,
   printersForExport,
   reconcileProgress,
+  settingsForApi,
   repairStackCatalog,
   STORAGE_KEY,
   THEME_STORAGE_KEY,
@@ -242,7 +243,7 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
         try {
           const next = await postJson<Bom>("/api/bom", {
             stack: requested.stack,
-            settings: requested.settings,
+            settings: settingsForApi(requested.settings),
             overrides: requested.overrides,
             fitChoices: !!requested.fitOnly,
             fitTarget: requested.fitTarget,
@@ -278,7 +279,7 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
         try {
           const result = await postJson<{ plan: Plan }>("/api/plan", {
             stack: requested.stack,
-            settings: requested.settings,
+            settings: settingsForApi(requested.settings),
             overrides: requested.overrides,
           });
           if (cancel || !stateRef.current || stateRef.current.tab !== "plates" || signature(stateRef.current) !== requestSig) return;
@@ -468,7 +469,7 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
         const requestSig = signature(current);
         setExportStatus("Planning…");
         try {
-          const result = await postJson<{ plan: Plan }>("/api/plan", { stack: current.stack, settings: current.settings, overrides: current.overrides });
+          const result = await postJson<{ plan: Plan }>("/api/plan", { stack: current.stack, settings: settingsForApi(current.settings), overrides: current.overrides });
           setState((prev) => {
             if (!prev) return prev;
             const applied = applyPlanProgress(prev, requestSig, result.plan, null);
@@ -489,7 +490,7 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
         if (!current) return;
         setExportStatus("Starting…");
         try {
-          await postJson(path, { stack: current.stack, settings: current.settings, overrides: current.overrides, ...(extra || {}) });
+          await postJson(path, { stack: current.stack, settings: settingsForApi(current.settings), overrides: current.overrides, ...(extra || {}) });
           for (;;) {
             await new Promise((resolve) => window.setTimeout(resolve, 800));
             const report = await getJson<{ running?: boolean; percent?: number; msg?: string; error?: string; result?: { plan: Plan; files: ExportFile[]; seconds: number; zip: string } }>("/api/export_status");

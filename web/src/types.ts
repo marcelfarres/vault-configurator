@@ -21,6 +21,8 @@ export type Printer = {
 };
 
 export type Filament = {
+  /** Stable id; colour roles point at this, never at the shelf position. */
+  id?: string;
   name: string;
   color: string;
   material: string;
@@ -66,7 +68,7 @@ export type Settings = {
   edge: number;
   groupBy: string;
   filaments: Filament[];
-  roles: Record<string, number>;
+  roles: Record<string, string>;
   kindRoles: Record<string, string>;
   wallMm: number;
   infill: number;

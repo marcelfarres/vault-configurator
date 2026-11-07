@@ -29,7 +29,7 @@ const meta = {
     edge: 0,
     groupBy: "color",
     filaments,
-    roles: { main: 0, box: 1, knob: 2, accent: 3, tpu: 4 },
+    roles: { main: "charcoal", box: "cream", knob: "gold", accent: "army-blue", tpu: "silver-grey" },
     kindRoles: {},
     wallMm: 0.8,
     infill: 0.21,

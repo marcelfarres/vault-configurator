@@ -2,6 +2,7 @@ import { checkedCount, exportCandidates, plateKey, printerLabel } from "../../..
 import { fmtH } from "../labels";
 import { exportPrinters, estimatePrinter, usePlanner } from "../store";
 import type { Filament, Plate } from "../types";
+import { NumberField } from "./ui";
 
 export function Plates() {
   const store = usePlanner();
@@ -78,11 +79,11 @@ export function Plates() {
         </label>
         <label className="field">
           <span>Part spacing</span>
-          <input aria-label="Part spacing" type="number" min={0} value={state.settings.spacing} onChange={(event) => patch((draft) => { draft.settings.spacing = Number(event.target.value); })} />
+          <NumberField label="Part spacing" value={state.settings.spacing} min={0} onCommit={(next) => patch((draft) => { draft.settings.spacing = next; })} />
         </label>
         <label className="field">
           <span>Bed edge</span>
-          <input aria-label="Bed edge" type="number" min={0} value={state.settings.edge} onChange={(event) => patch((draft) => { draft.settings.edge = Number(event.target.value); })} />
+          <NumberField label="Bed edge" value={state.settings.edge} min={0} onCommit={(next) => patch((draft) => { draft.settings.edge = next; })} />
         </label>
         <label className="check">
           <input type="checkbox" checked={state.settings.estimateFromPreset !== false} onChange={(event) => patch((draft) => { draft.settings.estimateFromPreset = event.target.checked; })} />
@@ -91,10 +92,10 @@ export function Plates() {
         {state.settings.estimateFromPreset === false ? (
           <>
             <label className="field">Shell mm
-              <input aria-label="Shell" type="number" step="0.1" value={state.settings.wallMm} onChange={(event) => patch((draft) => { draft.settings.wallMm = Number(event.target.value); })} />
+              <NumberField label="Shell" value={state.settings.wallMm} min={0} exclusiveMin step="0.1" onCommit={(next) => patch((draft) => { draft.settings.wallMm = next; })} />
             </label>
             <label className="field">Infill
-              <input aria-label="Infill" type="number" step="0.01" value={state.settings.infill} onChange={(event) => patch((draft) => { draft.settings.infill = Number(event.target.value); })} />
+              <NumberField label="Infill" value={state.settings.infill} min={0} max={1} step="0.01" onCommit={(next) => patch((draft) => { draft.settings.infill = next; })} />
             </label>
           </>
         ) : null}

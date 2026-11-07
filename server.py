@@ -91,7 +91,48 @@ def precache():
 
 def settings_of(body):
     s = {**plates.DEFAULT_SETTINGS, **(body.get("settings") or {})}
+    _validate_settings(s)
     return s
+
+
+def _positive(value, what):
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        raise ValueError(f"{what} needs a number.") from None
+    if number != number or number <= 0:  # NaN or non-positive
+        raise ValueError(f"{what} must be above 0.")
+    return number
+
+
+def _nonnegative(value, what):
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        raise ValueError(f"{what} needs a number.") from None
+    if number != number or number < 0:
+        raise ValueError(f"{what} must be at least 0.")
+    return number
+
+
+def _validate_settings(s):
+    """A zero-sized bed or estimate must fail here, not as nonsense plates downstream."""
+    for p in s.get("printers") or []:
+        name = p.get("name") or p.get("id") or "Printer"
+        bed = p.get("bed") or []
+        if len(bed) != 2:
+            raise ValueError(f"{name} bed needs two numbers.")
+        _positive(bed[0], f"{name} bed X")
+        _positive(bed[1], f"{name} bed Y")
+        _positive(p.get("z"), f"{name} Z")
+        if p.get("maxH") is not None:
+            _positive(p["maxH"], f"{name} max part height")
+    for key in ("spacing", "edge", "infill"):
+        if s.get(key) is not None:
+            _nonnegative(s[key], key)
+    for key in ("wallMm", "secondsPerGram", "density"):
+        if s.get(key) is not None:
+            _positive(s[key], key)
 
 
 def biggest_printer(s):

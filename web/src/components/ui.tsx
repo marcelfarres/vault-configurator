@@ -1,4 +1,5 @@
-import { useId, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { parseSettingNumber } from "../../../planner.mjs";
 import type { ChoiceView } from "../labels";
 import { usePlanner } from "../store";
 
@@ -28,6 +29,66 @@ export function Switch({ pressed, label, onToggle }: { pressed: boolean; label: 
     <button type="button" className="switch" role="switch" aria-checked={pressed} aria-label={label} onClick={() => onToggle(!pressed)}>
       <span />
     </button>
+  );
+}
+
+/**
+ * A number input that only ever commits a valid number. Typing is free; on blur or Enter an
+ * empty, non-numeric, or out-of-range value shows an inline error and reverts — it never saves 0 or NaN.
+ */
+export function NumberField({
+  label,
+  value,
+  min,
+  exclusiveMin,
+  max,
+  step,
+  onCommit,
+}: {
+  label: string;
+  value: number;
+  min?: number;
+  exclusiveMin?: boolean;
+  max?: number;
+  step?: string;
+  onCommit: (next: number) => void;
+}) {
+  const errorId = useId();
+  const [text, setText] = useState(() => String(value));
+  const [error, setError] = useState("");
+  const focused = useRef(false);
+  useEffect(() => {
+    if (!focused.current) setText(String(value));
+  }, [value]);
+  const commit = (raw: string) => {
+    const short = label.replace(/ for .*$/, "");
+    const result = parseSettingNumber(raw, { label: short, min, exclusiveMin, max });
+    if (result.ok) {
+      setError("");
+      setText(String(result.value));
+      if (result.value !== value) onCommit(result.value);
+    } else {
+      setError(result.error);
+      setText(String(value));
+    }
+  };
+  return (
+    <span className="num-field">
+      <input
+        aria-label={label}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? errorId : undefined}
+        type="number"
+        min={min}
+        step={step}
+        value={text}
+        onFocus={() => { focused.current = true; }}
+        onChange={(event) => { setText(event.target.value); if (error) setError(""); }}
+        onBlur={(event) => { focused.current = false; commit(event.target.value); }}
+        onKeyDown={(event) => { if (event.key === "Enter") (event.target as HTMLInputElement).blur(); }}
+      />
+      {error ? <span className="field-error" id={errorId} role="alert">{error}</span> : null}
+    </span>
   );
 }
 
