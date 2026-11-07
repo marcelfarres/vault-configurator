@@ -43,13 +43,21 @@
     --bed-outline: oklch(0.21 0.006 286);
     --preview-frame: oklch(0.28 0.006 286);
     --border: oklch(0.91 0.004 286);
-    --input: oklch(0.89 0.004 286);
+    /* Field edges need 3:1 against the card to mark an editable control. */
+    --input: oklch(0.62 0.008 286);
     --ring: oklch(0.52 0.07 195);
-    --warn: oklch(0.62 0.12 65);
-    --bad: oklch(0.55 0.16 25);
+    --warn: oklch(0.50 0.11 60);
+    --bad: oklch(0.52 0.16 25);
     --ok: oklch(0.48 0.09 155);
+    --warn-bg: oklch(0.955 0.035 80);
+    --bad-bg: oklch(0.955 0.022 25);
+    --ok-bg: oklch(0.955 0.035 155);
+    --selection: oklch(0.86 0.06 192);
+    --scrollbar: oklch(0.62 0.01 286);
     --shadow: 0 1px 2px oklch(0.21 0.006 286 / 6%);
     accent-color: var(--teal);
+    caret-color: var(--teal);
+    scrollbar-color: var(--scrollbar) transparent;
     font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
     background: var(--background);
     color: var(--foreground);
@@ -57,28 +65,34 @@
 
   html.dark {
     color-scheme: dark;
-    --background: oklch(0.129 0.042 264.695);
-    --foreground: oklch(0.984 0.003 247.858);
-    --card: oklch(0.208 0.042 265.755);
-    --card-foreground: oklch(0.984 0.003 247.858);
-    --primary: oklch(0.929 0.013 255.508);
-    --primary-foreground: oklch(0.208 0.042 265.755);
-    --secondary: oklch(0.279 0.041 260.031);
-    --muted: oklch(0.279 0.041 260.031);
-    --muted-foreground: oklch(0.704 0.04 256.788);
-    --accent: oklch(0.30 0.03 195);
-    --accent-foreground: oklch(0.82 0.05 195);
-    --teal: oklch(0.72 0.06 195);
-    --bed: oklch(0.42 0.02 264);
-    --bed-grid: oklch(0.55 0.02 264);
-    --bed-outline: oklch(0.97 0.005 90);
+    --background: oklch(0.165 0.006 286);
+    --foreground: oklch(0.955 0.004 90);
+    --card: oklch(0.205 0.007 286);
+    --card-foreground: oklch(0.955 0.004 90);
+    --primary: oklch(0.93 0.006 90);
+    --primary-foreground: oklch(0.18 0.006 286);
+    --secondary: oklch(0.28 0.007 286);
+    --muted: oklch(0.255 0.007 286);
+    --muted-foreground: oklch(0.72 0.01 286);
+    --accent: oklch(0.30 0.045 195);
+    --accent-foreground: oklch(0.85 0.07 195);
+    --teal: oklch(0.74 0.075 195);
+    --bed: oklch(0.36 0.006 286);
+    --bed-grid: oklch(0.46 0.006 286);
+    --bed-outline: oklch(0.97 0.004 90);
     --preview-frame: oklch(0.78 0.01 286);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.72 0.06 195);
-    --warn: oklch(0.82 0.11 75);
-    --bad: oklch(0.78 0.12 25);
-    --ok: oklch(0.78 0.09 155);
+    --border: oklch(0.31 0.007 286);
+    --input: oklch(0.54 0.008 286);
+    --ring: oklch(0.74 0.075 195);
+    --warn: oklch(0.80 0.11 75);
+    --bad: oklch(0.76 0.13 25);
+    --ok: oklch(0.78 0.10 155);
+    --warn-bg: oklch(0.27 0.045 75);
+    --bad-bg: oklch(0.265 0.05 25);
+    --ok-bg: oklch(0.26 0.04 155);
+    --selection: oklch(0.40 0.06 195);
+    --scrollbar: oklch(0.52 0.008 286);
+    --shadow: 0 1px 2px oklch(0 0 0 / 30%);
   }
 
   body {
@@ -91,6 +105,18 @@
   :where(button, a, input, select, textarea, summary):focus-visible {
     outline: 2px solid var(--ring);
     outline-offset: 2px;
+  }
+
+  a {
+    color: var(--accent-foreground);
+    text-decoration-color: var(--teal);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.18em;
+  }
+
+  ::selection {
+    background: var(--selection);
+    color: var(--foreground);
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -228,7 +254,7 @@
     inline-size: 0.7rem;
     block-size: 0.7rem;
     border-radius: 999px;
-    border: 1px solid var(--border);
+    border: 1px solid var(--input);
   }
 
   .check {
@@ -256,6 +282,16 @@
   .warn { color: var(--warn); }
   .bad { color: var(--bad); }
   .ok { color: var(--ok); }
+
+  p.warn, p.bad, p.ok {
+    margin-block: 0.35rem;
+    padding: 0.4rem 0.7rem;
+    border-radius: var(--radius);
+  }
+
+  p.warn { background: var(--warn-bg); }
+  p.bad { background: var(--bad-bg); }
+  p.ok { background: var(--ok-bg); }
   .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; }
 
   .tabs {
@@ -274,9 +310,13 @@
     min-block-size: 2.5rem;
   }
 
+  .tabs button:hover {
+    color: var(--foreground);
+  }
+
   .tabs button[aria-selected="true"] {
     color: var(--foreground);
-    border-block-end-color: var(--foreground);
+    border-block-end-color: var(--teal);
     font-weight: 600;
   }
 
@@ -376,6 +416,10 @@
     margin-block: 0.4rem;
   }
 
+  .layer-row:has(.name[aria-expanded="true"]) {
+    background: var(--accent);
+  }
+
   .layer-row .name {
     flex: 1;
     text-align: start;
@@ -424,8 +468,8 @@
   }
 
   .switch[aria-checked="true"] {
-    background: var(--foreground);
-    border-color: var(--foreground);
+    background: var(--teal);
+    border-color: var(--teal);
   }
 
   .switch span {
@@ -497,7 +541,7 @@
     inline-size: 2.2rem;
     block-size: 2.2rem;
     border-radius: 0.45rem;
-    border: 1px solid var(--border);
+    border: 1px solid var(--input);
   }
 
   .role-row {
@@ -526,8 +570,13 @@
     gap: 0.65rem;
     align-items: center;
     background: var(--muted);
+    border: 1px solid transparent;
     border-radius: 0.7rem;
     padding: 0.65rem;
+  }
+
+  .piece-card:hover {
+    border-color: var(--teal);
   }
 
   .table-wrap {
@@ -583,6 +632,10 @@
     font-size: 0.95rem;
     font-weight: 600;
     margin-block-end: 0.45rem;
+  }
+
+  .plate-card:has(input:checked) {
+    border-color: var(--teal);
   }
 
   .settings {
@@ -678,7 +731,7 @@
   .viewer {
     position: fixed;
     inset: 0;
-    background: oklch(0.15 0.02 264 / 88%);
+    background: oklch(0.13 0.006 286 / 88%);
     z-index: 20;
     display: flex;
     flex-direction: column;
