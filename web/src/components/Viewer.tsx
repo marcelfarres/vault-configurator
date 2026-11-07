@@ -10,29 +10,26 @@ export function Viewer() {
   const canvas = useRef<HTMLCanvasElement>(null);
   const dialog = useRef<HTMLDivElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
-  const restoreFocus = useRef<HTMLElement | null>(null);
+  const closeRef = useRef(closeViewer);
+  closeRef.current = closeViewer;
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const controlsRef = useRef<OrbitControls | null>(null);
   const [loadError, setLoadError] = useState("");
   const [exportNote, setExportNote] = useState<{ text: string; bad?: boolean }>({ text: "" });
   const file = viewer?.file || "";
-  const open = !!viewer;
 
-  // Focus the dialog on open, hand focus back on close, and let Escape dismiss it.
+  // The dialog only exists while a part is open (App unmounts it on close), so mount/unmount is the
+  // lifecycle: remember the opener and focus Close on mount, Escape dismisses, unmount hands focus back.
   useEffect(() => {
-    if (open) {
-      if (!restoreFocus.current) restoreFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-      closeButton.current?.focus();
-      const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") closeViewer(); };
-      document.addEventListener("keydown", onKey);
-      return () => document.removeEventListener("keydown", onKey);
-    }
-    if (restoreFocus.current) {
-      restoreFocus.current.focus();
-      restoreFocus.current = null;
-    }
-    return undefined;
-  }, [open, closeViewer]);
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    closeButton.current?.focus();
+    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") closeRef.current(); };
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      if (opener && opener.isConnected) opener.focus();
+    };
+  }, []);
   useEffect(() => {
     const node = canvas.current;
     if (!node || !file) return;

@@ -5,6 +5,29 @@ import { App } from "./App";
 import { applyBomResult, applyPlanProgress, signature } from "./store";
 import type { Meta, PlannerState } from "./types";
 
+// jsdom has no WebGL; the dialog lifecycle is what is under test, so stub the three.js surface Viewer touches.
+vi.mock("three", () => {
+  const vec = () => ({ x: 0, y: 0, z: 0, set() {}, clone() { return vec(); }, sub() { return vec(); }, add() { return vec(); }, copy() { return vec(); }, setFromSpherical() { return vec(); } });
+  return {
+    WebGLRenderer: class { setSize() {} render() {} dispose() {} },
+    Scene: class { add() {} },
+    Color: class {},
+    PerspectiveCamera: class { up = vec(); position = vec(); aspect = 1; updateProjectionMatrix() {} },
+    HemisphereLight: class {},
+    DirectionalLight: class { position = vec(); },
+    Vector3: class { x = 0; y = 0; z = 0; },
+    Spherical: class {},
+    Mesh: class { geometry = { dispose() {} }; },
+    MeshStandardMaterial: class {},
+  };
+});
+vi.mock("three/addons/controls/OrbitControls.js", () => ({
+  OrbitControls: class { enableDamping = false; target = { set() {} }; update() {} dispose() {} },
+}));
+vi.mock("three/addons/loaders/STLLoader.js", () => ({
+  STLLoader: class { loadAsync() { return new Promise(() => undefined); } },
+}));
+
 const printers = [
   { id: "u1", name: "U1", profile: "Snapmaker U1", bed: [270, 270] as [number, number], z: 270, maxH: 270, enabled: true, forExport: true, slicer: "orca", nozzle: "0.4", preset: "" },
   { id: "p1s", name: "P1S", profile: "Bambu Lab P1S", bed: [256, 256] as [number, number], z: 256, maxH: 256, enabled: true, forExport: true, slicer: "bambu", nozzle: "0.4", preset: "" },
@@ -332,4 +355,43 @@ test("opening Plates requests a plan without another stack edit", async () => {
   await user.click(screen.getByRole("tab", { name: "3 Plates" }));
   await act(async () => { await new Promise((resolve) => setTimeout(resolve, 30)); });
   expect(plans()).toBeGreaterThan(0);
+});
+
+test("the 3D viewer takes focus on open and hands it back to the part card on Escape", async () => {
+  const user = userEvent.setup();
+  const layer = {
+    type: "Drawers", layout: "S", height: 2, facades: [[2]], interior: "none", key: "key",
+    labels: true, rails: false, manualSupports: false, variant: "Flat", baseplate: false,
+    gridW: 1, gridD: 1, divW: 1, divD: 2,
+  };
+  localStorage.setItem("vault-configurator", JSON.stringify({
+    tab: "parts",
+    stack: { name: "my-vault", depth: 5, layers: [layer], roof: { type: "none", topHandle: true }, mods: {} },
+    settings: meta.defaults,
+  }));
+  const base = vi.mocked(fetch).getMockImplementation()!;
+  vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo, init?: RequestInit) => {
+    if (String(input).includes("/api/bom")) {
+      return json({
+        parts: [{ group: "L1 · S 2U", name: "S Box", qty: 1, role: "box", file: "S/box.stl", fits: {} }],
+        hardware: [], warnings: [], choices: null, judged: { scope: "every", printers: [] },
+        estimate: { wallMm: 0.8, infill: 0.21, preset: null, printer: "P1S" },
+      });
+    }
+    return base(input, init);
+  }));
+  render(<App />);
+  const card = await screen.findByRole("button", { name: "View S Box in 3D" });
+  await user.click(card);
+  const dialog = await screen.findByRole("dialog", { name: "S Box" });
+  expect(dialog).toHaveAttribute("aria-modal", "true");
+  expect(within(dialog).getByRole("button", { name: "Close" })).toHaveFocus();
+
+  await user.keyboard("{Escape}");
+  expect(screen.queryByRole("dialog", { name: "S Box" })).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "View S Box in 3D" })).toHaveFocus();
+
+  await user.click(screen.getByRole("button", { name: "View S Box in 3D" }));
+  await user.click(within(await screen.findByRole("dialog", { name: "S Box" })).getByRole("button", { name: "Close" }));
+  expect(screen.getByRole("button", { name: "View S Box in 3D" })).toHaveFocus();
 });
