@@ -1,4 +1,3 @@
-import { checkedCount } from "../../../planner.mjs";
 import { usePlanner } from "../store";
 import { Hardware } from "./Parts";
 
@@ -6,13 +5,16 @@ export function Assemble() {
   const { bom, state, patch } = usePlanner();
   const parts = bom?.parts || [];
   const rows = bom?.hardware || [];
-  const counts = checkedCount(state.progress);
+  // Count against the current BOM only: progress keeps checks for stacks that no longer exist.
+  const hardwareDone = rows.filter((row) => !!state.progress.hardware?.[row.item]?.done).length;
+  const partKeys = new Set(parts.map((part) => `${part.group}|${part.name}`));
+  const assembleDone = [...partKeys].filter((key) => !!state.progress.assemble?.[key]?.done).length;
   let last = "";
   return (
     <div className="page">
       <h1>Assemble</h1>
       <p className="lede">Check hardware and parts off as you build. The checks stay in this browser.</p>
-      <p className="note">{counts.hardware}/{rows.length} hardware lines checked. A line clears when its quantity changes.</p>
+      <p className="note">{hardwareDone}/{rows.length} hardware lines · {assembleDone}/{partKeys.size} assembly lines checked. A line clears when its quantity changes.</p>
       <Hardware />
       <section className="card spaced">
         <h2>Assembly checklist</h2>

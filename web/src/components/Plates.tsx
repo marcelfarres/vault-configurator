@@ -199,6 +199,7 @@ function TestPlates() {
   const { state, meta, bom, patch, runExport } = usePlanner();
   const kinds = [...new Set((bom?.parts || []).map((part) => part.kind).filter((kind): kind is string => !!kind))];
   const list = kinds.length ? kinds : meta.kinds;
+  const picked = list.filter((kind) => state.tests[kind]);
   return (
     <section className="card spaced">
       <h2>Test plates</h2>
@@ -209,11 +210,7 @@ function TestPlates() {
           {kind}
         </label>
       ))}
-      <button type="button" className="btn" onClick={() => {
-        const picked = Object.entries(state.tests).filter(([, on]) => on).map(([kind]) => kind);
-        if (!picked.length) return;
-        void runExport("/api/export_test", { kinds: picked });
-      }}>Export test plates</button>
+      <button type="button" className="btn" disabled={!picked.length} onClick={() => { void runExport("/api/export_test", { kinds: picked }); }}>Export test plates</button>
     </section>
   );
 }

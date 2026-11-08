@@ -58,7 +58,7 @@ function Section() {
 }
 
 function Printers() {
-  const { state, meta, presets, patch, showHelp, plan, removedPrinter: removed, setRemovedPrinter: setRemoved } = usePlanner();
+  const { state, meta, presets, patch, plan, removedPrinter: removed, setRemovedPrinter: setRemoved } = usePlanner();
   const [confirmId, setConfirmId] = useState("");
   const impact = (printer: Printer) => printerRemovalNotes(state.settings, state, plan?.plates, printer);
   const remove = (printer: Printer) => {
@@ -124,7 +124,7 @@ function Printers() {
           }}>Undo</button>
         </p>
       ) : null}
-      <label className="field" onClick={() => showHelp("addPrinter")}>
+      <label className="field">
         <span>Add printer</span>
         <select aria-label="Add printer" value="" onChange={(event) => {
           const choice = event.target.value;
@@ -217,8 +217,8 @@ function PresetUpload() {
 
 function Filaments() {
   const store = usePlanner();
-  const { state, meta, patch, showHelp } = store;
-  const materials = meta.materials.length ? meta.materials : ["PLA", "PETG", "TPU"];
+  const { state, meta, patch, spools } = store;
+  const materials = [...new Set([...(meta.materials.length ? meta.materials : ["PLA", "PETG", "TPU"]), ...state.settings.filaments.map((filament) => filament.material).filter(Boolean), ...spools.flatMap((spool) => spool.material ? [spool.material] : [])])];
   return (
     <section className="card">
       <h2>Filaments</h2>
@@ -237,10 +237,30 @@ function Filaments() {
             <input aria-label={`Filament name ${index + 1}`} value={filament.name} onChange={(event) => patch((draft) => { const row = draft.settings.filaments.find((item) => item.id === filament.id) || draft.settings.filaments[index]; if (row) row.name = event.target.value; })} />
           </label>
           <span className="note">{spoolLabel(filament)}</span>
+          {spools.length ? (
+            <label className="field">Spool
+              <select aria-label={`Spool for ${filament.name || index + 1}`} value={filament.spool ?? ""} onChange={(event) => {
+                const spool = spools.find((item) => String(item.id) === event.target.value);
+                patch((draft) => {
+                  const row = draft.settings.filaments.find((item) => item.id === filament.id) || draft.settings.filaments[index];
+                  if (!row) return;
+                  if (!spool) { row.spool = undefined; row.spoolType = undefined; return; }
+                  row.name = `${spool.vendor || ""} ${spool.name}`.trim() || row.name;
+                  row.color = spool.color;
+                  if (spool.material) row.material = spool.material;
+                  row.spool = spool.id;
+                  row.spoolType = `${spool.vendor || ""} · ${spool.material || ""}`.trim();
+                });
+              }}>
+                <option value="">(no spool)</option>
+                {spools.map((spool) => <option key={spool.id} value={spool.id}>{spool.label || spool.name}</option>)}
+              </select>
+            </label>
+          ) : null}
         </div>
       ))}
       <details>
-        <summary onClick={() => showHelp("spoolman")}>Spoolman</summary>
+        <summary>Spoolman</summary>
         <label className="field">Server
           <input aria-label="Spoolman server" value={state.settings.spoolman || ""} placeholder="http://192.168.1.10:7912" onChange={(event) => patch((draft) => { draft.settings.spoolman = event.target.value.trim(); })} />
         </label>

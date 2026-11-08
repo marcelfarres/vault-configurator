@@ -32,6 +32,7 @@ export function Preview() {
     + (ROOF_MM[stack.roof?.type || "none"] || 0);
   const callouts = (bom?.parts || []).slice(0, 6);
   const backbone = stack.mods?.backbone && stack.mods.backbone !== "none";
+  const pegboard = stack.mods?.pegboard && stack.mods.pegboard !== "none";
 
   return (
     <section className="card preview-card">
@@ -60,7 +61,7 @@ export function Preview() {
       </div>
       {layers.length ? (
         <div className="badges">
-          {backbone ? <span className="pill teal">backbone</span> : <span />}
+          <span className="mini-chips">{backbone ? <span className="pill teal">backbone</span> : null}{pegboard ? <span className="pill teal">pegboard back</span> : null}</span>
           <span className="pill">{units}U tall</span>
         </div>
       ) : null}

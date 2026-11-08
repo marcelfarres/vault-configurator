@@ -32,7 +32,7 @@ export function Header() {
         <summary className="btn">Load</summary>
         <div className="menu">
           <p className="note">Named projects stay in this browser. Save project keeps a copy here. Save stack on Plates writes a file you can move.</p>
-          <button type="button" onClick={() => store.loadProject("")}>working copy</button>
+          <button type="button" disabled={!state.activeProjectId} onClick={() => store.loadProject("")}>working copy</button>
           {state.projects.map((project) => (
             <button type="button" key={project.id} onClick={() => store.loadProject(project.id)}>{project.name || "untitled"}</button>
           ))}
@@ -40,7 +40,7 @@ export function Header() {
             if (state.stack.layers.length && !window.confirm("Start a new working copy? Save the project first if you want to keep this one.")) return;
             store.newProject();
           }}>New</button>
-          <button type="button" onClick={() => {
+          <button type="button" disabled={!state.projects.some((item) => item.id === state.activeProjectId)} onClick={() => {
             const id = state.activeProjectId;
             const project = state.projects.find((item) => item.id === id);
             if (!project) return;
@@ -61,6 +61,7 @@ export function Header() {
         ))}
       </span>
       <span className="muted">{state.settings.filaments.length} filaments</span>
+      {store.status ? <span className="muted" role="status">{store.status}</span> : null}
       <div className="fit-controls">
         <label className="check fit-label">
           <input

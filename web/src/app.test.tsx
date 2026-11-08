@@ -1,4 +1,4 @@
-import { act, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, expect, test, vi } from "vitest";
 import { App } from "./App";
@@ -97,6 +97,7 @@ beforeEach(() => {
     if (url.includes("/api/meta")) return json(meta);
     if (url.includes("/api/presets")) return json({});
     if (url.includes("/api/progress")) return json({ done: 0, total: 0 });
+    if (url.includes("/api/spoolman")) return json({ spools: [{ id: 7, name: "Galaxy Black", vendor: "Acme", material: "PETG", color: "#101010", remaining_g: 500, label: "Acme Galaxy Black · PETG · 500 g" }] });
     if (url.includes("/api/bom")) {
       const body = JSON.parse(String(init?.body || "{}")) as { stack?: unknown; settings?: { printers?: Array<{ id: string; name: string; enabled?: boolean }> } };
       const judged = (body.settings?.printers || []).filter((printer) => printer.enabled !== false).map((printer) => ({ id: printer.id, name: printer.name }));
@@ -301,6 +302,158 @@ test("number fields revert invalid dimensions and only persist valid commits", a
   await user.tab();
   expect(z).toHaveValue(300);
   expect(savedPrinter().z).toBe(300);
+});
+
+test("controls that cannot act are disabled before interaction", async () => {
+  const user = userEvent.setup();
+  const layer = {
+    type: "Drawers", layout: "S", height: 2, facades: [[1, 1]], interior: "none", key: "key",
+    labels: true, rails: false, manualSupports: false, variant: "Flat", baseplate: false,
+    gridW: 1, gridD: 1, divW: 1, divD: 2,
+  };
+  localStorage.setItem("vault-configurator", JSON.stringify({
+    tab: "stack",
+    stack: { name: "my-vault", depth: 5, layers: [layer], roof: { type: "none", topHandle: true }, mods: { backbone: "none", pegboard: "none" } },
+    settings: { ...meta.defaults },
+  }));
+  render(<App />);
+  expect(await screen.findByRole("heading", { name: "Compose your stack" })).toBeInTheDocument();
+  await user.click(screen.getByText("Load"));
+  expect(screen.getByRole("button", { name: "working copy" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Delete saved" })).toBeDisabled();
+  await user.click(screen.getByText("Load"));
+  await user.click(screen.getByRole("button", { name: /Edit .*drawer/i }));
+  const rails = screen.getByRole("checkbox", { name: /geared rails/ });
+  expect(rails).toBeChecked();
+  expect(rails).toBeDisabled();
+  await user.click(screen.getByRole("tab", { name: "3 Plates" }));
+  const exportTests = await screen.findByRole("button", { name: "Export test plates" });
+  expect(exportTests).toBeDisabled();
+  await user.click(screen.getByRole("checkbox", { name: "module" }));
+  expect(exportTests).toBeEnabled();
+});
+
+test("geared rails stays toggleable when only one bay is split", async () => {
+  const user = userEvent.setup();
+  const layer = {
+    type: "Drawers", layout: "SS", height: 2, facades: [[1, 1], [2]], interior: "none", key: "key",
+    labels: true, rails: false, manualSupports: false, variant: "Flat", baseplate: false,
+    gridW: 1, gridD: 1, divW: 1, divD: 2,
+  };
+  localStorage.setItem("vault-configurator", JSON.stringify({
+    tab: "stack",
+    stack: { name: "my-vault", depth: 5, layers: [layer], roof: { type: "none", topHandle: true }, mods: { backbone: "none", pegboard: "none" } },
+    settings: { ...meta.defaults },
+  }));
+  render(<App />);
+  expect(await screen.findByRole("heading", { name: "Compose your stack" })).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: /Edit .*drawer/i }));
+  // The split bay always gets rails in the BOM; the toggle still decides the unsplit bay.
+  const rails = screen.getByRole("checkbox", { name: /geared rails \(split bays always include them\)/ });
+  expect(rails).not.toBeChecked();
+  expect(rails).toBeEnabled();
+  await user.click(rails);
+  expect(JSON.parse(localStorage.getItem("vault-configurator") || "{}").stack.layers[0].rails).toBe(true);
+});
+
+test("loading Spoolman spools can fill a filament slot", async () => {
+  const user = userEvent.setup();
+  localStorage.setItem("vault-configurator", JSON.stringify({
+    tab: "stack",
+    stack: { name: "my-vault", depth: 5, layers: [], roof: { type: "none", topHandle: true }, mods: { backbone: "none", pegboard: "none" } },
+    settings: { ...meta.defaults, spoolman: "http://spoolman.test" },
+  }));
+  render(<App />);
+  expect(await screen.findByRole("heading", { name: "Compose your stack" })).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Settings" }));
+  await user.click(screen.getByRole("button", { name: "Filaments" }));
+  await user.click(screen.getByText("Spoolman"));
+  await user.click(screen.getByRole("button", { name: "Load spools" }));
+  const select = await screen.findByRole("combobox", { name: "Spool for Charcoal" });
+  await user.selectOptions(select, "7");
+  const saved = JSON.parse(localStorage.getItem("vault-configurator") || "{}");
+  const row = saved.settings.filaments.find((filament: { id: string }) => filament.id === "charcoal");
+  expect(row).toMatchObject({ name: "Acme Galaxy Black", material: "PETG", color: "#101010", spool: 7 });
+});
+
+test("a BOM failure is shown in the header status", async () => {
+  const layer = {
+    type: "Drawers", layout: "S", height: 2, facades: [[2]], interior: "none", key: "key",
+    labels: true, rails: false, manualSupports: false, variant: "Flat", baseplate: false,
+    gridW: 1, gridD: 1, divW: 1, divD: 2,
+  };
+  localStorage.setItem("vault-configurator", JSON.stringify({
+    tab: "stack",
+    stack: { name: "my-vault", depth: 5, layers: [layer], roof: { type: "none", topHandle: true }, mods: {} },
+    settings: meta.defaults,
+  }));
+  const base = vi.mocked(fetch).getMockImplementation()!;
+  vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo, init?: RequestInit) => {
+    if (String(input).includes("/api/bom")) return json({ error: "boom stack" }, 500);
+    return base(input, init);
+  }));
+  render(<App />);
+  expect(await screen.findByText("boom stack")).toBeInTheDocument();
+});
+
+test("assembly counts ignore checks left over from an earlier stack", async () => {
+  const user = userEvent.setup();
+  localStorage.setItem("vault-configurator", JSON.stringify({
+    tab: "stack",
+    stack: { name: "my-vault", depth: 5, layers: [], roof: { type: "none", topHandle: true }, mods: { backbone: "none", pegboard: "none" } },
+    settings: { ...meta.defaults },
+    progress: { layoutKey: "", plates: {}, hardware: { Screws: { qty: 4, done: true } }, assemble: { "L1|Box": { qty: 1, done: true } } },
+  }));
+  render(<App />);
+  expect(await screen.findByRole("heading", { name: "Compose your stack" })).toBeInTheDocument();
+  await user.click(screen.getByRole("tab", { name: "4 Assemble" }));
+  expect(screen.getByText(/0\/0 hardware lines · 0\/0 assembly lines checked/)).toBeInTheDocument();
+});
+
+test("a test-plate group removed from the stack no longer enables export", async () => {
+  const user = userEvent.setup();
+  const layer = {
+    type: "Drawers", layout: "S", height: 2, facades: [[2]], interior: "none", key: "key",
+    labels: true, rails: false, manualSupports: false, variant: "Flat", baseplate: false,
+    gridW: 1, gridD: 1, divW: 1, divD: 2,
+  };
+  localStorage.setItem("vault-configurator", JSON.stringify({
+    tab: "stack",
+    stack: { name: "my-vault", depth: 5, layers: [layer], roof: { type: "none", topHandle: true }, mods: { backbone: "none", pegboard: "none" } },
+    settings: { ...meta.defaults },
+    tests: { pegboard: true },
+  }));
+  render(<App />);
+  expect(await screen.findByRole("heading", { name: "Compose your stack" })).toBeInTheDocument();
+  await user.click(screen.getByRole("tab", { name: "3 Plates" }));
+  expect(screen.getByRole("checkbox", { name: "module" })).not.toBeChecked();
+  expect(await screen.findByRole("button", { name: "Export test plates" })).toBeDisabled();
+});
+
+test("preset upload status names each slicer outcome", async () => {
+  const user = userEvent.setup();
+  const base = vi.mocked(fetch).getMockImplementation()!;
+  vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo, init?: RequestInit) => {
+    const url = String(input);
+    if (url.includes("/api/presets_upload")) return json({ saved: { bambu: "1 preset files", orca: "installed here: its own folder is used" } });
+    if (url.includes("/api/meta")) return json({ ...meta, local: false });
+    return base(input, init);
+  }));
+  render(<App />);
+  expect(await screen.findByRole("heading", { name: "Compose your stack" })).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Settings" }));
+  await user.click(screen.getByRole("button", { name: "Printers" }));
+  await user.click(screen.getByText("No tall parts, nozzle and process preset"));
+  const makeFile = (path: string) => {
+    const file = new File(["{}"], String(path.split("/").pop()), { type: "application/json" });
+    Object.defineProperty(file, "webkitRelativePath", { value: path });
+    Object.defineProperty(file, "text", { value: async () => "{}" }); // jsdom File has no text()
+    return file;
+  };
+  fireEvent.change(screen.getByLabelText("Slicer folder"), {
+    target: { files: [makeFile("BambuStudio/user/1/process/a.json"), makeFile("OrcaSlicer/user/default/process/b.json")] },
+  });
+  expect(await screen.findByText("bambu: 1 preset files; orca: installed here: its own folder is used")).toBeInTheDocument();
 });
 
 test("printer Undo survives leaving and returning to the Printers section", async () => {

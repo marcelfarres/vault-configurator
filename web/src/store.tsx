@@ -74,7 +74,6 @@ type Store = {
   uploadPresets: (files: FileList) => Promise<void>;
   presetStatus: string;
   showSample: () => Promise<void>;
-  refreshPresets: (next: PresetMap) => void;
 };
 
 const Ctx = createContext<Store | null>(null);
@@ -554,15 +553,20 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
           setPresetStatus("no presets in that folder: pick the BambuStudio, AnycubicSlicerNext or OrcaSlicer folder itself");
           return;
         }
-        const files: Record<string, string> = {};
-        for (const file of picked) {
-          const text = await file.text();
-          files[file.webkitRelativePath] = file.name.endsWith(".conf") ? JSON.stringify({ preset_folder: (text.match(/"preset_folder"\s*:\s*"([\w-]+)"/) || [])[1] || "" }) : text;
+        try {
+          const files: Record<string, string> = {};
+          for (const file of picked) {
+            const text = await file.text();
+            files[file.webkitRelativePath] = file.name.endsWith(".conf") ? JSON.stringify({ preset_folder: (text.match(/"preset_folder"\s*:\s*"([\w-]+)"/) || [])[1] || "" }) : text;
+          }
+          const result = await postJson<{ saved?: Record<string, string> }>("/api/presets_upload", { files });
+          const next = await getJson<PresetMap>("/api/presets");
+          setPresets(next);
+          const outcomes = Object.entries(result.saved || {});
+          setPresetStatus(outcomes.length ? outcomes.map(([slicer, outcome]) => `${slicer}: ${outcome}`).join("; ") : "no presets saved from that folder");
+        } catch (error) {
+          setPresetStatus(error instanceof Error ? error.message : "preset upload failed");
         }
-        await postJson("/api/presets_upload", { files });
-        const next = await getJson<PresetMap>("/api/presets");
-        setPresets(next);
-        setPresetStatus("presets received");
       },
       presetStatus,
       showSample: async () => {
@@ -570,7 +574,6 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
         setPlan(sample);
         setPlanNote("");
       },
-      refreshPresets: setPresets,
     };
     return value;
   }, [archive, bom, bootError, expandedLayer, exportFiles, exportStatus, helpTopic, importStatus, meta, plan, planNote, presetStatus, presets, ready, removedPrinter, settingsOpen, settingsSection, spoolStatus, spools, stackFileStatus, state, status, theme, viewer]);

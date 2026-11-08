@@ -193,24 +193,27 @@ function LayerCard({ index }: { index: number }) {
     current: layer.height,
   }, (value) => `${value}U`);
   const bays = meta.layouts[layer.layout] || [layer.layout];
+  const facades = layer.facades || [];
+  const allBaysSplit = facades.length > 0 && facades.every((faces) => faces.length > 1);
+  const someBaySplit = facades.some((faces) => faces.length > 1);
   const title = layerTitle(layer);
   return (
     <div
       className="layer"
       draggable
-      onDragStart={() => store.setExpandedLayer(index)}
+      onDragStart={(event) => { event.dataTransfer.setData("text/plain", String(index)); store.setExpandedLayer(index); }}
       onDragOver={(event) => event.preventDefault()}
       onDrop={(event) => {
         event.preventDefault();
-        const from = Number(event.dataTransfer.getData("text/plain"));
-        if (Number.isFinite(from)) store.moveLayer(from, index - from);
+        const raw = event.dataTransfer.getData("text/plain");
+        if (raw === "") return;
+        const from = Number(raw);
+        if (Number.isInteger(from)) store.moveLayer(from, index - from);
       }}
     >
       <div className="layer-row">
         <span
           className="grip"
-          draggable
-          onDragStart={(event) => event.dataTransfer.setData("text/plain", String(index))}
           title="Drag to reorder"
         >
           <Grip />
@@ -271,7 +274,7 @@ function LayerCard({ index }: { index: number }) {
                 </select>
               </label>
               <Flag index={index} field="labels" label="labels" help="labels" />
-              <Flag index={index} field="rails" label="geared rails" help="rails" />
+              <Flag index={index} field="rails" label="geared rails" help="rails" forced={allBaysSplit} note={someBaySplit && !allBaysSplit ? "split bays always include them" : undefined} />
               <Flag index={index} field="manualSupports" label="manual support wall" help="manualSupports" />
               {layer.interior === "grid" ? (
                 <>
@@ -317,22 +320,24 @@ function familyWide(family: string) {
   return family === "L" || family === "XL";
 }
 
-function Flag({ index, field, label, help }: { index: number; field: "labels" | "rails" | "manualSupports" | "baseplate" | "dividers"; label: string; help: string }) {
+function Flag({ index, field, label, help, forced = false, note }: { index: number; field: "labels" | "rails" | "manualSupports" | "baseplate" | "dividers"; label: string; help: string; forced?: boolean; note?: string }) {
   const { state, patch, showHelp } = usePlanner();
   const layer = state.stack.layers[index];
-  const checked = field === "dividers" ? !!layer.dividers : !!layer[field];
+  const checked = forced || (field === "dividers" ? !!layer.dividers : !!layer[field]);
   return (
     <label className="check" onClick={() => showHelp(help)}>
       <input
         type="checkbox"
         checked={checked}
+        disabled={forced}
+        title={forced ? "Required when a module holds more than one box" : note}
         onChange={(event) => patch((draft) => {
           const row = draft.stack.layers[index];
           if (field === "dividers") row.dividers = event.target.checked;
           else row[field] = event.target.checked;
         })}
       />
-      {label}
+      {label}{forced ? " (required)" : note ? ` (${note})` : ""}
     </label>
   );
 }
