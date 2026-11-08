@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { reconcileProgress, plateKey, partFitsScope, layerNotes, migratePrinters, migrateShop, legalExportMode, legalFitTarget, exportCandidates, LEGACY_FILAMENTS, LEGACY_ROLE_NAMES, LEGACY_PRINTER_NAMES, decorateChoices, visiblePartRows, checkedCount, depthLabel, repairStackCatalog, catalogChoicesFor, printerLabel, footprintLine, spoolLabel, normalizeTheme, themeIsDark, THEME_STORAGE_KEY, printersForExport, biggestExportPrinter, scopeLabel, loadPlannerState, defaultPlannerState } from "../planner.mjs";
+import { reconcileProgress, plateKey, partFitsScope, layerNotes, migratePrinters, migrateShop, legalExportMode, legalFitTarget, exportCandidates, LEGACY_FILAMENTS, LEGACY_ROLE_NAMES, LEGACY_PRINTER_NAMES, decorateChoices, visiblePartRows, checkedCount, depthLabel, repairStackCatalog, catalogChoicesFor, printerLabel, footprintLine, spoolLabel, normalizeTheme, themeIsDark, THEME_STORAGE_KEY, printersForExport, biggestExportPrinter, scopeLabel, loadPlannerState, defaultPlannerState, ensureFilamentIds, filamentForRole, slotIndexForRole, settingsForApi, removeFilamentById, restoreFilament, parseSettingNumber, printerRemovalNotes, removePrinterById, restorePrinter, tpuRoleWarning } from "../planner.mjs";
 
 const plate = { printer: "u1", slots: [0], items: [{ part: "Guide", x: 1, y: 2, rot: 0 }] };
 const key = plateKey(plate);
@@ -429,3 +429,219 @@ function hexToLinear(hex) {
   const channel = (c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
   return [channel(((n >> 16) & 255) / 255), channel(((n >> 8) & 255) / 255), channel((n & 255) / 255)];
 }
+
+// Filament ids: roles point at a spool, not at a shelf position (#20).
+const idSettings = {
+  filaments: [
+    { name: "Charcoal", color: "#111111", material: "PLA", preset: {} },
+    { name: "Cream", color: "#eeeeee", material: "PLA", preset: {} },
+    { name: "Gold", color: "#c8a256", material: "PLA", preset: {} },
+  ],
+  roles: { main: 2, box: 1 },
+};
+ensureFilamentIds(idSettings);
+assert.equal(idSettings.filaments.every((f) => typeof f.id === "string" && f.id), true);
+assert.equal(new Set(idSettings.filaments.map((f) => f.id)).size, 3);
+assert.equal(idSettings.roles.main, idSettings.filaments[2].id);
+assert.equal(filamentForRole(idSettings, "main").name, "Gold");
+assert.equal(slotIndexForRole(idSettings, "main"), 2);
+const goldId = idSettings.filaments[2].id;
+idSettings.filaments.reverse();
+assert.equal(filamentForRole(idSettings, "main").name, "Gold", "reordering the shelf must not retarget a role");
+assert.equal(settingsForApi(idSettings).roles.main, 0, "the server still receives the slot index of the same spool");
+assert.equal(idSettings.roles.main, goldId, "settingsForApi must not mutate stored roles");
+const removed = removeFilamentById(idSettings, goldId);
+assert.equal(removed.filament.name, "Gold");
+assert.deepEqual(removed.affectedRoles, ["main"]);
+assert.equal(filamentForRole(idSettings, "main").name, idSettings.filaments[0].name);
+assert.equal(removeFilamentById(idSettings, "missing"), null);
+assert.equal(removeFilamentById({ filaments: [{ id: "only", name: "x" }], roles: {} }, "only"), null, "the last filament stays");
+
+// Spool removal is undoable: the spool returns to its shelf slot and roles that fell back
+// point at it again, unless the user reassigned them in between (Copilot review, PR #25).
+const undoShelf = {
+  filaments: [{ id: "charcoal", name: "Charcoal" }, { id: "gold", name: "Gold" }, { id: "cream", name: "Cream" }],
+  roles: { main: "gold", box: "cream" },
+};
+const spoolRemoved = removeFilamentById(undoShelf, "gold");
+assert.equal(undoShelf.roles.main, "charcoal", "the role falls back to the first remaining spool");
+restoreFilament(undoShelf, spoolRemoved);
+assert.deepEqual(undoShelf.filaments.map((f) => f.id), ["charcoal", "gold", "cream"], "undo returns the spool to its shelf position");
+assert.equal(undoShelf.roles.main, "gold", "undo points the fallen-back role back at the restored spool");
+restoreFilament(undoShelf, spoolRemoved);
+assert.equal(undoShelf.filaments.length, 3, "double undo does not duplicate the spool");
+const spoolRemovedAgain = removeFilamentById(undoShelf, "gold");
+undoShelf.roles.main = "cream";
+restoreFilament(undoShelf, spoolRemovedAgain);
+assert.equal(undoShelf.roles.main, "cream", "undo does not overwrite a role reassigned after removal");
+
+// Add -> remove -> add: the second add must not reuse the removed spool's id while its
+// Undo is still pending, or restoring it would collide and lose the original spool.
+const addShelf = {
+  filaments: [{ id: "charcoal", name: "Charcoal", color: "#222222", material: "PLA", preset: {} }],
+  roles: { main: "charcoal" },
+};
+addShelf.filaments.push({ name: "New filament", color: "#8a8f96", material: "PLA", preset: {} });
+ensureFilamentIds(addShelf);
+const addedSpool = addShelf.filaments[1];
+assert.equal(addedSpool.id, "new-filament");
+addedSpool.name = "Gold";
+addedSpool.color = "#d4af37";
+addShelf.roles.main = addedSpool.id;
+const addedRemoved = removeFilamentById(addShelf, addedSpool.id);
+assert.equal(addShelf.roles.main, "charcoal");
+addShelf.filaments.push({ name: "New filament", color: "#8a8f96", material: "PLA", preset: {} });
+ensureFilamentIds(addShelf, [addedRemoved.filament.id]);
+assert.notEqual(addShelf.filaments[1].id, "new-filament", "the second add cannot take the pending undo spool's id");
+restoreFilament(addShelf, addedRemoved);
+assert.equal(addShelf.filaments.length, 3, "undo still restores the original spool after the second add");
+assert.equal(new Set(addShelf.filaments.map((f) => f.id)).size, 3, "ids stay unique");
+assert.equal(filamentForRole(addShelf, "main").name, "Gold", "the restored spool keeps its own data and role");
+assert.equal(filamentForRole(addShelf, "main").color, "#d4af37");
+
+const migratedIds = loadPlannerState(JSON.stringify({
+  stack: { name: "kept", depth: 5, layers: [], roof: { type: "none" }, mods: {} },
+  settings: {
+    printers: readerMeta.defaults.printers,
+    filaments: [
+      { name: "A", color: "#111111", material: "PLA" }, { name: "B", color: "#222222", material: "PLA" },
+      { name: "C", color: "#333333", material: "PLA" }, { name: "D", color: "#444444", material: "PLA" },
+      { name: "E", color: "#555555", material: "TPU" },
+    ],
+    roles: { main: 4, box: 1, knob: 2, accent: 3, tpu: 4 },
+    mode: "both",
+  },
+}), readerMeta);
+assert.equal(filamentForRole(migratedIds.settings, "main").name, "E", "numeric saved roles migrate to the spool they pointed at");
+assert.equal(defaultPlannerState(readerMeta.defaults).settings.roles.box, defaultPlannerState(readerMeta.defaults).settings.filaments[1].id);
+
+// A spool deleted on purpose stays deleted on reload; the legacy short-shelf reset must not
+// resurrect it or wipe custom roles now that shelves carry stable ids (Copilot review, PR #25).
+const shortShelf = loadPlannerState(JSON.stringify({
+  stack: { name: "kept", depth: 5, layers: [], roof: { type: "none" }, mods: {} },
+  settings: {
+    printers: readerMeta.defaults.printers,
+    filaments: [
+      { id: "gold", name: "Gold", color: "#d4af37", material: "PLA" }, { id: "silver", name: "Silver", color: "#c0c0c0", material: "PLA" },
+      { id: "bronze", name: "Bronze", color: "#cd7f32", material: "PLA" }, { id: "copper", name: "Copper", color: "#b87333", material: "TPU" },
+    ],
+    roles: { main: "gold", box: "silver", knob: "bronze", accent: "bronze", tpu: "copper" },
+    mode: "both",
+  },
+}), readerMeta);
+assert.equal(shortShelf.settings.filaments.length, 4, "a deleted spool stays deleted on reload");
+assert.equal(filamentForRole(shortShelf.settings, "main").name, "Gold", "custom roles on a short id shelf survive reload");
+const legacyShort = loadPlannerState(JSON.stringify({
+  stack: { name: "kept", depth: 5, layers: [], roof: { type: "none" }, mods: {} },
+  settings: {
+    printers: readerMeta.defaults.printers,
+    filaments: [
+      { name: "A", color: "#111111", material: "PLA" }, { name: "B", color: "#222222", material: "PLA" },
+      { name: "C", color: "#333333", material: "PLA" },
+    ],
+    roles: { main: 2, box: 1, knob: 2, accent: 1, tpu: 2 },
+    mode: "both",
+  },
+}), readerMeta);
+assert.equal(legacyShort.settings.filaments.length, readerMeta.defaults.filaments.length, "a short shelf without ids is still a legacy save and resets");
+
+// A no-tall tick on a printer with z <= 1 used to save maxH 0 or negative, which downstream
+// reads as "no limit" (maxH or z) but the server's positive check rejects outright. Loading
+// such a save writes the limit back to z instead of bricking every request.
+const brokenLimitSettings = JSON.parse(JSON.stringify(readerMeta.defaults));
+brokenLimitSettings.printers[0].maxH = 0;
+if (brokenLimitSettings.printers[1]) brokenLimitSettings.printers[1].maxH = -5;
+const brokenLimit = loadPlannerState(JSON.stringify({
+  stack: { name: "kept", depth: 5, layers: [], roof: { type: "none" }, mods: {} },
+  settings: brokenLimitSettings,
+}), readerMeta);
+assert.equal(brokenLimit.settings.printers[0].maxH, brokenLimit.settings.printers[0].z, "maxH 0 loads as no limit (z), not a server-rejected 0");
+if (brokenLimit.settings.printers[1]) assert.equal(brokenLimit.settings.printers[1].maxH, brokenLimit.settings.printers[1].z, "a negative maxH loads as z too");
+
+// Renaming a spool to a legacy role name must not make reload overwrite it: a row with a
+// stable id was saved by current code, so migrateShop leaves it alone. The same row without
+// an id is a legacy save and still upgrades to the current default (Copilot review, PR #25).
+const renamedRow = { id: "charcoal", name: "TPU", color: "#123456", material: "TPU", preset: {} };
+const renamedSettings = { filaments: [renamedRow], printers: [] };
+migrateShop(renamedSettings, readerMeta.defaults);
+assert.equal(renamedSettings.filaments[0].name, "TPU", "an id-bearing row renamed to a legacy role name keeps its name");
+assert.equal(renamedSettings.filaments[0].material, "TPU");
+assert.equal(renamedSettings.filaments[0].color, "#123456");
+const legacyNamedSettings = { filaments: [{ name: "TPU", color: "#123456", material: "TPU", preset: {} }], printers: [] };
+migrateShop(legacyNamedSettings, readerMeta.defaults);
+assert.equal(legacyNamedSettings.filaments[0].name, readerMeta.defaults.filaments[0].name, "the same row without an id is still a legacy save and upgrades");
+
+// Number fields never save NaN or a non-positive dimension (#20).
+assert.deepEqual(parseSettingNumber("220", { label: "Bed X", min: 0, exclusiveMin: true }), { ok: true, value: 220 });
+assert.equal(parseSettingNumber("", { label: "Bed X" }).ok, false, "cleared field is not 0");
+assert.match(parseSettingNumber("abc", { label: "Bed X" }).error, /Bed X needs a number/);
+assert.match(parseSettingNumber("0", { label: "Bed X", min: 0, exclusiveMin: true }).error, /above 0/);
+assert.equal(parseSettingNumber("0", { label: "Part spacing", min: 0 }).ok, true, "zero spacing is legal");
+assert.match(parseSettingNumber("-1", { label: "Part spacing", min: 0 }).error, /at least 0/);
+assert.match(parseSettingNumber("2", { label: "Infill", min: 0, max: 1 }).error, /at most 1/, "infill is a fraction: 2 is not 200%");
+assert.deepEqual(parseSettingNumber("1", { label: "Infill", min: 0, max: 1 }), { ok: true, value: 1 });
+
+// Printer removal is undoable; the TPU role warns on a rigid spool (#20).
+const undoFleet = { printers: [{ id: "a", name: "A" }, { id: "b", name: "B" }, { id: "c", name: "C" }] };
+const removedPrinterRow = removePrinterById(undoFleet, "b");
+assert.equal(removedPrinterRow.printer.name, "B");
+assert.deepEqual(undoFleet.printers.map((p) => p.id), ["a", "c"]);
+restorePrinter(undoFleet, removedPrinterRow);
+assert.deepEqual(undoFleet.printers.map((p) => p.id), ["a", "b", "c"], "undo restores the printer in place");
+restorePrinter(undoFleet, removedPrinterRow);
+assert.equal(undoFleet.printers.length, 3, "double undo does not duplicate");
+assert.equal(removePrinterById(undoFleet, "missing"), null);
+
+// Removing the printer that export/fit point at explains itself, and undo restores those
+// selections unless the user changed them in between (Copilot review, PR #25).
+const impactNotes = printerRemovalNotes({ mode: "u1" }, { fitTarget: "u1" }, [{ printer: "u1" }, { printer: "p1" }], { id: "u1", enabled: true, forExport: true }).join(" ");
+assert.match(impactNotes, /only printer parts are sent to/);
+assert.match(impactNotes, /fit-check target/);
+assert.match(impactNotes, /1 plate in the current plan/);
+assert.deepEqual(printerRemovalNotes({ mode: "both" }, { fitTarget: "every" }, [], { id: "x", enabled: false, forExport: false }), [], "an unused printer needs no warning");
+const selSettings = { printers: [{ id: "u1", name: "U1", enabled: true, forExport: true }, { id: "p1", name: "P1", enabled: true, forExport: true }], mode: "u1" };
+const selState = { settings: selSettings, fitTarget: "u1" };
+const selRemoved = removePrinterById(selSettings, "u1", selState);
+legalExportMode(selSettings); legalFitTarget(selState);
+assert.equal(selSettings.mode, "both");
+assert.equal(selState.fitTarget, "every");
+restorePrinter(selSettings, selRemoved, selState);
+assert.equal(selSettings.mode, "u1", "undo restores the export selection, not just the printer");
+assert.equal(selState.fitTarget, "u1", "undo restores the fit target, not just the printer");
+const selRemovedAgain = removePrinterById(selSettings, "u1", selState);
+legalExportMode(selSettings); legalFitTarget(selState);
+selSettings.mode = "p1"; selState.fitTarget = "p1";
+restorePrinter(selSettings, selRemovedAgain, selState);
+assert.equal(selSettings.mode, "p1", "undo does not overwrite an export selection made after removal");
+assert.equal(selState.fitTarget, "p1", "undo does not overwrite a fit target made after removal");
+
+const rigidTpu = { filaments: [{ id: "pla", name: "Rigid", material: "PLA" }], roles: { tpu: "pla" } };
+assert.match(tpuRoleWarning(rigidTpu), /flexible/);
+const flexTpu = { filaments: [{ id: "flex", name: "Flex", material: "TPU 95A" }], roles: { tpu: "flex" } };
+assert.equal(tpuRoleWarning(flexTpu), "");
+assert.equal(tpuRoleWarning({ filaments: [], roles: {} }), "");
+
+// Repairing a missing/duplicate id must never steal a later spool's valid id (review, PR #25).
+const collide = {
+  filaments: [
+    { id: "a", name: "A", color: "#111111", material: "PLA", preset: {} },
+    { id: "a", name: "Cream", color: "#222222", material: "PLA", preset: {} },
+    { id: "cream", name: "Custom", color: "#333333", material: "PLA", preset: {} },
+  ],
+  roles: { box: "cream" },
+};
+ensureFilamentIds(collide);
+assert.equal(collide.filaments[2].id, "cream", "the first owner of a valid id keeps it");
+assert.notEqual(collide.filaments[1].id, "cream", "the duplicate gets a fresh id, not a later spool's");
+assert.equal(new Set(collide.filaments.map((f) => f.id)).size, 3, "ids stay unique");
+assert.equal(filamentForRole(collide, "box").name, "Custom", "an unrelated role keeps its spool");
+const idlessFirst = {
+  filaments: [
+    { name: "Cream", color: "#222222", material: "PLA", preset: {} },
+    { id: "cream", name: "Custom", color: "#333333", material: "PLA", preset: {} },
+  ],
+  roles: { box: "cream" },
+};
+ensureFilamentIds(idlessFirst);
+assert.equal(filamentForRole(idlessFirst, "box").name, "Custom", "an id-less row cannot take the next spool's id either");
+assert.match(readFileSync(new URL("../index.html", import.meta.url), "utf8"), /#addFilament'\)\.onclick=[\s\S]{0,200}ensureFilamentIds\(state\.settings,removedFilament\?\[removedFilament\.filament\.id\]:\[\]\)/, "classic mints an id when a filament is added, reserving the pending undo spool's id");

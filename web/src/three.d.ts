@@ -14,9 +14,9 @@ declare module "three" {
   }
   export class PerspectiveCamera {
     constructor(fov: number, aspect: number, near: number, far: number);
-    up: { set(x: number, y: number, z: number): void };
+    up: Vector3;
     aspect: number;
-    position: { set(x: number, y: number, z: number): void };
+    position: Vector3;
     updateProjectionMatrix(): void;
   }
   export class HemisphereLight {
@@ -27,9 +27,22 @@ declare module "three" {
     position: { set(x: number, y: number, z: number): void };
   }
   export class Vector3 {
+    constructor(x?: number, y?: number, z?: number);
     x: number;
     y: number;
     z: number;
+    set(x: number, y: number, z: number): Vector3;
+    clone(): Vector3;
+    sub(v: Vector3): Vector3;
+    add(v: Vector3): Vector3;
+    copy(v: Vector3): Vector3;
+    setFromSpherical(s: Spherical): Vector3;
+  }
+  export class Spherical {
+    radius: number;
+    phi: number;
+    theta: number;
+    setFromVector3(v: Vector3): Spherical;
   }
   export class Mesh {
     constructor(geometry: unknown, material: unknown);
@@ -41,10 +54,11 @@ declare module "three" {
 }
 
 declare module "three/addons/controls/OrbitControls.js" {
+import type { Vector3 } from "three";
   export class OrbitControls {
     constructor(camera: unknown, element: HTMLElement);
     enableDamping: boolean;
-    target: { set(x: number, y: number, z: number): void };
+    target: Vector3;
     update(): void;
     dispose(): void;
   }

@@ -1,13 +1,47 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { STLLoader } from "three/addons/loaders/STLLoader.js";
+import { settingsForApi } from "../../../planner.mjs";
 import { usePlanner } from "../store";
+import type { Settings } from "../types";
 
 export function Viewer() {
   const { viewer, closeViewer, state } = usePlanner();
   const canvas = useRef<HTMLCanvasElement>(null);
+  const dialog = useRef<HTMLDivElement>(null);
+  const closeButton = useRef<HTMLButtonElement>(null);
+  const closeRef = useRef(closeViewer);
+  closeRef.current = closeViewer;
+  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+  const controlsRef = useRef<OrbitControls | null>(null);
+  const [loadError, setLoadError] = useState("");
+  const [exportNote, setExportNote] = useState<{ text: string; bad?: boolean }>({ text: "" });
   const file = viewer?.file || "";
+
+  // The dialog only exists while a part is open (App unmounts it on close), so mount/unmount is the
+  // lifecycle. The opener is captured by openViewer at click time—before this lazily loaded
+  // component mounts—so a focus change during chunk loading cannot change the restoration target.
+  useEffect(() => {
+    const opener = viewer?.opener ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null);
+    closeButton.current?.focus();
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") { closeRef.current(); return; }
+      if (event.key !== "Tab" || !dialog.current) return;
+      // Document scope, not the dialog element: clicking non-focusable dialog content drops focus
+      // to <body>, whose Tab events never bubble through the dialog — the modal must still contain them.
+      const focusables = [...dialog.current.querySelectorAll<HTMLElement>("button, a[href], canvas[tabindex]")].filter((node) => !node.hasAttribute("disabled"));
+      if (!focusables.length) return;
+      const index = focusables.indexOf(document.activeElement as HTMLElement);
+      if (event.shiftKey && index <= 0) { event.preventDefault(); focusables[focusables.length - 1].focus(); }
+      else if (!event.shiftKey && (index === -1 || index === focusables.length - 1)) { event.preventDefault(); focusables[0].focus(); }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      if (opener && opener.isConnected) opener.focus();
+    };
+  }, []);
   useEffect(() => {
     const node = canvas.current;
     if (!node || !file) return;
@@ -17,6 +51,8 @@ export function Viewer() {
     const camera = new THREE.PerspectiveCamera(40, 1, 1, 5000);
     camera.up.set(0, 0, 1);
     const controls = new OrbitControls(camera, node);
+    cameraRef.current = camera;
+    controlsRef.current = controls;
     controls.enableDamping = true;
     scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 1.1));
     const key = new THREE.DirectionalLight(0xffffff, 1.3);
@@ -53,7 +89,7 @@ export function Viewer() {
       camera.position.set(radius * 1.2, -radius * 1.4, radius);
       controls.target.set(0, 0, size.z / 2);
       controls.update();
-    }).catch(() => undefined);
+    }).catch(() => { if (!stop) setLoadError("Could not load this part's STL. The file may be missing from the archive."); });
     draw();
     return () => {
       stop = true;
@@ -63,6 +99,22 @@ export function Viewer() {
       mesh?.geometry.dispose();
     };
   }, [file, viewer?.color]);
+  useEffect(() => { setLoadError(""); setExportNote({ text: "" }); }, [file]);
+  const orbitBy = (dAzimuth: number, dPolar: number, zoom = 1) => {
+    const camera = cameraRef.current;
+    const controls = controlsRef.current;
+    if (!camera || !controls) return;
+    const offset = camera.position.clone().sub(controls.target);
+    // Spherical assumes Y-up; this scene is Z-up, so swap Y/Z around the conversion.
+    const swapped = new THREE.Vector3(offset.x, offset.z, offset.y);
+    const spherical = new THREE.Spherical().setFromVector3(swapped);
+    spherical.theta += dAzimuth;
+    spherical.phi = Math.min(Math.PI * 0.95, Math.max(0.05, spherical.phi + dPolar));
+    spherical.radius = Math.max(1, spherical.radius * zoom);
+    const next = new THREE.Vector3().setFromSpherical(spherical);
+    camera.position.copy(controls.target).add(new THREE.Vector3(next.x, next.z, next.y));
+    controls.update();
+  };
   if (!viewer) return null;
   const download = () => {
     const link = document.createElement("a");
@@ -70,31 +122,57 @@ export function Viewer() {
     link.download = viewer.file.split(/[/\\]/).pop() || "part.stl";
     link.click();
   };
+  const runExportPart = async () => {
+    setExportNote({ text: "Exporting this part…" });
+    try {
+      const payload = await exportPart(viewer.file, viewer.label, state.settings);
+      setExportNote({ text: payload.warning || "One-part 3MF downloaded.", bad: !!payload.warning });
+    } catch (error) {
+      setExportNote({ text: error instanceof Error ? error.message : "Export failed.", bad: true });
+    }
+  };
   return (
-    <div className="viewer" role="dialog" aria-label={viewer.label}>
+    <div className="viewer" role="dialog" aria-modal="true" aria-label={viewer.label} ref={dialog}>
       <div className="bar">
         <strong>{viewer.label}</strong>
-        <span className="note">drag to orbit · wheel to zoom</span>
+        <span className="note">drag to orbit · wheel to zoom · arrow keys orbit when the view is focused</span>
+        {exportNote.text ? <span className={exportNote.bad ? "bad" : "note"} role={exportNote.bad ? "alert" : "status"}>{exportNote.text}</span> : null}
         <button type="button" className="btn" onClick={download}>Download STL</button>
-        <button type="button" className="btn" onClick={() => void exportPart(viewer.file, viewer.label, state.settings)}>Export this part</button>
-        <button type="button" className="btn" onClick={closeViewer}>Close</button>
+        <button type="button" className="btn" onClick={() => { void runExportPart(); }}>Export this part</button>
+        <button type="button" className="btn" ref={closeButton} onClick={closeViewer}>Close</button>
       </div>
-      <canvas ref={canvas} />
+      {loadError ? <p className="bad" role="alert">{loadError}</p> : null}
+      <canvas
+        ref={canvas}
+        tabIndex={0}
+        role="img"
+        aria-label={`3D view of ${viewer.label}. Arrow keys orbit, plus and minus zoom.`}
+        onKeyDown={(event) => {
+          const step = Math.PI / 12;
+          if (event.key === "ArrowLeft") { event.preventDefault(); orbitBy(step, 0); }
+          else if (event.key === "ArrowRight") { event.preventDefault(); orbitBy(-step, 0); }
+          else if (event.key === "ArrowUp") { event.preventDefault(); orbitBy(0, -step); }
+          else if (event.key === "ArrowDown") { event.preventDefault(); orbitBy(0, step); }
+          else if (event.key === "+" || event.key === "=") { event.preventDefault(); orbitBy(0, 0, 0.85); }
+          else if (event.key === "-") { event.preventDefault(); orbitBy(0, 0, 1.18); }
+        }}
+      />
     </div>
   );
 }
 
-async function exportPart(file: string, name: string, settings: unknown) {
+async function exportPart(file: string, name: string, settings: Settings): Promise<{ download?: string; warning?: string }> {
   const response = await fetch("/api/export_part", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ file, name, settings, role: "main" }),
+    body: JSON.stringify({ file, name, settings: settingsForApi(settings), role: "main" }),
   });
-  const payload = await response.json() as { download?: string; error?: string };
-  if (payload.download) {
-    const link = document.createElement("a");
-    link.href = payload.download;
-    link.download = payload.download;
-    link.click();
-  }
+  const payload = await response.json() as { download?: string; warning?: string; error?: string };
+  if (payload.error) throw new Error(payload.error);
+  if (!payload.download) throw new Error("Export returned no file.");
+  const link = document.createElement("a");
+  link.href = payload.download;
+  link.download = payload.download;
+  link.click();
+  return payload;
 }

@@ -5,6 +5,29 @@ import { App } from "./App";
 import { applyBomResult, applyPlanProgress, signature } from "./store";
 import type { Meta, PlannerState } from "./types";
 
+// jsdom has no WebGL; the dialog lifecycle is what is under test, so stub the three.js surface Viewer touches.
+vi.mock("three", () => {
+  const vec = () => ({ x: 0, y: 0, z: 0, set() {}, clone() { return vec(); }, sub() { return vec(); }, add() { return vec(); }, copy() { return vec(); }, setFromSpherical() { return vec(); } });
+  return {
+    WebGLRenderer: class { setSize() {} render() {} dispose() {} },
+    Scene: class { add() {} },
+    Color: class {},
+    PerspectiveCamera: class { up = vec(); position = vec(); aspect = 1; updateProjectionMatrix() {} },
+    HemisphereLight: class {},
+    DirectionalLight: class { position = vec(); },
+    Vector3: class { x = 0; y = 0; z = 0; },
+    Spherical: class {},
+    Mesh: class { geometry = { dispose() {} }; },
+    MeshStandardMaterial: class {},
+  };
+});
+vi.mock("three/addons/controls/OrbitControls.js", () => ({
+  OrbitControls: class { enableDamping = false; target = { set() {} }; update() {} dispose() {} },
+}));
+vi.mock("three/addons/loaders/STLLoader.js", () => ({
+  STLLoader: class { loadAsync() { return new Promise(() => undefined); } },
+}));
+
 const printers = [
   { id: "u1", name: "U1", profile: "Snapmaker U1", bed: [270, 270] as [number, number], z: 270, maxH: 270, enabled: true, forExport: true, slicer: "orca", nozzle: "0.4", preset: "" },
   { id: "p1s", name: "P1S", profile: "Bambu Lab P1S", bed: [256, 256] as [number, number], z: 256, maxH: 256, enabled: true, forExport: true, slicer: "bambu", nozzle: "0.4", preset: "" },
@@ -29,7 +52,7 @@ const meta = {
     edge: 0,
     groupBy: "color",
     filaments,
-    roles: { main: 0, box: 1, knob: 2, accent: 3, tpu: 4 },
+    roles: { main: "charcoal", box: "cream", knob: "gold", accent: "army-blue", tpu: "silver-grey" },
     kindRoles: {},
     wallMm: 0.8,
     infill: 0.21,
@@ -175,6 +198,130 @@ test("patch writes a legal export mode and fit target into saved state", async (
   expect(afterExport.settings.mode).toBe("both");
   expect(screen.getByLabelText("Send parts to")).toHaveValue("both");
   expect(screen.getByLabelText("All printers")).toHaveValue("every");
+});
+
+test("removing the printer export and fit point at says so, and undo restores both", async () => {
+  const user = userEvent.setup();
+  localStorage.setItem("vault-configurator", JSON.stringify({
+    tab: "plates",
+    fitTarget: "u1",
+    stack: { name: "my-vault", depth: 5, layers: [], roof: { type: "none", topHandle: true }, mods: { backbone: "none", pegboard: "none" } },
+    settings: { ...meta.defaults, mode: "u1" },
+  }));
+  render(<App />);
+  expect(await screen.findByRole("heading", { name: "Plates & export" })).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Settings" }));
+  await user.click(screen.getByRole("button", { name: "Remove U1" }));
+  expect(screen.getByText(/only printer parts are sent to/)).toBeInTheDocument();
+  expect(screen.getByText(/fit-check target/)).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Remove U1" }));
+  const afterRemove = JSON.parse(localStorage.getItem("vault-configurator") || "{}");
+  expect(afterRemove.settings.printers.some((printer: { id: string }) => printer.id === "u1")).toBe(false);
+  expect(afterRemove.settings.mode).toBe("both");
+  expect(afterRemove.fitTarget).toBe("every");
+  await user.click(screen.getByRole("button", { name: "Undo" }));
+  const afterUndo = JSON.parse(localStorage.getItem("vault-configurator") || "{}");
+  expect(afterUndo.settings.printers.some((printer: { id: string }) => printer.id === "u1")).toBe(true);
+  expect(afterUndo.settings.mode).toBe("u1");
+  expect(afterUndo.fitTarget).toBe("u1");
+});
+
+test("undo after the user re-picks a fit target keeps the newer choice", async () => {
+  const user = userEvent.setup();
+  localStorage.setItem("vault-configurator", JSON.stringify({
+    tab: "plates",
+    fitTarget: "u1",
+    stack: { name: "my-vault", depth: 5, layers: [], roof: { type: "none", topHandle: true }, mods: { backbone: "none", pegboard: "none" } },
+    settings: { ...meta.defaults, mode: "u1" },
+  }));
+  render(<App />);
+  expect(await screen.findByRole("heading", { name: "Plates & export" })).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Settings" }));
+  await user.click(screen.getByRole("button", { name: "Remove U1" }));
+  await user.click(screen.getByRole("button", { name: "Remove U1" }));
+  // The user picks a new fit target in the header, then switches back to All printers:
+  // that explicit "every" is a newer choice, not the untouched removal fallback.
+  await user.selectOptions(screen.getByLabelText("All printers"), "p1s");
+  await user.selectOptions(screen.getByLabelText("All printers"), "every");
+  await user.click(screen.getByRole("button", { name: "Undo" }));
+  const afterUndo = JSON.parse(localStorage.getItem("vault-configurator") || "{}");
+  expect(afterUndo.settings.printers.some((printer: { id: string }) => printer.id === "u1")).toBe(true);
+  expect(afterUndo.fitTarget).toBe("every");
+  expect(afterUndo.settings.mode).toBe("u1");
+});
+
+test("ticking No tall parts on a printer with Z of 1 still saves a positive limit", async () => {
+  const user = userEvent.setup();
+  const tinyPrinters = printers.map((printer) => printer.id === "u1" ? { ...printer, z: 1, maxH: 1 } : printer);
+  localStorage.setItem("vault-configurator", JSON.stringify({
+    tab: "stack",
+    stack: { name: "my-vault", depth: 5, layers: [], roof: { type: "none", topHandle: true }, mods: { backbone: "none", pegboard: "none" } },
+    settings: { ...meta.defaults, printers: tinyPrinters },
+  }));
+  render(<App />);
+  expect(await screen.findByRole("heading", { name: "Compose your stack" })).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Settings" }));
+  await user.click(screen.getByText("No tall parts, nozzle and process preset"));
+  await user.click(screen.getAllByRole("checkbox", { name: /No tall parts/ })[0]);
+  const afterTick = JSON.parse(localStorage.getItem("vault-configurator") || "{}");
+  const u1 = afterTick.settings.printers.find((printer: { id: string }) => printer.id === "u1");
+  expect(u1.maxH).toBeGreaterThan(0);
+  expect(u1.maxH).toBeLessThan(1);
+});
+
+test("number fields revert invalid dimensions and only persist valid commits", async () => {
+  const user = userEvent.setup();
+  const savedPrinter = () => JSON.parse(localStorage.getItem("vault-configurator") || "{}").settings.printers.find((printer: { id: string }) => printer.id === "u1");
+  localStorage.setItem("vault-configurator", JSON.stringify({
+    tab: "stack",
+    stack: { name: "my-vault", depth: 5, layers: [], roof: { type: "none", topHandle: true }, mods: { backbone: "none", pegboard: "none" } },
+    settings: { ...meta.defaults },
+  }));
+  render(<App />);
+  expect(await screen.findByRole("heading", { name: "Compose your stack" })).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Settings" }));
+
+  const bedX = screen.getByRole("spinbutton", { name: "Bed X for u1" });
+  await user.clear(bedX);
+  await user.type(bedX, "0{Enter}");
+  expect(await screen.findByRole("alert")).toHaveTextContent("Bed X must be above 0.");
+  expect(bedX).toHaveValue(270);
+  expect(savedPrinter().bed[0]).toBe(270);
+
+  const bedY = screen.getByRole("spinbutton", { name: "Bed Y for u1" });
+  await user.clear(bedY);
+  await user.tab();
+  expect(screen.getByText("Bed Y needs a number.")).toBeInTheDocument();
+  expect(bedY).toHaveValue(270);
+  expect(savedPrinter().bed[1]).toBe(270);
+
+  const z = screen.getByRole("spinbutton", { name: "Z for u1" });
+  await user.clear(z);
+  await user.type(z, "300");
+  await user.tab();
+  expect(z).toHaveValue(300);
+  expect(savedPrinter().z).toBe(300);
+});
+
+test("printer Undo survives leaving and returning to the Printers section", async () => {
+  const user = userEvent.setup();
+  localStorage.setItem("vault-configurator", JSON.stringify({
+    tab: "stack",
+    stack: { name: "my-vault", depth: 5, layers: [], roof: { type: "none", topHandle: true }, mods: { backbone: "none", pegboard: "none" } },
+    settings: { ...meta.defaults },
+  }));
+  render(<App />);
+  expect(await screen.findByRole("heading", { name: "Compose your stack" })).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Settings" }));
+  await user.click(screen.getByRole("button", { name: "Remove P1S" }));
+  await user.click(screen.getByRole("button", { name: "Remove P1S" }));
+  expect(JSON.parse(localStorage.getItem("vault-configurator") || "{}").settings.printers.some((printer: { id: string }) => printer.id === "p1s")).toBe(false);
+  await user.click(screen.getByRole("button", { name: "Filaments" }));
+  await user.click(screen.getByRole("button", { name: "Close settings" }));
+  await user.click(screen.getByRole("button", { name: "Settings" }));
+  await user.click(screen.getByRole("button", { name: "Printers" }));
+  await user.click(await screen.findByRole("button", { name: "Undo" }));
+  expect(JSON.parse(localStorage.getItem("vault-configurator") || "{}").settings.printers.some((printer: { id: string }) => printer.id === "p1s")).toBe(true);
 });
 
 test("a BOM result keeps an assemble check and a stale stack is dropped", () => {
@@ -332,4 +479,54 @@ test("opening Plates requests a plan without another stack edit", async () => {
   await user.click(screen.getByRole("tab", { name: "3 Plates" }));
   await act(async () => { await new Promise((resolve) => setTimeout(resolve, 30)); });
   expect(plans()).toBeGreaterThan(0);
+});
+
+test("the 3D viewer takes focus on open and hands it back to the part card on Escape", async () => {
+  const user = userEvent.setup();
+  const layer = {
+    type: "Drawers", layout: "S", height: 2, facades: [[2]], interior: "none", key: "key",
+    labels: true, rails: false, manualSupports: false, variant: "Flat", baseplate: false,
+    gridW: 1, gridD: 1, divW: 1, divD: 2,
+  };
+  localStorage.setItem("vault-configurator", JSON.stringify({
+    tab: "parts",
+    stack: { name: "my-vault", depth: 5, layers: [layer], roof: { type: "none", topHandle: true }, mods: {} },
+    settings: meta.defaults,
+  }));
+  const base = vi.mocked(fetch).getMockImplementation()!;
+  vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo, init?: RequestInit) => {
+    if (String(input).includes("/api/bom")) {
+      return json({
+        parts: [{ group: "L1 · S 2U", name: "S Box", qty: 1, role: "box", file: "S/box.stl", fits: {} }],
+        hardware: [], warnings: [], choices: null, judged: { scope: "every", printers: [] },
+        estimate: { wallMm: 0.8, infill: 0.21, preset: null, printer: "P1S" },
+      });
+    }
+    return base(input, init);
+  }));
+  render(<App />);
+  const card = await screen.findByRole("button", { name: "View S Box in 3D" });
+  await user.click(card);
+  const dialog = await screen.findByRole("dialog", { name: "S Box" });
+  expect(dialog).toHaveAttribute("aria-modal", "true");
+  expect(within(dialog).getByRole("button", { name: "Close" })).toHaveFocus();
+
+  // Clicking non-focusable dialog content drops focus to <body>; Tab must still be contained.
+  await user.click(within(dialog).getByText("S Box", { selector: "strong" }));
+  await user.tab({ shift: true });
+  expect(within(dialog).getByRole("img", { name: /3D view of S Box/ })).toHaveFocus();
+  await user.click(within(dialog).getByText("S Box", { selector: "strong" }));
+  await user.tab();
+  expect(within(dialog).getByRole("button", { name: "Download STL" })).toHaveFocus();
+  // Ordinary boundary wrap still holds.
+  await user.tab({ shift: true });
+  expect(within(dialog).getByRole("img", { name: /3D view of S Box/ })).toHaveFocus();
+
+  await user.keyboard("{Escape}");
+  expect(screen.queryByRole("dialog", { name: "S Box" })).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "View S Box in 3D" })).toHaveFocus();
+
+  await user.click(screen.getByRole("button", { name: "View S Box in 3D" }));
+  await user.click(within(await screen.findByRole("dialog", { name: "S Box" })).getByRole("button", { name: "Close" }));
+  expect(screen.getByRole("button", { name: "View S Box in 3D" })).toHaveFocus();
 });

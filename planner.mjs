@@ -202,6 +202,8 @@ function sameShelf(row, legacy) {
 /**
  * Replace a saved shop row with the current default, in one assignment, when that row is still a default.
  * A hand-edited name, colour, or material stays. Missing `forExport` is left missing.
+ * A row carrying a stable id was saved by current code, so its fields are the user's — never
+ * replace it, even when its name happens to match a legacy role name.
  */
 export function migrateShop(settings, defaults) {
   if (!settings || !defaults) return settings;
@@ -211,7 +213,7 @@ export function migrateShop(settings, defaults) {
       const fresh = nextFilaments[index];
       const legacy = LEGACY_FILAMENTS[index];
       const stillDefault = sameShelf(row, legacy) || LEGACY_ROLE_NAMES.includes(row && row.name);
-      if (!fresh || !stillDefault) return row;
+      if (!fresh || !stillDefault || (row && row.id)) return row;
       return { ...JSON.parse(JSON.stringify(fresh)), preset: (row && row.preset) || {} };
     });
   }
@@ -225,6 +227,176 @@ export function migrateShop(settings, defaults) {
     });
   }
   return settings;
+}
+
+function filamentSlug(name) {
+  return String(name || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+}
+
+/**
+ * Give every filament a stable id and point colour roles at ids, not shelf positions.
+ * A numeric saved role is converted once, to the spool it pointed at. Reordering or
+ * removing shelf stock afterwards cannot retarget a role.
+ */
+export function ensureFilamentIds(settings, extraReserved) {
+  if (!settings || !Array.isArray(settings.filaments)) return settings;
+  // Reserve every id already present up front: repairing an earlier missing/duplicate id
+  // must never steal a later spool's valid id (the first owner of a duplicate keeps it).
+  // Callers may reserve more ids (a spool whose removal can still be undone) so a freshly
+  // minted spool cannot take an id that Undo is about to restore.
+  const reserved = new Set(settings.filaments.map((filament) => filament.id).filter((id) => typeof id === "string" && id));
+  (extraReserved || []).forEach((id) => { if (typeof id === "string" && id) reserved.add(id); });
+  const used = new Set();
+  settings.filaments.forEach((filament) => {
+    let id = typeof filament.id === "string" && filament.id ? filament.id : "";
+    if (!id || used.has(id)) {
+      const base = filamentSlug(filament.name) || "filament";
+      let n = 2;
+      id = base;
+      while (used.has(id) || reserved.has(id)) id = `${base}-${n++}`;
+      filament.id = id;
+    }
+    used.add(filament.id);
+  });
+  if (!settings.roles || typeof settings.roles !== "object") settings.roles = {};
+  Object.keys(settings.roles).forEach((role) => {
+    const value = settings.roles[role];
+    if (typeof value === "number") {
+      const hit = settings.filaments[value];
+      settings.roles[role] = hit ? hit.id : (settings.filaments[0]?.id ?? "");
+    } else if (typeof value !== "string" || !settings.filaments.some((filament) => filament.id === value)) {
+      settings.roles[role] = settings.filaments[0]?.id ?? "";
+    }
+  });
+  return settings;
+}
+
+/** The spool a colour role points at. Falls back to the first spool, as the index-based code did. */
+export function filamentForRole(settings, role) {
+  const filaments = (settings && settings.filaments) || [];
+  const value = settings && settings.roles ? settings.roles[role] : undefined;
+  if (typeof value === "string") {
+    const hit = filaments.find((filament) => filament.id === value);
+    if (hit) return hit;
+  }
+  if (typeof value === "number" && filaments[value]) return filaments[value];
+  return filaments[0];
+}
+
+/** Shelf position of a role's spool. This is the slicer slot/extruder index the server expects. */
+export function slotIndexForRole(settings, role) {
+  const index = ((settings && settings.filaments) || []).indexOf(filamentForRole(settings, role));
+  return index < 0 ? 0 : index;
+}
+
+/** Settings as the Python planner expects them: roles as slot indexes. Stored state keeps ids. */
+export function settingsForApi(settings) {
+  if (!settings) return settings;
+  const copy = JSON.parse(JSON.stringify(settings));
+  const roles = {};
+  Object.keys(copy.roles || {}).forEach((role) => { roles[role] = slotIndexForRole(copy, role); });
+  copy.roles = roles;
+  return copy;
+}
+
+/** Remove a spool by id. Roles that used it fall back to the first remaining spool and are reported. */
+export function removeFilamentById(settings, id) {
+  const filaments = (settings && settings.filaments) || [];
+  if (filaments.length < 2) return null;
+  const index = filaments.findIndex((filament) => filament.id === id);
+  if (index < 0) return null;
+  const [filament] = filaments.splice(index, 1);
+  const fallback = filaments[0]?.id ?? "";
+  const affectedRoles = [];
+  Object.keys(settings.roles || {}).forEach((role) => {
+    if (settings.roles[role] === id) {
+      settings.roles[role] = fallback;
+      affectedRoles.push(role);
+    }
+  });
+  return { filament, index, affectedRoles, fallbackId: fallback };
+}
+
+/** Undo a spool removal. A spool that is back already is not duplicated. An affected role is
+ * pointed back at the restored spool only while it still sits at the removal fallback — a role
+ * the user reassigned since (the UIs also drop it from affectedRoles) is left alone. */
+export function restoreFilament(settings, removed) {
+  if (!settings || !removed || !removed.filament) return settings;
+  if (!Array.isArray(settings.filaments)) settings.filaments = [];
+  if (settings.filaments.some((filament) => filament.id === removed.filament.id)) return settings;
+  const index = Math.max(0, Math.min(removed.index || 0, settings.filaments.length));
+  settings.filaments.splice(index, 0, removed.filament);
+  if (!settings.roles || typeof settings.roles !== "object") settings.roles = {};
+  (removed.affectedRoles || []).forEach((role) => {
+    if (settings.roles[role] === removed.fallbackId) settings.roles[role] = removed.filament.id;
+  });
+  return settings;
+}
+
+/** Parse a settings number field. Empty or non-numeric text is an error, never 0 or NaN. */
+export function parseSettingNumber(raw, options = {}) {
+  const label = options.label || "Value";
+  const text = typeof raw === "string" ? raw.trim() : raw;
+  if (text === "" || text == null) return { ok: false, error: `${label} needs a number.` };
+  const value = Number(text);
+  if (!Number.isFinite(value)) return { ok: false, error: `${label} needs a number.` };
+  if (options.min != null) {
+    if (options.exclusiveMin && value <= options.min) return { ok: false, error: `${label} must be above ${options.min}.` };
+    if (!options.exclusiveMin && value < options.min) return { ok: false, error: `${label} must be at least ${options.min}.` };
+  }
+  if (options.max != null && value > options.max) return { ok: false, error: `${label} must be at most ${options.max}.` };
+  return { ok: true, value };
+}
+
+/** What a printer is currently used for, spelled out before it is removed (#20). Empty when unused. */
+export function printerRemovalNotes(settings, state, plates, printer) {
+  if (!printer) return [];
+  const notes = [];
+  if (printer.enabled !== false) notes.push("enabled");
+  if (settings && settings.mode === printer.id) notes.push("the only printer parts are sent to — export will switch to all printers");
+  else if (printer.enabled !== false && printer.forExport !== false) notes.push("ticked for export");
+  if (state && state.fitTarget === printer.id) notes.push("the fit-check target — fit will switch to every printer");
+  const planned = (plates || []).filter((plate) => plate && plate.printer === printer.id).length;
+  if (planned) notes.push(`${planned} plate${planned === 1 ? "" : "s"} in the current plan — replanning will be needed`);
+  return notes;
+}
+
+/**
+ * Remove a printer, returning it with its position so the UI can offer undo.
+ * Selections that pointed at it (export mode, fit target) are captured so undo can put them back.
+ */
+export function removePrinterById(settings, id, state) {
+  const printers = (settings && settings.printers) || [];
+  const index = printers.findIndex((printer) => printer.id === id);
+  if (index < 0) return null;
+  const [printer] = printers.splice(index, 1);
+  const removed = { printer, index };
+  if (settings.mode === id) removed.mode = id;
+  if (state && state.fitTarget === id) removed.fitTarget = id;
+  return removed;
+}
+
+/** Undo a printer removal. A printer that is back already is not duplicated, and a selection the
+ * user changed since the removal is not overwritten — only one still sitting at the post-removal
+ * fallback ("both" / "every") is restored. */
+export function restorePrinter(settings, removed, state) {
+  if (!settings || !removed || !removed.printer) return settings;
+  if (!Array.isArray(settings.printers)) settings.printers = [];
+  if (settings.printers.some((printer) => printer.id === removed.printer.id)) return settings;
+  const index = Math.max(0, Math.min(removed.index || 0, settings.printers.length));
+  settings.printers.splice(index, 0, removed.printer);
+  if (removed.mode && settings.mode === "both") settings.mode = removed.mode;
+  if (removed.fitTarget && state && state.fitTarget === "every") state.fitTarget = removed.fitTarget;
+  return settings;
+}
+
+/** The designer's TPU parts (springs, tyres) only work in a flexible filament. */
+export function tpuRoleWarning(settings) {
+  const filament = filamentForRole(settings, "tpu");
+  if (!filament) return "";
+  const material = String(filament.material || "").toUpperCase();
+  if (material.includes("TPU") || material.includes("TPE")) return "";
+  return `TPU parts will print in ${filament.material || "a rigid filament"} — springs and tyres need a flexible filament.`;
 }
 
 /** Replace the untouched upstream H2C + Kobra pair with the fleet. A resized or extended list is kept. */
@@ -346,6 +518,7 @@ export function defaultPlannerState(defaults) {
     progress: { layoutKey: "", plates: {}, hardware: {}, assemble: {} },
   };
   legalExportMode(state.settings);
+  ensureFilamentIds(state.settings);
   legalFitTarget(state);
   return state;
 }
@@ -360,7 +533,12 @@ export function loadPlannerState(raw, meta) {
     if (!saved || !saved.stack || !saved.settings) return fresh();
     const blank = JSON.parse(JSON.stringify(defaults));
     saved.settings = { ...blank, ...saved.settings };
-    if (!saved.settings.filaments || saved.settings.filaments.length < 5 || !("box" in (saved.settings.roles || {}))) {
+    // A short shelf used to mean a pre-5-spool legacy save and was reset to defaults. A shelf whose
+    // spools carry stable ids is a current save: the user may have deleted a spool on purpose, and
+    // resetting would resurrect it and wipe their role assignments.
+    const shelf = saved.settings.filaments;
+    const idShelf = Array.isArray(shelf) && shelf.length > 0 && shelf.every((filament) => filament && typeof filament.id === "string" && filament.id);
+    if (!idShelf && (!shelf || shelf.length < 5 || !("box" in (saved.settings.roles || {})))) {
       saved.settings.filaments = blank.filaments;
       saved.settings.roles = blank.roles;
     }
@@ -370,6 +548,10 @@ export function loadPlannerState(raw, meta) {
     }));
     if (!saved.settings.spoolman) saved.settings.spoolman = blank.spoolman || "";
     saved.settings.printers.forEach((printer) => {
+      // Downstream reads maxH as "or z", so a non-positive saved limit (from ticking
+      // "No tall parts" on a printer with z <= 1) means no limit. Write that back
+      // before the server's positive-dimension check can reject every request.
+      if (printer.maxH != null && !(printer.maxH > 0)) printer.maxH = printer.z;
       if (printer.id === "h2c" && printer.bed && printer.bed[0] === 330) {
         printer.bed = [325, 320];
         printer.z = 320;
@@ -402,6 +584,7 @@ export function loadPlannerState(raw, meta) {
     saved.progress.hardware = saved.progress.hardware || {};
     saved.progress.assemble = saved.progress.assemble || {};
     legalExportMode(saved.settings);
+    ensureFilamentIds(saved.settings);
     legalFitTarget(saved);
     return saved;
   } catch {

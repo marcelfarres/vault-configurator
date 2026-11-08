@@ -1,4 +1,4 @@
-import { catalogChoicesFor, depthLabel } from "../../planner.mjs";
+import { catalogChoicesFor, depthLabel, filamentForRole } from "../../planner.mjs";
 import type { Filament, Settings } from "./types";
 
 export const ROLE_SHORT: Record<string, string> = {
@@ -77,13 +77,11 @@ export function patternName(value: string | number): string {
 }
 
 export function roleColor(settings: Settings, role: string): string {
-  const index = settings.roles?.[role] ?? 0;
-  return settings.filaments?.[index]?.color || "#c9ccd0";
+  return filamentAt(settings, role)?.color || "#c9ccd0";
 }
 
 export function filamentAt(settings: Settings, role: string): Filament | undefined {
-  const index = settings.roles?.[role] ?? 0;
-  return settings.filaments?.[index];
+  return filamentForRole(settings, role) as Filament | undefined;
 }
 
 export function fmtH(sec: number): string {

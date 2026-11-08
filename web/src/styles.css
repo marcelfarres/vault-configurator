@@ -292,6 +292,10 @@
   p.warn { background: var(--warn-bg); }
   p.bad { background: var(--bad-bg); }
   p.ok { background: var(--ok-bg); }
+  .num-field { display: inline-flex; flex-direction: column; gap: 0.15rem; }
+  .field-error { color: var(--bad); font-size: 0.8rem; }
+  input[aria-invalid="true"] { border-color: var(--bad); }
+  .confirm-remove { display: inline-flex; gap: 0.35rem; flex-wrap: wrap; }
   .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; }
 
   .tabs {
@@ -578,6 +582,8 @@
   .piece-card:hover {
     border-color: var(--teal);
   }
+  .piece-card:disabled { opacity: 0.55; cursor: default; }
+  .piece-card:disabled:hover { border-color: transparent; }
 
   .table-wrap {
     overflow-x: auto;

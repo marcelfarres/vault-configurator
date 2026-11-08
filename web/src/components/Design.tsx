@@ -1,6 +1,6 @@
 import { footprintLine } from "../../../planner.mjs";
 import { HELP } from "../help";
-import { INTERIOR_LABEL, LAYOUT_LABEL, ROOF_LABEL, depthOptionLabel, labeledChoices, layerTitle, patternName } from "../labels";
+import { INTERIOR_LABEL, LAYOUT_LABEL, ROOF_LABEL, depthOptionLabel, labeledChoices, layerTitle, patternName, roleColor } from "../labels";
 import { facadeCatalog, heightCatalog, layerFitNotes, layoutCatalog } from "../stack";
 import { usePlanner } from "../store";
 import type { Layer } from "../types";
@@ -385,7 +385,7 @@ function PartsInStack() {
       {!bom?.parts?.length ? <p className="note">Add a layer. Quantities, size and time show up here.</p> : (
         bom.parts.map((part) => (
           <div key={`${part.group}|${part.name}`} className="partline">
-            <span className="swatch" style={{ background: state.settings.filaments[state.settings.roles[part.role] ?? 0]?.color || "#ccc" }} />
+            <span className="swatch" style={{ background: roleColor(state.settings, part.role) }} />
             <div>
               <strong>{part.qty}× {part.name}</strong>
               <div className="note">{part.group} · {part.size ? part.size.map((value) => Number(value).toFixed(1)).join("×") : "?"} mm · {part.seconds != null ? `${Math.round(part.seconds / 60)} min` : "time ?"}</div>

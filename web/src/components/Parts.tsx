@@ -1,5 +1,5 @@
-import { partFitsScope, scopeLabel, spoolLabel, visiblePartRows } from "../../../planner.mjs";
-import { ROLE_SHORT, fmtH, roleColor } from "../labels";
+import { partFitsScope, scopeLabel, spoolLabel, tpuRoleWarning, visiblePartRows } from "../../../planner.mjs";
+import { ROLE_SHORT, filamentAt, fmtH, roleColor } from "../labels";
 import { usePlanner } from "../store";
 import type { PartLine } from "../types";
 
@@ -37,14 +37,15 @@ export function Parts() {
                 <span className="visually-hidden">{ROLE_SHORT[role] || role} filament</span>
                 <select
                   aria-label={`${ROLE_SHORT[role] || role} filament`}
-                  value={String(state.settings.roles[role] ?? 0)}
-                  onChange={(event) => patch((draft) => { draft.settings.roles[role] = Number(event.target.value); })}
+                  value={filamentAt(state.settings, role)?.id || ""}
+                  onChange={(event) => patch((draft) => { draft.settings.roles[role] = event.target.value; })}
                 >
-                  {state.settings.filaments.map((filament, index) => (
-                    <option key={index} value={index}>{spoolLabel(filament)}</option>
+                  {state.settings.filaments.map((filament) => (
+                    <option key={filament.id || filament.name} value={filament.id || ""}>{spoolLabel(filament)}</option>
                   ))}
                 </select>
               </label>
+              {role === "tpu" && tpuRoleWarning(state.settings) ? <span className="warn" role="alert">{tpuRoleWarning(state.settings)}</span> : null}
             </div>
           );
         })}
@@ -60,12 +61,15 @@ export function Parts() {
               type="button"
               className="piece-card"
               key={row.sample.name}
-              onClick={() => row.sample.file && store.openViewer(row.sample.file, row.sample.name, roleColor(state.settings, row.role))}
+              disabled={!row.sample.file}
+              title={row.sample.file ? `View ${row.sample.name} in 3D` : "File missing from the archive"}
+              aria-label={row.sample.file ? `View ${row.sample.name} in 3D` : `${row.sample.name} — file missing`}
+              onClick={(event) => row.sample.file && store.openViewer(row.sample.file, row.sample.name, roleColor(state.settings, row.role), event.currentTarget)}
             >
               <span className="swatch" style={{ background: roleColor(state.settings, row.role) }} />
               <span>
                 <strong>{row.sample.name}</strong>
-                <span className="note">{ROLE_SHORT[row.role] || row.role}</span>
+                <span className="note">{row.sample.file ? (ROLE_SHORT[row.role] || row.role) : "file missing"}</span>
               </span>
               <span>×{row.qty}</span>
             </button>

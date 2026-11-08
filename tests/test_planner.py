@@ -336,6 +336,33 @@ def test_unknown_height_becomes_one():
     assert judged["layers"][0]["reasons"] == []
 
 
+def test_settings_reject_nonpositive_dimensions():
+    base = {"settings": {"printers": [{"id": "p1", "name": "Shop printer", "bed": [220, 220], "z": 250}]}}
+    assert server.settings_of(base)["printers"][0]["bed"] == [220, 220]
+    for bad, needle in [
+        ({"settings": {"printers": [{"id": "p1", "name": "Shop printer", "bed": [0, 220], "z": 250}]}}, "Shop printer"),
+        ({"settings": {"printers": [{"id": "p1", "name": "Shop printer", "bed": [220, 220], "z": -1}]}}, "Z"),
+        ({"settings": {"spacing": -2}}, "spacing"),
+        ({"settings": {"wallMm": 0}}, "wallMm"),
+        ({"settings": {"printers": [{"id": "p1", "name": "Shop printer", "bed": ["wide", 220], "z": 250}]}}, "Shop printer"),
+        ({"settings": {"density": float("inf")}}, "density"),
+        ({"settings": {"infill": float("inf")}}, "infill"),
+        ({"settings": {"printers": [{"id": "p1", "name": "Shop printer", "bed": [float("inf"), 220], "z": 250}]}}, "Shop printer"),
+        ({"settings": {"density": None}}, "density"),
+        ({"settings": {"infill": None}}, "infill"),
+        ({"settings": {"infill": 2}}, "infill"),
+        ({"settings": {"printers": [{"id": "p1", "name": "Shop printer", "bed": ["220", 220], "z": 250}]}}, "Shop printer"),
+        ({"settings": {"spacing": "6"}}, "spacing"),
+        ({"settings": {"density": True}}, "density"),
+    ]:
+        try:
+            server.settings_of(bad)
+        except ValueError as err:
+            assert needle in str(err), str(err)
+        else:
+            raise AssertionError(f"settings_of accepted {bad}")
+
+
 if __name__ == "__main__":
     test_quantities()
     test_unknown_height_becomes_one()
@@ -344,4 +371,5 @@ if __name__ == "__main__":
     test_export_for_does_not_change_fit_scope()
     test_handoff_policy()
     test_server_hides_archive_path_and_rejects_open()
+    test_settings_reject_nonpositive_dimensions()
     print("test_planner ok")

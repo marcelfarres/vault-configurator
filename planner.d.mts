@@ -88,7 +88,7 @@ type SettingsBlob = {
   edge: number;
   groupBy: string;
   filaments: FilamentBlob[];
-  roles: Record<string, number>;
+  roles: Record<string, string>;
   kindRoles: Record<string, string>;
   wallMm: number;
   infill: number;
@@ -113,6 +113,7 @@ type PrinterBlob = ExportPrinter & {
 };
 
 type FilamentBlob = {
+  id?: string;
   name: string;
   color: string;
   material: string;
@@ -146,6 +147,17 @@ export const THEME_STORAGE_KEY: string;
   export function catalogChoicesFor(name: string, spec: ChoiceSpec): ChoiceResult;
   export function loadPlannerState(raw: string | null, meta: unknown): PlannerBlob;
   export function defaultPlannerState(defaults: unknown): PlannerBlob;
+  export function ensureFilamentIds<T extends { filaments?: FilamentBlob[]; roles?: Record<string, unknown> }>(settings: T | null | undefined, extraReserved?: string[]): T;
+  export function filamentForRole(settings: { filaments?: FilamentBlob[]; roles?: Record<string, unknown> } | null | undefined, role: string): FilamentBlob | undefined;
+  export function slotIndexForRole(settings: { filaments?: FilamentBlob[]; roles?: Record<string, unknown> } | null | undefined, role: string): number;
+  export function settingsForApi<T extends { roles?: Record<string, unknown> } | null | undefined>(settings: T): T extends object ? Omit<T, "roles"> & { roles: Record<string, number> } : T;
+  export function removeFilamentById(settings: { filaments?: FilamentBlob[]; roles?: Record<string, unknown> } | null | undefined, id: string): { filament: FilamentBlob; index: number; affectedRoles: string[]; fallbackId: string } | null;
+  export function restoreFilament<T extends { filaments?: FilamentBlob[]; roles?: Record<string, unknown> }>(settings: T, removed: { filament: FilamentBlob; index: number; affectedRoles?: string[]; fallbackId?: string } | null | undefined): T;
+  export function parseSettingNumber(raw: unknown, options?: { label?: string; min?: number; exclusiveMin?: boolean; max?: number }): { ok: true; value: number } | { ok: false; error: string };
+  export function printerRemovalNotes(settings: { mode?: string } | null | undefined, state: { fitTarget?: string } | null | undefined, plates: Array<{ printer?: string }> | null | undefined, printer: PrinterBlob | null | undefined): string[];
+  export function removePrinterById(settings: { printers?: PrinterBlob[]; mode?: string } | null | undefined, id: string, state?: { fitTarget?: string } | null): { printer: PrinterBlob; index: number; mode?: string; fitTarget?: string } | null;
+  export function restorePrinter<T extends { printers?: PrinterBlob[]; mode?: string }>(settings: T, removed: { printer: PrinterBlob; index: number; mode?: string; fitTarget?: string } | null | undefined, state?: { fitTarget?: string } | null): T;
+  export function tpuRoleWarning(settings: { filaments?: FilamentBlob[]; roles?: Record<string, unknown> } | null | undefined): string;
   export function reconcileProgress(progress: unknown, fingerprint: string, plates: unknown, hardware: unknown, assemble: unknown): { progress: ProgressBlob; note: string };
   export function plateKey(plate: { printer?: string; slots?: number[]; items?: Array<{ part?: string; x?: number; y?: number; rot?: number }> }): string;
   export function partFitsScope(part: { file?: string | null; fits?: Record<string, boolean> } | null, ids: string[]): "missing" | "fits" | "unfit" | "unknown";
