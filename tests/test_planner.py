@@ -363,6 +363,23 @@ def test_settings_reject_nonpositive_dimensions():
             raise AssertionError(f"settings_of accepted {bad}")
 
 
+def test_export_refuses_missing_files():
+    real = server.compute_bom
+    settings = {"printers": [{"id": "p1", "name": "Shop printer", "bed": [220, 220], "z": 250}]}
+    bom = {"parts": [{"name": "S5 Module 2F", "qty": 2, "file": "", "group": "L1 Drawers", "role": "main"},
+                     {"name": "Key Cap", "qty": 1, "file": "cap.stl", "group": "L1 Drawers", "role": "knob"}],
+           "hardware": [], "warnings": []}
+    server.compute_bom = lambda body: (bom, settings)
+    try:
+        server.EXPORT.clear()
+        server.run_export({"stack": {"name": "missing-check"}, "settings": settings, "overrides": {}}, False)
+    finally:
+        server.compute_bom = real
+    assert not server.EXPORT.get("result"), server.EXPORT
+    error = server.EXPORT.get("error") or ""
+    assert "2 pieces have no file in the archive" in error and "S5 Module 2F" in error, error
+
+
 if __name__ == "__main__":
     test_quantities()
     test_unknown_height_becomes_one()
@@ -372,4 +389,5 @@ if __name__ == "__main__":
     test_handoff_policy()
     test_server_hides_archive_path_and_rejects_open()
     test_settings_reject_nonpositive_dimensions()
+    test_export_refuses_missing_files()
     print("test_planner ok")

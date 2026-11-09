@@ -145,6 +145,11 @@ export function partFitsScope(part, ids) {
   return ids.every((id) => part.fits[id]) ? "fits" : "unfit";
 }
 
+/** BOM lines that need a file the archive does not have. They cannot be planned or exported. */
+export function missingFileLines(parts) {
+  return (parts || []).filter((part) => part && !part.file && Number(part.qty || 0) > 0);
+}
+
 /**
  * Layer warning text. A fit matrix owns the sentence, including when `reasons` is empty.
  * Without a matrix, the page falls back to part fit.

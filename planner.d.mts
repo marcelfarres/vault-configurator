@@ -161,6 +161,7 @@ export const THEME_STORAGE_KEY: string;
   export function reconcileProgress(progress: unknown, fingerprint: string, plates: unknown, hardware: unknown, assemble: unknown): { progress: ProgressBlob; note: string };
   export function plateKey(plate: { printer?: string; slots?: number[]; items?: Array<{ part?: string; x?: number; y?: number; rot?: number }> }): string;
   export function partFitsScope(part: { file?: string | null; fits?: Record<string, boolean> } | null, ids: string[]): "missing" | "fits" | "unfit" | "unknown";
+  export function missingFileLines(parts: Array<{ file?: string | null; qty?: number }> | null | undefined): Array<{ file?: string | null; qty?: number }>;
   export function layerNotes(layerEntry: { reasons?: string[] } | null, parts: unknown, ids: string[], layerNumber: number): string[];
   export function depthLabel(depth: number | string): string;
   export function checkedCount(progress: ProgressBlob | null | undefined): { plates: number; hardware: number; assemble: number };

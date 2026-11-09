@@ -295,6 +295,13 @@ def run_export(body, test):
     t = time.time()
     try:
         bom, s = compute_bom(body)
+        if not test:
+            # A main export with missing files would silently ship an incomplete cart.
+            missing = plates.missing_file_lines(bom["parts"])
+            if missing:
+                pieces = sum(int(line["qty"]) for line in missing)
+                raise ValueError(f"{pieces} pieces have no file in the archive (first: {missing[0]['name']}). "
+                                 "Nothing was exported. Point the planner at your VAULT folder.")
         name = re.sub(r"[^A-Za-z0-9_-]+", "-", body["stack"].get("name") or "vault-stack").strip("-") or "vault-stack"
         out = os.path.join(HERE, "output", name)
 
@@ -302,11 +309,17 @@ def run_export(body, test):
             EXPORT.update({"percent": round(pct), "msg": msg})
         if test:
             pr = plates.plan_tests(bom["parts"], s, body.get("kinds") or [], stats_fn)
-            files = plates.export(pr, s, out, ROOT, stats_fn, stack_name=name, suffix="_TEST", progress=progress)
-            extra = []
         else:
             pr = plates.plan(bom["parts"], s, stats_fn)
-            files = plates.export(pr, s, out, ROOT, stats_fn, stack_name=name, progress=progress)
+        if not pr["plates"]:
+            first = pr["unplaceable"][0]["name"] if pr.get("unplaceable") else None
+            raise ValueError("No test plates could be planned for the selected part groups. Nothing was exported."
+                             if test else
+                             f"No plates could be planned{': ' + first + ' does not fit an export printer' if first else ''}. Nothing was exported.")
+        files = plates.export(pr, s, out, ROOT, stats_fn, stack_name=name, suffix="_TEST" if test else "", progress=progress)
+        if test:
+            extra = []
+        else:
             extra = [os.path.join(out, "BOM.md"), os.path.join(out, "stack.json")]
             write_bom_md(extra[0], body["stack"], bom, pr, s)
             with open(extra[1], "w", encoding="utf-8") as f:

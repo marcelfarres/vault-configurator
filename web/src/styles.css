@@ -609,6 +609,7 @@
   }
   .piece-card:disabled { opacity: 0.55; cursor: default; }
   .piece-card:disabled:hover { border-color: transparent; }
+  .btn:disabled { opacity: 0.55; cursor: default; }
 
   .table-wrap {
     overflow-x: auto;

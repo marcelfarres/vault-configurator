@@ -566,6 +566,7 @@ test("the Plates footer does not count files exported for an earlier build", asy
     stack: { name: "my-vault", depth: 5, layers: [layer], roof: { type: "none", topHandle: true }, mods: { backbone: "none", pegboard: "none" } },
     settings: meta.defaults,
   }));
+  stubBom([{ group: "L1 Drawer", name: "Box", qty: 1, role: "main", file: "box.stl", kind: "module" }], []);
   const base = vi.mocked(fetch).getMockImplementation()!;
   vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo, init?: RequestInit) => {
     const url = String(input);
@@ -596,6 +597,7 @@ test("an export that finishes after the build changed does not overwrite the new
     settings: meta.defaults,
   }));
   let releaseStatus: (() => void) | undefined;
+  stubBom([{ group: "L1 Drawer", name: "Box", qty: 1, role: "main", file: "box.stl", kind: "module" }], []);
   const base = vi.mocked(fetch).getMockImplementation()!;
   vi.stubGlobal("fetch", vi.fn((input: RequestInfo, init?: RequestInit) => {
     const url = String(input);
@@ -634,6 +636,7 @@ test("a test-plate export neither replaces the stack plan nor counts as the stac
     stack: { name: "my-vault", depth: 5, layers: [layer], roof: { type: "none", topHandle: true }, mods: { backbone: "none", pegboard: "none" } },
     settings: meta.defaults,
   }));
+  stubBom([{ group: "L1 Drawer", name: "Box", qty: 1, role: "main", file: "box.stl", kind: "module" }], []);
   const base = vi.mocked(fetch).getMockImplementation()!;
   vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo, init?: RequestInit) => {
     const url = String(input);
@@ -653,6 +656,72 @@ test("a test-plate export neither replaces the stack plan nor counts as the stac
   // Changing the picked test groups makes those files an earlier selection.
   await user.click(screen.getByRole("checkbox", { name: "module" }));
   expect(screen.getByText(/test plates exported for an earlier selection/)).toBeInTheDocument();
+});
+
+test("Plates blocks export and says why when part files are missing from the archive", async () => {
+  const user = userEvent.setup();
+  const layer = {
+    type: "Drawers", layout: "S", height: 2, facades: [[2]], interior: "none", key: "key",
+    labels: true, rails: false, manualSupports: false, variant: "Flat", baseplate: false,
+    gridW: 1, gridD: 1, divW: 1, divD: 2,
+  };
+  localStorage.setItem("vault-configurator", JSON.stringify({
+    tab: "plates",
+    stack: { name: "my-vault", depth: 5, layers: [layer], roof: { type: "none", topHandle: true }, mods: { backbone: "none", pegboard: "none" } },
+    settings: meta.defaults,
+  }));
+  stubBom(
+    [
+      { group: "L1 Drawer", name: "Box", qty: 2, role: "box", file: "box.stl", kind: "module" },
+      { group: "L1 Drawer", name: "S5 Module 2F", qty: 3, role: "main", file: "", kind: "module" },
+    ],
+    [],
+  );
+  render(<App />);
+  await screen.findByRole("heading", { name: "Plates & export" });
+  expect(await screen.findByText(/3 pieces have no file in the archive, so nothing can be exported yet/)).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Export 3MF" })).toBeDisabled();
+  await user.click(screen.getByRole("button", { name: "Point the planner at your VAULT folder" }));
+  expect(await screen.findByRole("heading", { name: "Compose your stack" })).toBeInTheDocument();
+});
+
+test("Plates explains an empty stack instead of leaving Preview and Export unexplained", async () => {
+  localStorage.setItem("vault-configurator", JSON.stringify({
+    tab: "plates",
+    stack: { name: "my-vault", depth: 5, layers: [], roof: { type: "none", topHandle: true }, mods: { backbone: "none", pegboard: "none" } },
+    settings: meta.defaults,
+  }));
+  render(<App />);
+  await screen.findByRole("heading", { name: "Plates & export" });
+  expect(screen.getByText("Nothing to export yet — add a layer on Design.")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Export 3MF" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Preview plates" })).toBeDisabled();
+});
+
+test("removing the last layer disables Preview and Export before the BOM catches up", async () => {
+  const user = userEvent.setup();
+  const layer = {
+    type: "Drawers", layout: "S", height: 2, facades: [[2]], interior: "none", key: "key",
+    labels: true, rails: false, manualSupports: false, variant: "Flat", baseplate: false,
+    gridW: 1, gridD: 1, divW: 1, divD: 2,
+  };
+  localStorage.setItem("vault-configurator", JSON.stringify({
+    tab: "stack",
+    stack: { name: "my-vault", depth: 5, layers: [layer], roof: { type: "none", topHandle: true }, mods: { backbone: "none", pegboard: "none" } },
+    settings: meta.defaults,
+  }));
+  stubBom([{ group: "L1 Drawer", name: "Box", qty: 1, role: "main", file: "box.stl", kind: "module" }], []);
+  render(<App />);
+  await screen.findByRole("heading", { name: "Compose your stack" });
+  await user.click(screen.getByRole("tab", { name: "3 Plates" }));
+  await waitFor(() => expect(screen.getByRole("button", { name: "Export 3MF" })).toBeEnabled());
+  await user.click(screen.getByRole("tab", { name: "1 Design" }));
+  // Synchronous clicks: the debounced BOM clear has not run yet, so the old BOM still has parts.
+  fireEvent.click(screen.getByRole("button", { name: "Remove S drawer" }));
+  fireEvent.click(screen.getByRole("tab", { name: "3 Plates" }));
+  expect(screen.getByText("Nothing to export yet — add a layer on Design.")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Export 3MF" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Preview plates" })).toBeDisabled();
 });
 
 test("a test-plate group removed from the stack no longer enables export", async () => {

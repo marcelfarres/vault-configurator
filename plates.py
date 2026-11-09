@@ -339,6 +339,11 @@ def printers_for_export(settings):
     return printers
 
 
+def missing_file_lines(parts):
+    """BOM lines that need a file the archive does not have. They cannot be planned or exported."""
+    return [line for line in parts if int(line.get("qty", 0)) > 0 and not line.get("file")]
+
+
 def plan(parts, settings, stats_fn):
     """parts: BOM lines (with qty). Returns plates and per-part fit info.
 
@@ -715,6 +720,7 @@ if __name__ == "__main__":  # self-check on synthetic parts
     parts = [{"name": "A", "file": "a", "qty": 5, "role": "main", "group": "g1"},
              {"name": "B", "file": "b", "qty": 1, "role": "accent", "group": "g1"},
              {"name": "C", "file": "c", "qty": 1, "role": "main", "group": "g1"}]
+    assert [l["name"] for l in missing_file_lines(parts + [{"name": "M", "file": "", "qty": 3}, {"name": "Z", "file": "", "qty": 0}])] == ["M"]  # qty-0 and filed lines are not missing
     r = plan(parts, {**legacy, "mode": "kobrax"}, lambda f: stats[f])
     assert r["unplaceable"] and r["unplaceable"][0]["name"] == "C"          # taller than the Kobra's 120 mm part limit
     assert sum(len(p["items"]) for p in r["plates"]) == 6

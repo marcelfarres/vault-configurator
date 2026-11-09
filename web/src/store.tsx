@@ -537,7 +537,7 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
               setExportFiles(report.result.files || []);
               setExportSig(requestKey);
               setExportMain(path === "/api/export");
-              setExportStatus(`done in ${report.result.seconds}s`);
+              setExportStatus(report.result.files?.length ? `done in ${report.result.seconds}s` : "Export produced no files.");
               if (meta.handoff === "none") {
                 const link = document.createElement("a");
                 link.href = "/api/download";
