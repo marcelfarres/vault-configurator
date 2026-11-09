@@ -445,12 +445,21 @@
 
   .layer-row .name {
     flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
     text-align: start;
     background: transparent;
     border: none;
     padding: 0.35rem 0.2rem;
     min-block-size: 2.25rem;
     font-weight: 500;
+  }
+
+  .layer-summary {
+    font-size: 0.86rem;
+    font-weight: 400;
+    color: var(--muted-foreground);
   }
 
   .icon-btn {
@@ -531,9 +540,65 @@
   }
 
   .cabinet {
-    inline-size: min(100%, 280px);
-    block-size: auto;
+    /* Height-driven: the drawing's box is its own shape at any stack height.
+       The 27rem reservation leaves the sticky column room for the Preview
+       chrome and Help's floor, so the Help heading stays on screen. */
+    block-size: 480px;
+    block-size: min(480px, max(140px, calc(100dvh - 27rem)));
+    inline-size: auto;
+    max-inline-size: 100%;
     color: var(--preview-frame);
+  }
+
+  /* The drawing and Help stick in the side column while editing. The column
+     takes the viewport height; the disclosure and Help scroll inside their
+     own boxes with whatever height remains — so neither can push the other
+     out of view. Two-column layout only. */
+  @media (min-width: 901px) {
+    .col.side {
+      position: sticky;
+      top: 1rem;
+      block-size: calc(100dvh - 2rem);
+    }
+
+    .preview-card {
+      flex: none;
+    }
+
+    /* The drawing budget sets the frame height here; the 240px floor would
+       silently eat Help's share at short window heights. */
+    .canvas {
+      min-block-size: 0;
+    }
+
+    /* The open disclosure is height-budgeted like the drawing (flex shrink
+       does not reach inside <details>), and the drawing steps down while it
+       is open — together they leave Help its floor at any stack size. */
+    .callouts-scroll {
+      overflow-y: auto;
+      max-block-size: max(2.25rem, calc(100dvh - 44rem));
+    }
+
+    .preview-card:has(details[open]) .cabinet {
+      block-size: min(300px, max(90px, calc(100dvh - 32rem)));
+    }
+
+    #help {
+      /* Shrinks + scrolls internally with whatever height the budgets above
+         leave (a non-zero min-block-size floors at content height instead). */
+      min-block-size: 0;
+      overflow-y: auto;
+    }
+  }
+
+  #help h3 {
+    font-size: 1rem;
+    font-weight: 600;
+  }
+
+  #help img {
+    max-inline-size: 100%;
+    block-size: auto;
   }
 
   .badges {

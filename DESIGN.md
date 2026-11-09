@@ -239,7 +239,7 @@ A top bar, a numbered step nav, then a single page column.
 
 - **Container:** the page content is capped at 1180px with 1.25rem side padding, left-aligned (not centred), which keeps long rows scannable on wide monitors.
 - **Top bar:** one wrapping flex row with `0.55rem 0.75rem` gaps. Brand and project name, Save, Load, enabled printers, filament dots and count, fit controls, then Settings pushed to the far end. It wraps rather than collapses.
-- **Compose layout:** a two-column grid, `minmax(0, 1.2fr) minmax(280px, 0.8fr)` with a 1rem gap. Controls take the wide column; the live Preview card takes the narrow one.
+- **Compose layout:** a two-column grid, `minmax(0, 1.2fr) minmax(280px, 0.8fr)` with a 1rem gap. Controls take the wide column; the narrow side column (Preview, then Help) sticks while editing, its drawing scaled to a height budget so any stack height gets the same anchor.
 - **Collections:** part pieces use `repeat(auto-fit, minmax(180px, 1fr))` at 0.6rem; plate cards use `minmax(240px, 1fr)` at 0.8rem. Settings is an 11rem nav plus a content column.
 - **Spacing rhythm:** a small even set rather than a strict scale: 0.35rem (inside a control group), 0.65rem (between related rows), 1rem (between cards and columns), 1.25rem (page edge). Rows divide with a Hairline border, not extra whitespace.
 - **Control height:** buttons, fields and checks are 2.25rem tall, tabs 2.5rem, chips 1.7rem. Touch targets are not the goal; consistent rhythm is.

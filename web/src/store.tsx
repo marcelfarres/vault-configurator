@@ -49,6 +49,7 @@ type Store = {
   status: string;
   exportStatus: string;
   helpTopic: string;
+  helpSerial: number;
   showHelp: (topic: string) => void;
   expandedLayer: number | null;
   setExpandedLayer: (index: number | null) => void;
@@ -167,6 +168,7 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState("");
   const [exportStatus, setExportStatus] = useState("");
   const [helpTopic, setHelpTopic] = useState("");
+  const [helpSerial, setHelpSerial] = useState(0);
   const [expandedLayer, setExpandedLayer] = useState<number | null>(null);
   const [viewer, setViewer] = useState<Store["viewer"]>(null);
   const [importStatus, setImportStatus] = useState("");
@@ -368,9 +370,11 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
       status,
       exportStatus,
       helpTopic,
+      helpSerial,
       showHelp: (topic) => {
         if (stateRef.current?.help === false) return;
         setHelpTopic(topic);
+        setHelpSerial((serial) => serial + 1);
       },
       expandedLayer,
       setExpandedLayer,
@@ -597,7 +601,7 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
       },
     };
     return value;
-  }, [archive, bom, bomSig, bootError, expandedLayer, exportFiles, exportMain, exportSig, exportStatus, helpTopic, importStatus, meta, plan, planNote, presetStatus, presets, ready, removedPrinter, settingsOpen, settingsSection, spoolStatus, spools, stackFileStatus, state, status, theme, viewer]);
+  }, [archive, bom, bomSig, bootError, expandedLayer, exportFiles, exportMain, exportSig, exportStatus, helpSerial, helpTopic, importStatus, meta, plan, planNote, presetStatus, presets, ready, removedPrinter, settingsOpen, settingsSection, spoolStatus, spools, stackFileStatus, state, status, theme, viewer]);
 
   if (bootError && !api) return <p className="boot-error">{bootError}</p>;
   return <Ctx.Provider value={api}>{children}</Ctx.Provider>;

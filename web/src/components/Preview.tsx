@@ -62,13 +62,14 @@ export function Preview() {
         </div>
       ) : null}
       <p className="mono note">{width.toFixed(1)} × {depth} × {totalMm.toFixed(1)} mm · W × D × H</p>
+      <details>
+        <summary>Elevation and part callouts</summary>
+      <div className="callouts-scroll">
       <div className="callouts">
         {callouts.map((part) => (
           <p key={`${part.group}-${part.name}`} className="note">{part.qty}× {part.name}{part.size ? ` · ${part.size.map((value) => Math.round(value)).join("×")} mm` : ""}</p>
         ))}
       </div>
-      <details>
-        <summary>Elevation and part callouts</summary>
         {topFirst.map((layer, visual) => {
           const index = layers.length - 1 - visual;
           const parts = (bom?.parts || []).filter((part) => String(part.group || "").startsWith(`L${index + 1}`));
@@ -79,6 +80,7 @@ export function Preview() {
             </div>
           );
         })}
+      </div>
       </details>
     </section>
   );
