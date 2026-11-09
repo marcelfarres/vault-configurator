@@ -44,6 +44,8 @@ assert.deepEqual(missingFileLines([{ file: "a", qty: 2 }, { file: "", qty: 3 }, 
 assert.deepEqual(missingFileLines(null), []);
 assert.deepEqual(layerNotes({ reasons: [] }, [{ group: "L1 · S", name: "Box", qty: 1, file: "a", fits: { u1: false } }], ["u1"], 1), []);
 assert.deepEqual(layerNotes({ reasons: ["L1 · too wide"] }, [], [], 1), ["L1 · too wide"]);
+assert.deepEqual(layerNotes({ reasons: ["L1 Drawers: file not found: Box", "L1 Drawers: file not found: Lid", "L1 Drawers: 1× Roof is 272.0 mm tall, over U1's 270 mm limit"] }, [], [], 1), ["L1 Drawers: 1× Roof is 272.0 mm tall, over U1's 270 mm limit", "2 part files missing from the archive"]);
+assert.deepEqual(layerNotes(null, [{ group: "L1 · S", name: "Box", qty: 1, file: "" }, { group: "L1 · S", name: "Lid", qty: 1, file: null }], ["u1"], 1), ["2 part files missing from the archive"]);
 assert.deepEqual(layerNotes(null, [{ group: "L1 · S", name: "Box", qty: 2, file: "a", fits: { u1: false } }], ["u1"], 1), ["2× Box does not fit"]);
 
 const fleet = [{ id: "u1", bed: [270, 270] }];

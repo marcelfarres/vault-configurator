@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { printerLabel } from "../../../planner.mjs";
 import { usePlanner } from "../store";
 import type { TabId } from "../types";
@@ -14,6 +15,9 @@ export function Header() {
   const store = usePlanner();
   const { state, patch } = store;
   const enabled = state.settings.printers.filter((printer) => printer.enabled !== false);
+  const [saved, setSaved] = useState(false);
+  const savedTimer = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(savedTimer.current), []);
   return (
     <header className="topbar">
       <div className="brand">
@@ -27,12 +31,17 @@ export function Header() {
           })}
         />
       </div>
-      <button type="button" className="btn" onClick={store.saveProject}>Save</button>
+      <button type="button" className="btn" onClick={() => {
+        store.saveProject();
+        setSaved(true);
+        window.clearTimeout(savedTimer.current);
+        savedTimer.current = window.setTimeout(() => setSaved(false), 2000);
+      }}>{saved ? "Saved" : "Save"}</button>
       <details className="load">
         <summary className="btn">Load</summary>
         <div className="menu">
-          <p className="note">Named projects stay in this browser. Save project keeps a copy here. Save stack on Plates writes a file you can move.</p>
-          <button type="button" disabled={!state.activeProjectId} onClick={() => store.loadProject("")}>working copy</button>
+          <p className="note">Named projects stay in this browser. Save keeps a named copy here; the working copy autosaves as you go. Save stack on Plates writes a file you can move.</p>
+          <button type="button" disabled={!state.activeProjectId} onClick={() => store.loadProject("")}>Working copy</button>
           {state.projects.map((project) => (
             <button type="button" key={project.id} onClick={() => store.loadProject(project.id)}>{project.name || "untitled"}</button>
           ))}
@@ -49,7 +58,7 @@ export function Header() {
           }}>Delete saved</button>
         </div>
       </details>
-      <span className="muted" id="enabled-printers">Enabled</span>
+      <span className="muted" id="enabled-printers">Enabled printers</span>
       <span className="fleet" role="group" aria-labelledby="enabled-printers">
         {enabled.length ? enabled.map((printer) => (
           <span className="status-chip" key={printer.id}>{printerLabel(printer)}</span>

@@ -125,7 +125,9 @@ export function Parts() {
                     <td>{part.grams != null ? Math.round(part.grams) : "?"}</td>
                     <td>{part.seconds != null ? fmtH(part.seconds) : "?"}</td>
                     <td className="mono">{part.size ? part.size.map((value) => Math.round(value)).join("×") : "?"}</td>
-                    <td className={fit === "fits" ? "ok" : "bad"}>{fit === "fits" ? `fits ${who}` : fit === "missing" ? "file missing" : `does not fit ${who}`}</td>
+                    <td className={fit === "fits" ? "ok" : fit === "unknown" ? undefined : "bad"}>
+                      {fit === "fits" ? `fits ${who}` : fit === "missing" ? "file missing" : fit === "unfit" ? `does not fit ${who}` : "fit not checked"}
+                    </td>
                   </tr>
                 );
               })}

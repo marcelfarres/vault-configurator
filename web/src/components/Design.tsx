@@ -1,5 +1,5 @@
 import { flushSync } from "react-dom";
-import { footprintLine } from "../../../planner.mjs";
+import { footprintLine, partFitsScope } from "../../../planner.mjs";
 import { HELP } from "../help";
 import { INTERIOR_LABEL, LAYOUT_LABEL, ROOF_LABEL, depthOptionLabel, heightLabel, labeledChoices, layerTitle, patternName, roleColor, stackHeightMm } from "../labels";
 import { facadeCatalog, heightCatalog, isMisfitNote, layerFitNotes, layoutCatalog } from "../stack";
@@ -413,22 +413,26 @@ function HelpCard() {
 
 function PartsInStack() {
   const { bom, state } = usePlanner();
+  const ids = (bom?.judged?.printers || []).map((printer) => printer.id);
   return (
             <section className="card spaced">
       <h2>Parts in this stack</h2>
       {!bom?.parts?.length ? <p className="note">Add a layer. Quantities, size and time show up here.</p> : (
-        bom.parts.map((part) => (
+        bom.parts.map((part) => {
+          const fit = partFitsScope(part, ids);
+          return (
           <div key={`${part.group}|${part.name}`} className="partline">
             <span className="swatch" style={{ background: roleColor(state.settings, part.role) }} />
             <div>
               <strong>{part.qty}× {part.name}</strong>
               <div className="note">{part.group} · {part.size ? part.size.map((value) => Number(value).toFixed(1)).join("×") : "?"} mm · {part.seconds != null ? `${Math.round(part.seconds / 60)} min` : "time ?"}</div>
             </div>
-            <span className={part.fits && Object.values(part.fits).every(Boolean) ? "ok" : "bad"}>
-              {part.file ? (part.fits && Object.values(part.fits).every(Boolean) ? "fits" : "does not fit") : "file missing"}
+            <span className={fit === "fits" ? "ok" : fit === "unknown" ? "muted" : "bad"}>
+              {fit === "fits" ? "fits" : fit === "missing" ? "file missing" : fit === "unfit" ? "does not fit" : "fit not checked"}
             </span>
           </div>
-        ))
+          );
+        })
       )}
     </section>
   );

@@ -154,8 +154,16 @@ export function missingFileLines(parts) {
  * Layer warning text. A fit matrix owns the sentence, including when `reasons` is empty.
  * Without a matrix, the page falls back to part fit.
  */
+/** Several missing files read as one counted line; a single one keeps its part name. */
+function collapseMissing(notes) {
+  const missing = notes.filter((note) => /file not found/i.test(note));
+  if (missing.length <= 1) return notes;
+  const rest = notes.filter((note) => !/file not found/i.test(note));
+  return [...rest, `${missing.length} part files missing from the archive`];
+}
+
 export function layerNotes(layerEntry, parts, ids, layerNumber) {
-  if (layerEntry && Array.isArray(layerEntry.reasons)) return layerEntry.reasons.slice();
+  if (layerEntry && Array.isArray(layerEntry.reasons)) return collapseMissing(layerEntry.reasons.slice());
   const prefix = `L${layerNumber} ·`;
   const notes = [];
   for (const part of parts || []) {
@@ -164,7 +172,7 @@ export function layerNotes(layerEntry, parts, ids, layerNumber) {
     if (fit === "missing") notes.push(`File not found: ${part.name}`);
     else if (fit === "unfit") notes.push(`${part.qty}× ${part.name} does not fit`);
   }
-  return notes;
+  return collapseMissing(notes);
 }
 
 /** Shelf rows shipped before nicknames. A saved row is still one of these only when every field matches. */

@@ -119,7 +119,7 @@ test("design, settings theme, and export list follow the shop rules", async () =
   expect(screen.queryByText("Manage shop")).not.toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Settings" })).toBeInTheDocument();
   expect(screen.getByText("Only offer choices that fit")).toBeInTheDocument();
-  const enabled = screen.getByRole("group", { name: "Enabled" });
+  const enabled = screen.getByRole("group", { name: "Enabled printers" });
   expect(within(enabled).getByText("U1")).toBeInTheDocument();
   expect(within(enabled).getByText("P1S")).toBeInTheDocument();
   expect(within(enabled).getByText("H2D left")).toBeInTheDocument();
@@ -166,7 +166,7 @@ test("design, settings theme, and export list follow the shop rules", async () =
   await user.click(screen.getByRole("button", { name: "Close settings" }));
 
   await user.click(screen.getByRole("tab", { name: "3 Plates" }));
-  const send = screen.getByLabelText("Send parts to");
+  const send = screen.getByLabelText("Pack plates for");
   expect([...send.querySelectorAll("option")].map((option) => option.value)).toEqual(["both", "u1", "p1s"]);
   expect(screen.getByRole("button", { name: "Export H2D left" })).toHaveAttribute("aria-pressed", "false");
   expect(screen.getByRole("button", { name: "Export U1" })).toHaveAttribute("aria-pressed", "true");
@@ -185,7 +185,7 @@ test("patch writes a legal export mode and fit target into saved state", async (
   }));
   render(<App />);
   expect(await screen.findByRole("heading", { name: "Plates & export" })).toBeInTheDocument();
-  expect(screen.getByLabelText("Send parts to")).toHaveValue("u1");
+  expect(screen.getByLabelText("Pack plates for")).toHaveValue("u1");
   expect(screen.getByLabelText("All printers")).toHaveValue("h2d-left");
   await user.click(screen.getByRole("button", { name: "Settings" }));
   await user.click(screen.getByRole("checkbox", { name: "Enabled H2D left" }));
@@ -197,7 +197,7 @@ test("patch writes a legal export mode and fit target into saved state", async (
   const afterExport = JSON.parse(localStorage.getItem("vault-configurator") || "{}");
   expect(afterExport.settings.printers.find((printer: { id: string }) => printer.id === "u1").forExport).toBe(false);
   expect(afterExport.settings.mode).toBe("both");
-  expect(screen.getByLabelText("Send parts to")).toHaveValue("both");
+  expect(screen.getByLabelText("Pack plates for")).toHaveValue("both");
   expect(screen.getByLabelText("All printers")).toHaveValue("every");
 });
 
@@ -319,7 +319,7 @@ test("controls that cannot act are disabled before interaction", async () => {
   render(<App />);
   expect(await screen.findByRole("heading", { name: "Compose your stack" })).toBeInTheDocument();
   await user.click(screen.getByText("Load"));
-  expect(screen.getByRole("button", { name: "working copy" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Working copy" })).toBeDisabled();
   expect(screen.getByRole("button", { name: "Delete saved" })).toBeDisabled();
   await user.click(screen.getByText("Load"));
   await user.click(screen.getByRole("button", { name: /Edit .*drawer/i }));
@@ -486,6 +486,7 @@ test("each step ends with a readiness line and a next action that never blocks, 
   await waitFor(() => expect(screen.getByRole("heading", { name: "Parts & colours" })).toHaveFocus());
   // The Box has no fit data (`unknown`), so it is not counted as not fitting.
   expect(await screen.findByText("3 pieces · 1 part has its file missing from the archive.")).toBeInTheDocument();
+  expect(screen.getByText("fit not checked")).toBeInTheDocument();
 
   await user.click(screen.getByRole("button", { name: "Review plates" }));
   expect(await screen.findByRole("heading", { name: "Plates & export" })).toBeInTheDocument();
@@ -722,6 +723,18 @@ test("removing the last layer disables Preview and Export before the BOM catches
   expect(screen.getByText("Nothing to export yet — add a layer on Design.")).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Export 3MF" })).toBeDisabled();
   expect(screen.getByRole("button", { name: "Preview plates" })).toBeDisabled();
+});
+
+test("Save confirms, and the saved project appears in Load next to the working copy", async () => {
+  const user = userEvent.setup();
+  render(<App />);
+  await screen.findByRole("heading", { name: "Compose your stack" });
+  await user.click(screen.getByRole("button", { name: "Save" }));
+  expect(screen.getByRole("button", { name: "Saved" })).toBeInTheDocument();
+  await user.click(screen.getByText("Load"));
+  expect(screen.getByRole("button", { name: "Working copy" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "my-vault" })).toBeInTheDocument();
+  expect(screen.getByText(/working copy autosaves as you go/)).toBeInTheDocument();
 });
 
 test("a test-plate group removed from the stack no longer enables export", async () => {
