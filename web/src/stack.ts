@@ -52,3 +52,8 @@ export function layerFitNotes(bom: Bom | null, index: number): string[] {
   const ids = (bom?.judged?.printers || []).map((printer) => printer.id);
   return layerNotes(null, bom?.parts || [], ids, index + 1);
 }
+
+/** A fit failure, as opposed to a missing file: footprint or height-limit wording from stackfit. */
+export function isMisfitNote(note: string): boolean {
+  return note.includes("does not fit") || note.includes("mm tall, over");
+}

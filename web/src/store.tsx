@@ -29,6 +29,10 @@ type Store = {
   presets: PresetMap;
   state: PlannerState | null;
   bom: Bom | null;
+  /** True while `bom` was computed for an earlier signature (or none yet). */
+  bomStale: boolean;
+  /** What `exportFiles` are: the current build's export, an outdated one, test plates, or outdated test plates. */
+  exportState: "none" | "current" | "stale" | "test" | "test-stale";
   plan: Plan | null;
   planNote: string;
   exportFiles: ExportFile[];
@@ -148,9 +152,12 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
   const [presets, setPresets] = useState<PresetMap>({});
   const [state, setState] = useState<PlannerState | null>(null);
   const [bom, setBom] = useState<Bom | null>(null);
+  const [bomSig, setBomSig] = useState("");
   const [plan, setPlan] = useState<Plan | null>(null);
   const [planNote, setPlanNote] = useState("");
   const [exportFiles, setExportFiles] = useState<ExportFile[]>([]);
+  const [exportSig, setExportSig] = useState("");
+  const [exportMain, setExportMain] = useState(false);
   const [spools, setSpools] = useState<Spool[]>([]);
   const [theme, setThemeState] = useState<ThemeChoice>(() => normalizeTheme(localStorage.getItem(THEME_STORAGE_KEY)));
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -251,6 +258,7 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
         if (cancel) return;
         if (!requested.stack.layers.length) {
           setBom(null);
+          setBomSig(requestSig);
           setStatus("");
           return;
         }
@@ -265,6 +273,7 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
           });
           if (cancel || !stateRef.current || signature(stateRef.current) !== requestSig) return;
           setBom(next);
+          setBomSig(requestSig);
           setStatus("");
           setState((prev) => (prev ? applyBomResult(prev, requestSig, next) : prev));
         } catch (error) {
@@ -335,6 +344,10 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
       presets,
       state,
       bom,
+      bomStale: !bom || bomSig !== sig,
+      exportState: !exportFiles.length ? "none"
+        : exportSig !== (exportMain ? sig : `${sig}|${JSON.stringify(state.tests)}`) ? (exportMain ? "stale" : "test-stale")
+        : exportMain ? "current" : "test",
       plan,
       planNote,
       exportFiles,
@@ -505,6 +518,9 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
       runExport: async (path, extra) => {
         const current = stateRef.current;
         if (!current) return;
+        const requestSig = signature(current);
+        // Test exports also depend on the picked test groups, which the signature omits.
+        const requestKey = path === "/api/export" ? requestSig : `${requestSig}|${JSON.stringify(current.tests)}`;
         setExportStatus("Starting…");
         try {
           await postJson(path, { stack: current.stack, settings: settingsForApi(current.settings), overrides: current.overrides, ...(extra || {}) });
@@ -514,8 +530,13 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
             setExportStatus(`${report.percent ?? 0}% · ${report.msg || ""}`);
             if (report.error) throw new Error(report.error);
             if (!report.running && report.result) {
-              setPlan(report.result.plan);
+              // The build may have changed while exporting: keep the files (their key
+              // labels them stale) but do not overwrite the newer plan with this one.
+              // A test export never replaces the stack plan.
+              if (path === "/api/export" && stateRef.current && signature(stateRef.current) === requestSig) setPlan(report.result.plan);
               setExportFiles(report.result.files || []);
+              setExportSig(requestKey);
+              setExportMain(path === "/api/export");
               setExportStatus(`done in ${report.result.seconds}s`);
               if (meta.handoff === "none") {
                 const link = document.createElement("a");
@@ -576,7 +597,7 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
       },
     };
     return value;
-  }, [archive, bom, bootError, expandedLayer, exportFiles, exportStatus, helpTopic, importStatus, meta, plan, planNote, presetStatus, presets, ready, removedPrinter, settingsOpen, settingsSection, spoolStatus, spools, stackFileStatus, state, status, theme, viewer]);
+  }, [archive, bom, bomSig, bootError, expandedLayer, exportFiles, exportMain, exportSig, exportStatus, helpTopic, importStatus, meta, plan, planNote, presetStatus, presets, ready, removedPrinter, settingsOpen, settingsSection, spoolStatus, spools, stackFileStatus, state, status, theme, viewer]);
 
   if (bootError && !api) return <p className="boot-error">{bootError}</p>;
   return <Ctx.Provider value={api}>{children}</Ctx.Provider>;

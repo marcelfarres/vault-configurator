@@ -142,3 +142,24 @@ export function Card({ title, extra, children }: { title: string; extra?: ReactN
     </section>
   );
 }
+
+/** End-of-step footer: what is true about this step now, and one way onward. Never a gate. */
+export function StepFooter({ ready, next, onNext }: { ready: string; next: string; onNext: () => void }) {
+  return (
+    <footer className="step-footer">
+      <p className="note">{ready}</p>
+      <button type="button" className="btn primary" onClick={() => {
+        onNext();
+        // This button unmounts with the step: land at the top of the next one, focus on its heading.
+        requestAnimationFrame(() => {
+          window.scrollTo(0, 0);
+          const heading = document.querySelector<HTMLElement>(".page h1");
+          if (heading) {
+            heading.tabIndex = -1;
+            heading.focus({ preventScroll: true });
+          }
+        });
+      }}>{next}</button>
+    </footer>
+  );
+}

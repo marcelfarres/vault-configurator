@@ -40,6 +40,21 @@ export const INTERIOR_LABEL: Record<string, string> = {
 
 export const SHEET_H: Record<number, number> = { 1: 51.5, 2: 99.5, 4: 195.5 };
 
+export const ROOF_MM: Record<string, number> = { none: 0, grid: 15, table: 12, bowl: 22, undertable: 12, heavyweight: 60 };
+
+/** "2U · 99.5 mm": the unit count with the designer's sheet height beside it. */
+export function heightLabel(height: number | string): string {
+  const mm = SHEET_H[Number(height)];
+  return mm === undefined ? `${height}U` : `${height}U · ${mm} mm`;
+}
+
+/** Overall stack height, as the Preview reports it: sheet heights, 5 mm between layers, roof. */
+export function stackHeightMm(layers: Array<{ height: number }>, roof: string | undefined): number {
+  return layers.reduce((sum, layer) => sum + (SHEET_H[layer.height] || 0), 0)
+    + Math.max(0, layers.length - 1) * 5
+    + (ROOF_MM[roof || "none"] || 0);
+}
+
 export type ChoiceOption = {
   value: string | number;
   disabled: boolean;

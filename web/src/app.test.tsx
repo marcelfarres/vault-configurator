@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, expect, test, vi } from "vitest";
 import { App } from "./App";
@@ -441,6 +441,218 @@ test("assembly counts ignore checks left over from an earlier stack", async () =
   expect(await screen.findByRole("heading", { name: "Compose your stack" })).toBeInTheDocument();
   await user.click(screen.getByRole("tab", { name: "4 Assemble" }));
   expect(screen.getByText(/0\/0 hardware lines · 0\/0 assembly lines checked/)).toBeInTheDocument();
+});
+
+function stubBom(parts: unknown[], hardware: unknown[], extra: Record<string, unknown> = {}) {
+  const base = vi.mocked(fetch).getMockImplementation()!;
+  vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo, init?: RequestInit) => {
+    const response = await base(input, init);
+    if (!String(input).includes("/api/bom")) return response;
+    const body = await response.json() as Record<string, unknown>;
+    return json({ ...body, parts, hardware, ...extra });
+  }));
+}
+
+test("each step ends with a readiness line and a next action that never blocks, with millimetres beside the U counts", async () => {
+  const user = userEvent.setup();
+  const layer = (height: number) => ({
+    type: "Drawers", layout: "S", height, facades: [[height]], interior: "none", key: "key",
+    labels: true, rails: false, manualSupports: false, variant: "Flat", baseplate: false,
+    gridW: 1, gridD: 1, divW: 1, divD: 2,
+  });
+  localStorage.setItem("vault-configurator", JSON.stringify({
+    tab: "stack",
+    stack: { name: "my-vault", depth: 5, layers: [layer(2), layer(1)], roof: { type: "none", topHandle: true }, mods: { backbone: "none", pegboard: "none" } },
+    settings: meta.defaults,
+  }));
+  stubBom(
+    [
+      { group: "L1 Drawer", name: "Box", qty: 2, role: "box", file: "box.stl", size: [100, 100, 40] },
+      { group: "L1 Drawer", name: "Knob", qty: 1, role: "knob", file: "", size: [10, 10, 10] },
+    ],
+    [],
+    // A height-limit failure: stackfit words it "mm tall, over … limit", never "does not fit".
+    { optionFits: { layers: [{ reasons: ["L1 Drawer: 1× S5 Module 2F is 272.0 mm tall, over U1's 270 mm limit"] }, { reasons: [] }] } },
+  );
+  render(<App />);
+  await screen.findByRole("heading", { name: "Compose your stack" });
+  // 99.5 + 51.5 mm of sheet plus 5 mm between the two layers.
+  expect(await screen.findByText("2 layers · 3U · 156.0 mm tall · 1 layer does not fit your printers.")).toBeInTheDocument();
+  expect(screen.getByText("2U · 99.5 mm")).toBeInTheDocument();
+  expect(screen.getByText("1U · 51.5 mm")).toBeInTheDocument();
+
+  await user.click(screen.getByRole("button", { name: "Continue to colours" }));
+  expect(await screen.findByRole("heading", { name: "Parts & colours" })).toBeInTheDocument();
+  await waitFor(() => expect(screen.getByRole("heading", { name: "Parts & colours" })).toHaveFocus());
+  // The Box has no fit data (`unknown`), so it is not counted as not fitting.
+  expect(await screen.findByText("3 pieces · 1 part has its file missing from the archive.")).toBeInTheDocument();
+
+  await user.click(screen.getByRole("button", { name: "Review plates" }));
+  expect(await screen.findByRole("heading", { name: "Plates & export" })).toBeInTheDocument();
+  expect(screen.getByText(/nothing exported yet\. You can start assembling before you export\./)).toBeInTheDocument();
+
+  await user.click(screen.getByRole("button", { name: "Continue to assemble" }));
+  expect(await screen.findByRole("heading", { name: "Assemble" })).toBeInTheDocument();
+});
+
+test("Assembly complete appears only once every hardware and assembly line is checked", async () => {
+  const user = userEvent.setup();
+  const layer = {
+    type: "Drawers", layout: "S", height: 2, facades: [[2]], interior: "none", key: "key",
+    labels: true, rails: false, manualSupports: false, variant: "Flat", baseplate: false,
+    gridW: 1, gridD: 1, divW: 1, divD: 2,
+  };
+  localStorage.setItem("vault-configurator", JSON.stringify({
+    tab: "assemble",
+    stack: { name: "my-vault", depth: 5, layers: [layer], roof: { type: "none", topHandle: true }, mods: { backbone: "none", pegboard: "none" } },
+    settings: meta.defaults,
+    progress: { layoutKey: "", plates: {}, hardware: { Screws: { qty: 4, done: true } }, assemble: { "L1 Drawer|Box": { qty: 1, done: false } } },
+  }));
+  stubBom([{ group: "L1 Drawer", name: "Box", qty: 1, role: "box", file: "box.stl" }], [{ item: "Screws", qty: 4 }]);
+  render(<App />);
+  expect(await screen.findByText(/1\/1 hardware lines · 0\/1 assembly lines checked/)).toBeInTheDocument();
+  expect(screen.queryByRole("heading", { name: "Assembly complete" })).not.toBeInTheDocument();
+  await user.click(screen.getByRole("checkbox", { name: "1× Box" }));
+  expect(screen.getByRole("heading", { name: "Assembly complete" })).toBeInTheDocument();
+  await user.click(screen.getByRole("checkbox", { name: "1× Box" }));
+  expect(screen.queryByRole("heading", { name: "Assembly complete" })).not.toBeInTheDocument();
+  await user.click(screen.getByRole("checkbox", { name: "1× Box" }));
+  await user.click(screen.getByRole("button", { name: "Review checklist again" }));
+  expect(screen.queryByRole("heading", { name: "Assembly complete" })).not.toBeInTheDocument();
+  expect(screen.getByText(/0\/1 hardware lines · 0\/1 assembly lines checked/)).toBeInTheDocument();
+  expect(screen.getByRole("checkbox", { name: "1× Box" })).not.toBeChecked();
+});
+
+test("Assembly complete is not claimed while the BOM still belongs to an earlier signature", async () => {
+  const user = userEvent.setup();
+  const layer = {
+    type: "Drawers", layout: "S", height: 2, facades: [[2]], interior: "none", key: "key",
+    labels: true, rails: false, manualSupports: false, variant: "Flat", baseplate: false,
+    gridW: 1, gridD: 1, divW: 1, divD: 2,
+  };
+  localStorage.setItem("vault-configurator", JSON.stringify({
+    tab: "assemble",
+    stack: { name: "my-vault", depth: 5, layers: [layer], roof: { type: "none", topHandle: true }, mods: { backbone: "none", pegboard: "none" } },
+    settings: meta.defaults,
+    progress: { layoutKey: "", plates: {}, hardware: { Screws: { qty: 4, done: true } }, assemble: { "L1 Drawer|Box": { qty: 1, done: true } } },
+  }));
+  const hold = { on: false };
+  const base = vi.mocked(fetch).getMockImplementation()!;
+  vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo, init?: RequestInit) => {
+    if (String(input).includes("/api/bom") && hold.on) return new Promise<Response>(() => undefined);
+    const response = await base(input, init);
+    if (!String(input).includes("/api/bom")) return response;
+    const body = await response.json() as Record<string, unknown>;
+    return json({ ...body, parts: [{ group: "L1 Drawer", name: "Box", qty: 1, role: "box", file: "box.stl" }], hardware: [{ item: "Screws", qty: 4 }] });
+  }));
+  render(<App />);
+  expect(await screen.findByRole("heading", { name: "Assembly complete" })).toBeInTheDocument();
+  // A signature change (fit target) starts a new BOM; while it is in flight the
+  // previous BOM and its checks must not claim the new configuration is built.
+  hold.on = true;
+  await user.selectOptions(screen.getByLabelText("All printers"), "u1");
+  expect(screen.queryByRole("heading", { name: "Assembly complete" })).not.toBeInTheDocument();
+});
+
+test("the Plates footer does not count files exported for an earlier build", async () => {
+  const user = userEvent.setup();
+  const layer = {
+    type: "Drawers", layout: "S", height: 2, facades: [[2]], interior: "none", key: "key",
+    labels: true, rails: false, manualSupports: false, variant: "Flat", baseplate: false,
+    gridW: 1, gridD: 1, divW: 1, divD: 2,
+  };
+  localStorage.setItem("vault-configurator", JSON.stringify({
+    tab: "plates",
+    stack: { name: "my-vault", depth: 5, layers: [layer], roof: { type: "none", topHandle: true }, mods: { backbone: "none", pegboard: "none" } },
+    settings: meta.defaults,
+  }));
+  const base = vi.mocked(fetch).getMockImplementation()!;
+  vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo, init?: RequestInit) => {
+    const url = String(input);
+    if (url.includes("/api/export_status")) return json({ running: false, percent: 100, result: { plan: { plates: [], unplaceable: [], pieces: 0, placed: 0, fingerprint: "abc" }, files: [{ file: "stack-u1.3mf", plates: 1, items: 2 }], seconds: 1, zip: "stack.zip" } });
+    if (url.includes("/api/export")) return json({ ok: true });
+    return base(input, init);
+  }));
+  render(<App />);
+  await screen.findByRole("heading", { name: "Plates & export" });
+  await user.click(screen.getByRole("button", { name: "Export 3MF" }));
+  expect(await screen.findByText(/1 file exported\./, undefined, { timeout: 5000 })).toBeInTheDocument();
+  // Changing the fit target changes the signature: the export no longer matches this build.
+  await user.selectOptions(screen.getByLabelText("All printers"), "u1");
+  expect(screen.getByText(/exported files are for an earlier build/)).toBeInTheDocument();
+  expect(screen.queryByText(/1 file exported\./)).not.toBeInTheDocument();
+});
+
+test("an export that finishes after the build changed does not overwrite the newer plan", async () => {
+  const user = userEvent.setup();
+  const layer = {
+    type: "Drawers", layout: "S", height: 2, facades: [[2]], interior: "none", key: "key",
+    labels: true, rails: false, manualSupports: false, variant: "Flat", baseplate: false,
+    gridW: 1, gridD: 1, divW: 1, divD: 2,
+  };
+  localStorage.setItem("vault-configurator", JSON.stringify({
+    tab: "plates",
+    stack: { name: "my-vault", depth: 5, layers: [layer], roof: { type: "none", topHandle: true }, mods: { backbone: "none", pegboard: "none" } },
+    settings: meta.defaults,
+  }));
+  let releaseStatus: (() => void) | undefined;
+  const base = vi.mocked(fetch).getMockImplementation()!;
+  vi.stubGlobal("fetch", vi.fn((input: RequestInfo, init?: RequestInit) => {
+    const url = String(input);
+    if (url.includes("/api/export_status")) {
+      // Held open until the test releases it: the export of the old build is still running.
+      return new Promise<Response>((resolve) => {
+        releaseStatus = () => void json({ running: false, percent: 100, result: { plan: { plates: [{ printer: "u1", items: [] }], unplaceable: [{ name: "Roof" }], pieces: 1, placed: 0, fingerprint: "export-plan" }, files: [{ file: "stack-u1.3mf", plates: 1, items: 2 }], seconds: 1, zip: "stack.zip" } }).then(resolve);
+      });
+    }
+    if (url.includes("/api/export")) return json({ ok: true });
+    return base(input, init);
+  }));
+  render(<App />);
+  await screen.findByRole("heading", { name: "Plates & export" });
+  await user.click(screen.getByRole("button", { name: "Export 3MF" }));
+  await waitFor(() => expect(releaseStatus).toBeDefined(), { timeout: 5000 });
+  // The build changes mid-export; the plan effect answers with the new plan (0 plates).
+  await user.selectOptions(screen.getByLabelText("All printers"), "u1");
+  expect(await screen.findByText(/0 plates planned/)).toBeInTheDocument();
+  releaseStatus!();
+  // The finished export keeps its files, labeled stale, but must not replace the plan.
+  expect(await screen.findByText(/exported files are for an earlier build/)).toBeInTheDocument();
+  expect(screen.getByText(/0 plates planned/)).toBeInTheDocument();
+  expect(screen.queryByText(/1 plate planned/)).not.toBeInTheDocument();
+});
+
+test("a test-plate export neither replaces the stack plan nor counts as the stack export", async () => {
+  const user = userEvent.setup();
+  const layer = {
+    type: "Drawers", layout: "S", height: 2, facades: [[2]], interior: "none", key: "key",
+    labels: true, rails: false, manualSupports: false, variant: "Flat", baseplate: false,
+    gridW: 1, gridD: 1, divW: 1, divD: 2,
+  };
+  localStorage.setItem("vault-configurator", JSON.stringify({
+    tab: "plates",
+    stack: { name: "my-vault", depth: 5, layers: [layer], roof: { type: "none", topHandle: true }, mods: { backbone: "none", pegboard: "none" } },
+    settings: meta.defaults,
+  }));
+  const base = vi.mocked(fetch).getMockImplementation()!;
+  vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo, init?: RequestInit) => {
+    const url = String(input);
+    if (url.includes("/api/export_status")) return json({ running: false, percent: 100, result: { plan: { plates: [{ printer: "u1", items: [] }], unplaceable: [], pieces: 1, placed: 1, fingerprint: "test-plan" }, files: [{ file: "test-module.3mf", plates: 1, items: 1 }], seconds: 1, zip: "test.zip" } });
+    if (url.includes("/api/export")) return json({ ok: true });
+    return base(input, init);
+  }));
+  render(<App />);
+  await screen.findByRole("heading", { name: "Plates & export" });
+  expect(await screen.findByText(/0 plates planned/)).toBeInTheDocument();
+  await user.click(screen.getByRole("checkbox", { name: "module" }));
+  await user.click(screen.getByRole("button", { name: "Export test plates" }));
+  expect(await screen.findByText(/test plates exported\./, undefined, { timeout: 5000 })).toBeInTheDocument();
+  // The stack plan (0 plates from /api/plan) survives; the test plan is not shown as it.
+  expect(screen.getByText(/0 plates planned/)).toBeInTheDocument();
+  expect(screen.queryByText(/1 plate planned/)).not.toBeInTheDocument();
+  // Changing the picked test groups makes those files an earlier selection.
+  await user.click(screen.getByRole("checkbox", { name: "module" }));
+  expect(screen.getByText(/test plates exported for an earlier selection/)).toBeInTheDocument();
 });
 
 test("a test-plate group removed from the stack no longer enables export", async () => {

@@ -745,6 +745,30 @@
     margin-block-start: 0.45rem;
   }
 
+  .step-footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem 1rem;
+    margin-block-start: 1.25rem;
+    padding-block-start: 0.9rem;
+    border-block-start: 1px solid var(--border);
+  }
+
+  .step-footer .note {
+    flex: 1 1 16rem;
+    margin: 0;
+  }
+
+  .complete {
+    border-color: var(--ok);
+  }
+
+  .complete h2 {
+    color: var(--ok);
+  }
+
   .progress {
     block-size: 0.4rem;
     background: var(--muted);

@@ -2,7 +2,7 @@ import { checkedCount, exportCandidates, plateKey, printerLabel } from "../../..
 import { fmtH } from "../labels";
 import { exportPrinters, estimatePrinter, usePlanner } from "../store";
 import type { Filament, Plate } from "../types";
-import { NumberField } from "./ui";
+import { NumberField, StepFooter } from "./ui";
 
 export function Plates() {
   const store = usePlanner();
@@ -11,10 +11,25 @@ export function Plates() {
   const candidates = exportCandidates(state.settings);
   const packing = exportPrinters(state);
   const estimate = estimatePrinter(state);
+  const unplaceable = plan?.unplaceable?.length || 0;
+  const exported = store.exportFiles.length;
+  const exportLine = {
+    none: "nothing exported yet",
+    current: `${exported} ${exported === 1 ? "file" : "files"} exported`,
+    stale: "exported files are for an earlier build",
+    test: "test plates exported",
+    "test-stale": "test plates exported for an earlier selection",
+  }[store.exportState];
+  const readyParts = [
+    plan ? `${plan.plates.length} ${plan.plates.length === 1 ? "plate" : "plates"} planned` : "",
+    unplaceable ? `${unplaceable} ${unplaceable === 1 ? "part" : "parts"} cannot be placed` : "",
+    exportLine,
+  ].filter(Boolean).join(" · ");
+  const ready = `${readyParts.charAt(0).toUpperCase()}${readyParts.slice(1)}.${store.exportState === "current" ? "" : " You can start assembling before you export."}`;
   return (
     <div className="page">
       <h1>Plates & export</h1>
-      <p className="lede">Choose which shop printers to export for. Everything else is already set.</p>
+      <p className="lede">Choose which shop printers to export for. Each export is a 3MF: a slicer project file, for Bambu Studio or OrcaSlicer, with every plate already laid out.</p>
       <section className="card">
         <h2>Export for</h2>
         <div className="export-for">
@@ -116,6 +131,7 @@ export function Plates() {
         <p className="note">{store.stackFileStatus}</p>
       </section>
       <TestPlates />
+      <StepFooter ready={ready} next="Continue to assemble" onNext={() => store.setTab("assemble")} />
     </div>
   );
 }

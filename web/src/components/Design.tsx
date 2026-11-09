@@ -1,11 +1,11 @@
 import { flushSync } from "react-dom";
 import { footprintLine } from "../../../planner.mjs";
 import { HELP } from "../help";
-import { INTERIOR_LABEL, LAYOUT_LABEL, ROOF_LABEL, depthOptionLabel, labeledChoices, layerTitle, patternName, roleColor } from "../labels";
-import { facadeCatalog, heightCatalog, layerFitNotes, layoutCatalog } from "../stack";
+import { INTERIOR_LABEL, LAYOUT_LABEL, ROOF_LABEL, depthOptionLabel, heightLabel, labeledChoices, layerTitle, patternName, roleColor, stackHeightMm } from "../labels";
+import { facadeCatalog, heightCatalog, isMisfitNote, layerFitNotes, layoutCatalog } from "../stack";
 import { usePlanner } from "../store";
 import type { Layer } from "../types";
-import { Card, ChoiceSelect, Grip, Switch } from "./ui";
+import { Card, ChoiceSelect, Grip, StepFooter, Switch } from "./ui";
 import { Preview } from "./Preview";
 
 export function Design() {
@@ -32,6 +32,13 @@ export function Design() {
   const indexed = meta.files
     ? (archivePhrase(store.archive))
     : "archive not connected";
+
+  const layers = state.stack.layers;
+  const units = layers.reduce((sum, layer) => sum + Number(layer.height || 0), 0);
+  const misfits = layers.filter((_layer, index) => layerFitNotes(bom, index).some(isMisfitNote)).length;
+  const ready = layers.length
+    ? `${layers.length} ${layers.length === 1 ? "layer" : "layers"} · ${units}U · ${stackHeightMm(layers, state.stack.roof?.type).toFixed(1)} mm tall${misfits ? ` · ${misfits} ${misfits === 1 ? "layer does" : "layers do"} not fit your printers` : ""}.`
+    : "No layers yet. You can continue, but Parts stays empty until the stack has one.";
 
   return (
     <div className="page">
@@ -85,6 +92,7 @@ export function Design() {
                 draft.stack.mods.backbone = on ? "wide" : "none";
               })} />
             </div>
+            <p className="note">Boards bolted up the back of the stack. They carry the handle, pegboard and wall mounts.</p>
             {backbone !== "none" ? (
               <label className="field">
                 <span>Backbone style</span>
@@ -100,6 +108,7 @@ export function Design() {
                 draft.stack.mods.pegboard = on ? "ussa" : "none";
               })} />
             </div>
+            <p className="note">Attachment rails on the back for hanging tools. The pegboard panel itself is bought or printed separately.</p>
             {pegboard !== "none" ? (
               <label className="field">
                 <span>Pegboard</span>
@@ -160,6 +169,7 @@ export function Design() {
         </div>
       </div>
       <PartsInStack />
+      <StepFooter ready={ready} next="Continue to colours" onNext={() => store.setTab("parts")} />
     </div>
   );
 }
@@ -192,7 +202,7 @@ function LayerCard({ index }: { index: number }) {
     catalog: heightCatalog(meta, layer.layout),
     fitOnly: state.fitOnly,
     current: layer.height,
-  }, (value) => `${value}U`);
+  }, heightLabel);
   const bays = meta.layouts[layer.layout] || [layer.layout];
   const facades = layer.facades || [];
   const allBaysSplit = facades.length > 0 && facades.every((faces) => faces.length > 1);
@@ -238,14 +248,15 @@ function LayerCard({ index }: { index: number }) {
         </button>
         <button type="button" className="name" aria-expanded={open} aria-label={`Edit ${title}`} onClick={() => store.setExpandedLayer(open ? null : index)}>
           {title}
-          {notes.some((note) => note.includes("does not fit")) ? <span className="bad"> · does not fit</span> : null}
+          {notes.some(isMisfitNote) ? <span className="bad"> · does not fit</span> : null}
         </button>
-        <span className="pill">{layer.height}U</span>
+        <span className="pill">{heightLabel(layer.height)}</span>
         <button type="button" className="icon-btn" aria-label={`Remove ${title}`} onClick={() => store.removeLayer(index)}>×</button>
       </div>
       {open ? (
         <div className="editor">
           <ChoiceSelect label="Type" help="type" view={typeView} onChange={(value) => patch((draft) => { draft.stack.layers[index].type = value; })} />
+          {layer.type === "Sustainers" ? <p className="note">A sustainer is a box with a hinged lid that opens from the top, not a drawer that slides out.</p> : null}
           <ChoiceSelect label="Width" help="width" view={widthView} onChange={(value) => patch((draft) => { draft.stack.layers[index].layout = value; })} />
           <ChoiceSelect label="Height" help="height" view={heightView} onChange={(value) => patch((draft) => { draft.stack.layers[index].height = Number(value); })} />
           {layer.type === "Drawers" ? bays.map((_bay, bayIndex) => {

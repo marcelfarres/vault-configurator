@@ -1,8 +1,6 @@
-import { depthMm, roleColor, SHEET_H } from "../labels";
+import { depthMm, roleColor, SHEET_H, stackHeightMm } from "../labels";
 import { familyOf } from "../stack";
 import { usePlanner } from "../store";
-
-const ROOF_MM: Record<string, number> = { none: 0, grid: 15, table: 12, bowl: 22, undertable: 12, heavyweight: 60 };
 
 export function Preview() {
   const { state, meta, bom } = usePlanner();
@@ -27,9 +25,7 @@ export function Preview() {
     return block;
   });
   const svgH = Math.max(180, y + pad);
-  const totalMm = layers.reduce((sum, layer) => sum + (SHEET_H[layer.height] || 0), 0)
-    + Math.max(0, layers.length - 1) * 5
-    + (ROOF_MM[stack.roof?.type || "none"] || 0);
+  const totalMm = stackHeightMm(layers, stack.roof?.type);
   const callouts = (bom?.parts || []).slice(0, 6);
   const backbone = stack.mods?.backbone && stack.mods.backbone !== "none";
   const pegboard = stack.mods?.pegboard && stack.mods.pegboard !== "none";

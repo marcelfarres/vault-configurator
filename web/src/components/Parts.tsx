@@ -2,6 +2,7 @@ import { partFitsScope, scopeLabel, spoolLabel, tpuRoleWarning, visiblePartRows 
 import { ROLE_SHORT, filamentAt, fmtH, roleColor } from "../labels";
 import { usePlanner } from "../store";
 import type { PartLine } from "../types";
+import { StepFooter } from "./ui";
 
 export function Parts() {
   const store = usePlanner();
@@ -16,6 +17,15 @@ export function Parts() {
     row.qty += Number(part.qty || 0);
     grouped.set(part.name, row);
   }
+  const missing = parts.filter((part) => partFitsScope(part, ids) === "missing").length;
+  const tooBig = parts.filter((part) => partFitsScope(part, ids) === "unfit").length;
+  const ready = parts.length
+    ? [
+      `${pieces} pieces`,
+      missing ? `${missing} ${missing === 1 ? "part has its file" : "parts have their files"} missing from the archive` : "",
+      tooBig ? `${tooBig} ${tooBig === 1 ? "part does" : "parts do"} not fit ${who}` : "",
+    ].filter(Boolean).join(" · ") + "."
+    : "No parts yet. You can continue, but Plates has nothing to pack until the stack has a layer.";
   return (
     <div className="page">
       <h1>Parts & colours</h1>
@@ -145,6 +155,7 @@ export function Parts() {
         ) : null}
       </section>
       <Hardware />
+      <StepFooter ready={ready} next="Review plates" onNext={() => store.setTab("plates")} />
     </div>
   );
 }
