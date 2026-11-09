@@ -35,7 +35,7 @@ export function Plates() {
             </button>
           ))}
         </div>
-        <p className="note">Packing with {packing.map((printer) => printerLabel(printer)).join(", ") || "no printer"}.</p>
+        <p className="note">Packing with {packing.map((printer) => printerLabel(printer)).join(", ") || "no printer"}.{packing.length > 1 ? " Each part is packed once, shared between them to balance print time." : ""}</p>
         <p className="note">Weight estimate uses {bomPrinter(store.bom?.estimate?.printer, estimate ? printerLabel(estimate) : "")}.</p>
         <div className="actions">
           <button type="button" className="btn" onClick={() => void store.previewPlates()}>Preview plates</button>

@@ -170,7 +170,7 @@ test("design, settings theme, and export list follow the shop rules", async () =
   expect([...send.querySelectorAll("option")].map((option) => option.value)).toEqual(["both", "u1", "p1s"]);
   expect(screen.getByRole("button", { name: "Export H2D left" })).toHaveAttribute("aria-pressed", "false");
   expect(screen.getByRole("button", { name: "Export U1" })).toHaveAttribute("aria-pressed", "true");
-  expect(screen.getByText("Packing with U1, P1S.")).toBeInTheDocument();
+  expect(screen.getByText("Packing with U1, P1S. Each part is packed once, shared between them to balance print time.")).toBeInTheDocument();
   expect(screen.getByLabelText("All printers").querySelector("option[value='h2d-left']")).toBeTruthy();
   expect(screen.getByRole("button", { name: "Show a sample plate" })).toBeInTheDocument();
 });

@@ -134,7 +134,7 @@ export const HELP: Record<string, HelpBlock> = {
   machine: { title: "Machine preset", body: "The printer profile written into the 3MF. This can stay “Snapmaker U1” while the shop name shown in VAULT is “U1”." },
   defaultPreset: { title: "Default process preset", body: "The process preset the project opens with. Another preset on a part is written as a per-object override." },
   spoolman: { title: "Spoolman", body: "URL of a Spoolman server. Load spools fills a slot's name, colour, and material." },
-  roles: { title: "Colour roles", body: "Every part has a role from the designer's renders: body, drawer inside, knobs, accent, TPU. Map each role to a filament you have." },
+  roles: { title: "Colour roles", body: "Every part has a role from the designer's renders: body, drawer inside, knobs, accent details, and the tyres (printed in TPU). Map each role to a filament you have." },
   kindRoles: { title: "Colour per part group", body: "Override a whole group, for example print every facade in the accent filament." },
   estimate: { title: "Estimate", body: "Where the designer's sheet has no number, every surface gets the shell thickness and the rest of the volume gets the infill fraction." },
 };

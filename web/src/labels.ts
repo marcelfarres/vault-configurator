@@ -5,8 +5,8 @@ export const ROLE_SHORT: Record<string, string> = {
   main: "Body",
   box: "Drawer interior",
   knob: "Knobs",
-  accent: "Accent",
-  tpu: "TPU",
+  accent: "Accent details",
+  tpu: "Tyres (TPU)",
 };
 
 export const ROOF_LABEL: Record<string, string> = {

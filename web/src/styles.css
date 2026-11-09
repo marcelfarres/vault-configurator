@@ -140,10 +140,14 @@
     display: flex;
     flex-wrap: wrap;
     align-items: safe center;
-    gap: 0.55rem 0.75rem;
-    padding: 0.7rem 1.25rem;
+    gap: 0.45rem 0.55rem;
+    padding: 0.55rem 1.25rem;
     border-block-end: 1px solid var(--border);
     background: var(--background);
+  }
+
+  .topbar .btn, .topbar .load > summary {
+    padding-inline: 0.6rem;
   }
 
   .fit-controls {
@@ -151,7 +155,7 @@
     flex: 0 0 auto;
     flex-wrap: wrap;
     align-items: center;
-    gap: 0.55rem 0.75rem;
+    gap: 0.45rem 0.5rem;
   }
 
   .fit-label {
@@ -162,8 +166,7 @@
   .brand {
     display: flex;
     align-items: center;
-    gap: 0.7rem;
-    margin-inline-end: 0.25rem;
+    gap: 0.5rem;
   }
 
   .wordmark {
@@ -176,7 +179,7 @@
     border: none;
     background: transparent;
     color: var(--muted-foreground);
-    inline-size: 7.5rem;
+    inline-size: 6rem;
     padding: 0.2rem 0;
   }
 
