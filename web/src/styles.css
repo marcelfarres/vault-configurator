@@ -95,6 +95,11 @@
     --shadow: 0 1px 2px oklch(0 0 0 / 30%);
   }
 
+  html {
+    /* Reserve the scrollbar track on every tab so the page never jumps sideways. */
+    scrollbar-gutter: stable;
+  }
+
   body {
     min-block-size: 100vh;
     background: var(--background);
@@ -272,6 +277,17 @@
     border-radius: var(--radius);
     padding: 0.4rem 0.55rem;
     min-block-size: 2.25rem;
+    max-inline-size: 100%;
+  }
+
+  td input[type="text"], td input[type="number"], td select {
+    inline-size: 100%;
+    min-inline-size: 3.25rem;
+  }
+
+  /* Numbers must stay readable whole (270, not 27) even when the table scrolls. */
+  td input[type="number"] {
+    min-inline-size: 4.6rem;
   }
 
   .muted, .note {
@@ -449,6 +465,11 @@
   .grip {
     color: var(--muted-foreground);
     cursor: grab;
+    flex: none;
+  }
+
+  .grip:active {
+    cursor: grabbing;
   }
 
   .icon {
@@ -514,6 +535,7 @@
 
   .badges {
     display: flex;
+    flex-wrap: wrap;
     justify-content: space-between;
     gap: 0.5rem;
     margin-block-start: 0.65rem;
@@ -775,10 +797,44 @@
 
   @media (max-width: 900px) {
     .compose, .settings, .role-row {
-      grid-template-columns: 1fr;
+      grid-template-columns: minmax(0, 1fr);
     }
     .settings-btn {
       margin-inline-start: 0;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .page, .topbar {
+      padding-inline: 0.9rem;
+    }
+    .fit-controls {
+      flex-shrink: 1;
+      min-inline-size: 0;
+    }
+    .tabs {
+      gap: 0.9rem;
+      padding-inline: 0.9rem;
+      overflow-x: auto;
+    }
+    .tabs button {
+      flex: none;
+    }
+    .settings-nav {
+      flex-direction: row;
+      flex-wrap: wrap;
+    }
+    /* Anchor the Load menu to the topbar, not the trigger: right-aligning to
+       .load clips it offscreen whenever Load wraps to a row start. */
+    .topbar {
+      position: relative;
+    }
+    .load {
+      position: static;
+    }
+    .menu {
+      inset-inline: 0.9rem;
+      min-inline-size: 0;
     }
   }
 }

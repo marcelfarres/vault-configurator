@@ -1,3 +1,4 @@
+import { flushSync } from "react-dom";
 import { footprintLine } from "../../../planner.mjs";
 import { HELP } from "../help";
 import { INTERIOR_LABEL, LAYOUT_LABEL, ROOF_LABEL, depthOptionLabel, labeledChoices, layerTitle, patternName, roleColor } from "../labels";
@@ -212,12 +213,29 @@ function LayerCard({ index }: { index: number }) {
       }}
     >
       <div className="layer-row">
-        <span
-          className="grip"
+        <button
+          type="button"
+          className="grip icon-btn"
+          data-grip-index={index}
           title="Drag to reorder"
+          aria-label={`Reorder ${title}. Drag, or focus and use the arrow keys. Activate to edit.`}
+          onClick={() => store.setExpandedLayer(index)}
+          onKeyDown={(event) => {
+            const delta = event.key === "ArrowUp" ? 1 : event.key === "ArrowDown" ? -1 : 0;
+            if (!delta) return;
+            event.preventDefault();
+            const target = index + delta;
+            if (target < 0 || target >= state.stack.layers.length) return;
+            // Focus follows the moved layer: cards are keyed by index, so the
+            // focused button would otherwise end up on the layer that swapped in.
+            // flushSync renders the swap now, so a fast second keypress lands
+            // on the moved layer's grip instead of undoing the move.
+            flushSync(() => store.moveLayer(index, delta));
+            document.querySelector<HTMLElement>(`[data-grip-index="${target}"]`)?.focus();
+          }}
         >
           <Grip />
-        </span>
+        </button>
         <button type="button" className="name" aria-expanded={open} aria-label={`Edit ${title}`} onClick={() => store.setExpandedLayer(open ? null : index)}>
           {title}
           {notes.some((note) => note.includes("does not fit")) ? <span className="bad"> · does not fit</span> : null}

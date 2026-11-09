@@ -356,6 +356,39 @@ test("geared rails stays toggleable when only one bay is split", async () => {
   expect(JSON.parse(localStorage.getItem("vault-configurator") || "{}").stack.layers[0].rails).toBe(true);
 });
 
+test("the layer grip reorders from the keyboard and keeps focus on the moved layer", async () => {
+  const user = userEvent.setup();
+  const layer = (height: number) => ({
+    type: "Drawers", layout: "S", height, facades: [[height]], interior: "none", key: "key",
+    labels: true, rails: false, manualSupports: false, variant: "Flat", baseplate: false,
+    gridW: 1, gridD: 1, divW: 1, divD: 2,
+  });
+  localStorage.setItem("vault-configurator", JSON.stringify({
+    tab: "stack",
+    stack: { name: "my-vault", depth: 5, layers: [layer(1), layer(4)], roof: { type: "none", topHandle: true }, mods: { backbone: "none", pegboard: "none" } },
+    settings: { ...meta.defaults },
+  }));
+  render(<App />);
+  expect(await screen.findByRole("heading", { name: "Compose your stack" })).toBeInTheDocument();
+  // Rows render top-first, so the first grip belongs to the top layer (index 1, height 4).
+  const grips = screen.getAllByRole("button", { name: /Reorder .*arrow keys/ });
+  expect(grips).toHaveLength(2);
+  grips[0].focus();
+  expect(grips[0]).toHaveFocus();
+  // Two rapid ArrowDowns (toward the base: index 1 -> 0) with no frame between
+  // them: the second must land on the moved layer's grip and stop at the
+  // boundary, not swap the layers back.
+  fireEvent.keyDown(document.activeElement!, { key: "ArrowDown" });
+  fireEvent.keyDown(document.activeElement!, { key: "ArrowDown" });
+  const saved = JSON.parse(localStorage.getItem("vault-configurator") || "{}");
+  expect(saved.stack.layers.map((row: { height: number }) => row.height)).toEqual([4, 1]);
+  expect(document.activeElement?.getAttribute("data-grip-index")).toBe("0");
+  // Activation opens the editor, as the grip's name ("Activate to edit") says.
+  expect(screen.getAllByRole("button", { name: /Edit .*drawer/i }).every((btn) => btn.getAttribute("aria-expanded") === "false")).toBe(true);
+  await user.click(screen.getAllByRole("button", { name: /Activate to edit/ })[0]);
+  expect(screen.getAllByRole("button", { name: /Edit .*drawer/i }).some((btn) => btn.getAttribute("aria-expanded") === "true")).toBe(true);
+});
+
 test("loading Spoolman spools can fill a filament slot", async () => {
   const user = userEvent.setup();
   localStorage.setItem("vault-configurator", JSON.stringify({

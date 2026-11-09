@@ -167,6 +167,7 @@ export function Hardware() {
     <section className="card spaced">
       <h2>Hardware</h2>
       {!rows.length ? <p className="note">Bolts and bearings for this stack show up here.</p> : (
+        <div className="table-wrap">
         <table>
           <thead><tr><th></th><th>Item</th><th>Qty</th><th>Where</th></tr></thead>
           <tbody>
@@ -191,6 +192,7 @@ export function Hardware() {
             })}
           </tbody>
         </table>
+        </div>
       )}
     </section>
   );
