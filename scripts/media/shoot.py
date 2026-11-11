@@ -43,6 +43,22 @@ def settled(page, timeout=120000):
         print("warning: pictures still loading:", page.evaluate("[...document.images].filter(i => i.src && !i.complete && i.getBoundingClientRect().height).map(i => i.src).slice(0, 5)"))
 
 
+def seed(page, demo):
+    """Write a demo stack through the same localStorage state the app persists, then reload."""
+    page.evaluate("""(demo) => {
+      const raw = localStorage.getItem('vault-configurator');
+      const state = raw ? JSON.parse(raw) : {};
+      state.stack = {...(state.stack || {}), ...demo};
+      state.overrides = {};
+      state.tab = 'stack';
+      state.fitTarget = 'h2d-left';  // judge fit against the big bed, so the demo cart reads printable
+      localStorage.setItem('vault-configurator', JSON.stringify(state));
+      localStorage.setItem('vault-theme', 'light');
+      location.reload();
+    }""", demo)
+    page.get_by_role("heading", name="Compose your stack").wait_for(timeout=120000)
+
+
 def shot(page, name):
     settled(page)
     page.wait_for_timeout(1200)
@@ -57,19 +73,7 @@ def main():
         page = browser.new_page(viewport={"width": 1500, "height": 950}, device_scale_factor=SCALE, color_scheme="light")
         page.goto(URL)
         page.get_by_role("heading", name="Compose your stack").wait_for(timeout=120000)
-        # Seed the demo stack through the same localStorage state the app persists, then reload.
-        page.evaluate("""(demo) => {
-          const raw = localStorage.getItem('vault-configurator');
-          const state = raw ? JSON.parse(raw) : {};
-          state.stack = {...(state.stack || {}), ...demo};
-          state.overrides = {};
-          state.tab = 'stack';
-          state.fitTarget = 'h2d-left';  // judge fit against the big bed, so the demo cart reads printable
-          localStorage.setItem('vault-configurator', JSON.stringify(state));
-          localStorage.setItem('vault-theme', 'light');
-          location.reload();
-        }""", DEMO)
-        page.get_by_role("heading", name="Compose your stack").wait_for(timeout=120000)
+        seed(page, DEMO)
         # The BOM landing is visible as the parts summary under the drawing.
         page.wait_for_function("document.body.innerText.includes('pieces')", timeout=240000)
         page.wait_for_timeout(4000)

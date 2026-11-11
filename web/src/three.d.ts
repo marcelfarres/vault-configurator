@@ -51,6 +51,11 @@ declare module "three" {
   export class MeshStandardMaterial {
     constructor(options?: unknown);
   }
+  export class GridHelper {
+    constructor(size: number, divisions: number, colorCenterLine: number, colorGrid: number);
+    rotation: { x: number };
+    dispose(): void;
+  }
 }
 
 declare module "three/addons/controls/OrbitControls.js" {

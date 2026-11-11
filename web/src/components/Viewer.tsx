@@ -6,6 +6,24 @@ import { settingsForApi } from "../../../planner.mjs";
 import { usePlanner } from "../store";
 import type { Settings } from "../types";
 
+/**
+ * The stage is near-black, so a charcoal filament rendered true would be a
+ * silhouette. Lift dark colours toward a readable luminance, hue intact:
+ * the tint still says which filament, it just does not hide the geometry.
+ */
+function displayColor(hex: string | undefined): string {
+  const match = /^#([0-9a-f]{6})$/i.exec(hex || "");
+  if (!match) return "#c9ccd0";
+  const value = parseInt(match[1], 16);
+  const rgb = [(value >> 16 & 255) / 255, (value >> 8 & 255) / 255, (value & 255) / 255];
+  const luminance = 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2];
+  const floor = 0.42;
+  const lifted = luminance < floor
+    ? rgb.map((channel) => channel + (1 - channel) * ((floor - luminance) / (1 - luminance || 1)))
+    : rgb;
+  return `#${lifted.map((channel) => Math.round(channel * 255).toString(16).padStart(2, "0")).join("")}`;
+}
+
 export function Viewer() {
   const { viewer, closeViewer, state } = usePlanner();
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -58,6 +76,15 @@ export function Viewer() {
     const key = new THREE.DirectionalLight(0xffffff, 1.3);
     key.position.set(1, 2, 3);
     scene.add(key);
+    // Rim + fill: a charcoal part on the dark stage is a silhouette under the
+    // key alone; the rim from behind-top catches its edges, the fill lifts
+    // the faces the key misses.
+    const rim = new THREE.DirectionalLight(0xffffff, 1.1);
+    rim.position.set(-1.5, -2, 2.5);
+    scene.add(rim);
+    const fill = new THREE.DirectionalLight(0xffffff, 0.45);
+    fill.position.set(-2, 1.5, 0.5);
+    scene.add(fill);
     let frame = 0;
     let stop = false;
     const draw = () => {
@@ -75,6 +102,7 @@ export function Viewer() {
     };
     const loader = new STLLoader();
     let mesh: THREE.Mesh | null = null;
+    let grid: THREE.GridHelper | null = null;
     void loader.loadAsync(`/stl/${encodeURIComponent(file)}`).then((geometry) => {
       geometry.computeVertexNormals();
       geometry.computeBoundingBox();
@@ -83,9 +111,14 @@ export function Viewer() {
       const center = box.getCenter(new THREE.Vector3());
       const size = box.getSize(new THREE.Vector3());
       geometry.translate(-center.x, -center.y, -box.min.z);
-      mesh = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color: viewer?.color || "#c9ccd0", metalness: 0.05, roughness: 0.6 }));
+      mesh = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color: displayColor(viewer?.color), metalness: 0.05, roughness: 0.6 }));
       scene.add(mesh);
       const radius = Math.max(size.x, size.y, size.z);
+      // Ground grid in the XY plane (Z is up here): scale reference and a
+      // horizon the part's dark underside can read against.
+      grid = new THREE.GridHelper(radius * 3, 24, 0x454b52, 0x2b3036);
+      grid.rotation.x = Math.PI / 2;
+      scene.add(grid);
       camera.position.set(radius * 1.2, -radius * 1.4, radius);
       controls.target.set(0, 0, size.z / 2);
       controls.update();
@@ -97,6 +130,7 @@ export function Viewer() {
       controls.dispose();
       renderer.dispose();
       mesh?.geometry.dispose();
+      grid?.dispose();
     };
   }, [file, viewer?.color]);
   useEffect(() => { setLoadError(""); setExportNote({ text: "" }); }, [file]);
