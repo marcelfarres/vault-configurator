@@ -1,4 +1,4 @@
-import { depthMm, roleColor, SHEET_H, stackHeightMm } from "../labels";
+import { depthMm, roleColor, ROOF_MM, SHEET_H, stackHeightMm } from "../labels";
 import { familyOf } from "../stack";
 import { usePlanner } from "../store";
 import type { Layer, Meta } from "../types";
@@ -61,7 +61,11 @@ export function Preview() {
   const scale = drawW / Math.max(width, 1);
   const gap = 6;
   const pad = 16;
-  let y = pad + 8;
+  // The roof is drawn at its real height share (ROOF_MM, the same numbers
+  // stackHeightMm reports), so the elevation and the mm total agree.
+  const roofH = (ROOF_MM[stack.roof?.type || "none"] || 0) * scale;
+  const topY = pad + 8;
+  let y = topY + (roofH ? roofH + 3 : 0);
   const blocks = topFirst.map((layer, visual) => {
     const height = (SHEET_H[layer.height] || 51.5) * scale;
     const block = { layer, index: layers.length - 1 - visual, y, height };
@@ -78,12 +82,13 @@ export function Preview() {
     <section className="card preview-card">
       <div className="card-head">
         <h2>Preview</h2>
-        <span className="preview-meta">front · depth {stack.depth}</span>
+        <span className="preview-meta">front elevation · schematic · depth {stack.depth}</span>
       </div>
       <div className="canvas">
         {layers.length ? (
           <svg className="cabinet" viewBox={`0 0 ${drawW + pad * 2} ${svgH}`} role="img" aria-label="Stack preview">
-            <rect x={pad} y={blocks[0]?.y || pad} width={drawW} height={Math.max(8, y - (blocks[0]?.y || pad) - gap)} rx="10" fill="none" stroke="currentColor" strokeWidth="3" />
+            <rect x={pad} y={topY} width={drawW} height={Math.max(8, y - topY - gap)} rx="10" fill="none" stroke="currentColor" strokeWidth="3" />
+            {roofH ? <rect x={pad + 4} y={topY} width={drawW - 8} height={roofH} rx={Math.min(5, roofH / 3)} fill="none" stroke="currentColor" strokeWidth="2.25" /> : null}
             {blocks.map((block) => {
               const edited = expandedLayer === block.index;
               const stroke = edited ? "var(--teal)" : "currentColor";

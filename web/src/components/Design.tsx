@@ -97,6 +97,27 @@ export function Design() {
                 else store.startOver();
               }}>Start over</button>
             )}
+            <details>
+              <summary>Import a stack from ussadesign.com</summary>
+              <p className="note">PDF: on the VAULT page press Export and load that “Your build” file. JSON: paste the site’s saved composer value. Check the layer order afterwards.</p>
+              <input aria-label="Import PDF" type="file" accept=".pdf,application/pdf" onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) void store.importPdf(file);
+                event.target.value = "";
+              }} />
+              <p className="note">{store.importStatus}</p>
+              <textarea aria-label="Import JSON" rows={4} placeholder='{"version":2,"layers":[{"type":"Drawers","layout":"S","height":2,"facades":[[2]]}]}' id="import-json" />
+              <button type="button" className="btn" onClick={() => {
+                const box = document.querySelector<HTMLTextAreaElement>("#import-json");
+                if (!box) return;
+                try {
+                  const payload = JSON.parse(box.value) as { layers?: Layer[] };
+                  store.importLayers(payload.layers || []);
+                } catch (error) {
+                  window.alert(error instanceof Error ? error.message : "Could not parse that JSON.");
+                }
+              }}>Import layers</button>
+            </details>
           </Card>
           <Card title="Finish">
             <ChoiceSelect label="Roof" help="roof" view={roof} onChange={(value) => patch((draft) => {
@@ -172,29 +193,6 @@ export function Design() {
             </details>
           </Card>
           <StepFooter ready={ready} next="Continue to Parts & colours" onNext={() => store.setTab("parts")} />
-          <Card title="Import">
-            <details>
-              <summary>Import a stack from ussadesign.com</summary>
-              <p className="note">PDF: on the VAULT page press Export and load that “Your build” file. JSON: paste the site’s saved composer value. Check the layer order afterwards.</p>
-              <input aria-label="Import PDF" type="file" accept=".pdf,application/pdf" onChange={(event) => {
-                const file = event.target.files?.[0];
-                if (file) void store.importPdf(file);
-                event.target.value = "";
-              }} />
-              <p className="note">{store.importStatus}</p>
-              <textarea aria-label="Import JSON" rows={4} placeholder='{"version":2,"layers":[{"type":"Drawers","layout":"S","height":2,"facades":[[2]]}]}' id="import-json" />
-              <button type="button" className="btn" onClick={() => {
-                const box = document.querySelector<HTMLTextAreaElement>("#import-json");
-                if (!box) return;
-                try {
-                  const payload = JSON.parse(box.value) as { layers?: Layer[] };
-                  store.importLayers(payload.layers || []);
-                } catch (error) {
-                  window.alert(error instanceof Error ? error.message : "Could not parse that JSON.");
-                }
-              }}>Import layers</button>
-            </details>
-          </Card>
         </div>
         <div className="col side">
           <Preview />
