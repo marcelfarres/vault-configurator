@@ -56,7 +56,11 @@
     background: transparent;
     color: var(--muted-foreground);
     font-size: 0.875rem;
+    /* Grow with the name (up to a bound) instead of truncating longer ones. */
+    field-sizing: content;
     inline-size: 4.5rem;
+    min-inline-size: 4.5rem;
+    max-inline-size: 16rem;
     padding: 0.2rem 0;
     box-shadow: none;
   }

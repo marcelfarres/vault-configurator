@@ -1,5 +1,5 @@
 import { Fragment, useState, type InputHTMLAttributes } from "react";
-import { legalExportMode, legalFitTarget, printerLabel, printerRemovalNotes, removePrinterById, restorePrinter, spoolLabel } from "../../../planner.mjs";
+import { legalExportMode, legalFitTarget, printerLabel, printerRemovalNotes, removePrinterById, restorePrinter } from "../../../planner.mjs";
 import { presetsFor } from "../presets";
 import { usePlanner } from "../store";
 import type { Printer, SettingsSection } from "../types";
@@ -244,7 +244,6 @@ function Filaments() {
             <input aria-label={`Colour for ${filament.name || index + 1}`} type="color" value={toColor(filament.color)} onChange={(event) => patch((draft) => { const row = draft.settings.filaments.find((item) => item.id === filament.id) || draft.settings.filaments[index]; if (row) row.color = event.target.value; })} />
           </label>
           <input className="ghost-input" aria-label={`Filament name ${index + 1}`} value={filament.name} onChange={(event) => patch((draft) => { const row = draft.settings.filaments.find((item) => item.id === filament.id) || draft.settings.filaments[index]; if (row) row.name = event.target.value; })} />
-          <span className="note">{spoolLabel(filament)}</span>
           <select className="material-select" aria-label={`Material for ${filament.name || index + 1}`} value={filament.material} onChange={(event) => patch((draft) => { const row = draft.settings.filaments.find((item) => item.id === filament.id) || draft.settings.filaments[index]; if (row) row.material = event.target.value; })}>
             {materials.map((material) => <option key={material} value={material}>{material}</option>)}
           </select>

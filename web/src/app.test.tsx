@@ -518,9 +518,14 @@ test("Assembly complete appears only once every hardware and assembly line is ch
   render(<App />);
   expect(await screen.findByText(/1\/1 hardware lines · 0\/1 assembly lines checked/)).toBeInTheDocument();
   expect(screen.getByRole("checkbox", { name: "Have 4 Screws" })).toBeChecked();
+  expect(screen.getByText("L1 Drawer · 0/1")).toBeInTheDocument();
   expect(screen.queryByRole("heading", { name: "Assembly complete" })).not.toBeInTheDocument();
   await user.click(screen.getByRole("checkbox", { name: "1× Box" }));
   expect(screen.getByRole("heading", { name: "Assembly complete" })).toBeInTheDocument();
+  await user.click(screen.getByRole("checkbox", { name: "Hide checked" }));
+  expect(screen.queryByRole("checkbox", { name: "1× Box" })).not.toBeInTheDocument();
+  expect(screen.getByText("L1 Drawer · 1/1")).toBeInTheDocument();
+  await user.click(screen.getByRole("checkbox", { name: "Hide checked" }));
   await user.click(screen.getByRole("checkbox", { name: "1× Box" }));
   expect(screen.queryByRole("heading", { name: "Assembly complete" })).not.toBeInTheDocument();
   await user.click(screen.getByRole("checkbox", { name: "1× Box" }));
