@@ -2,7 +2,7 @@ import { usePlanner } from "../store";
 import { Hardware } from "./Parts";
 
 export function Assemble() {
-  const { bom, bomStale, state, patch, setTab } = usePlanner();
+  const { bom, bomStale, state, patch, setTab, resetChecklist } = usePlanner();
   const parts = bom?.parts || [];
   const rows = bom?.hardware || [];
   // Count against the current BOM only: progress keeps checks for stacks that no longer exist.
@@ -23,10 +23,7 @@ export function Assemble() {
           <h2>Assembly complete</h2>
           <p>{hardwareDone} hardware {hardwareDone === 1 ? "line" : "lines"} and {assembleDone} assembly {assembleDone === 1 ? "line" : "lines"} checked off. A line clears again if its quantity changes.</p>
           <div className="actions">
-            <button type="button" className="btn" onClick={() => patch((draft) => {
-              draft.progress.hardware = {};
-              draft.progress.assemble = {};
-            })}>Review checklist again</button>
+            <button type="button" className="btn" onClick={resetChecklist}>Review checklist again</button>
             <button type="button" className="btn" onClick={() => setTab("stack")}>Back to Design</button>
             <button type="button" className="btn" onClick={() => setTab("plates")}>Back to Plates</button>
           </div>

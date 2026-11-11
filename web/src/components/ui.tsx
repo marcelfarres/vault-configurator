@@ -32,6 +32,18 @@ export function Switch({ pressed, label, onToggle }: { pressed: boolean; label: 
   );
 }
 
+/** Deliberate help request beside a labelled field: sets the topic and lets
+ * the Help card reveal itself. Hidden when the help preference is off, and
+ * never inside a <label> (interactive content there is non-conforming and
+ * would activate the labelled control). */
+export function HelpButton({ topic, label }: { topic: string; label: string }) {
+  const { state, askHelp } = usePlanner();
+  if (state?.help === false) return null;
+  return (
+    <button type="button" className="help-btn" aria-label={`Help: ${label}`} onClick={() => askHelp(topic)}>?</button>
+  );
+}
+
 /**
  * A number input that only ever commits a valid number. Typing is free; on blur or Enter an
  * empty, non-numeric, or out-of-range value shows an inline error and reverts — it never saves 0 or NaN.
@@ -107,8 +119,8 @@ export function ChoiceSelect({
   const { showHelp } = usePlanner();
   const selected = view.options.find((option) => option.selected);
   return (
-    <label className="field" htmlFor={id}>
-      <span onClick={() => help && showHelp(help)}>{label}</span>
+    <span className={help ? "field has-help" : "field"}>
+      <label htmlFor={id} onClick={() => help && showHelp(help)}>{label}</label>
       <select
         id={id}
         aria-label={label}
@@ -122,8 +134,9 @@ export function ChoiceSelect({
           </option>
         ))}
       </select>
+      {help ? <HelpButton topic={help} label={label} /> : null}
       {view.warning ? <span className="warn">{view.warning}</span> : null}
-    </label>
+    </span>
   );
 }
 

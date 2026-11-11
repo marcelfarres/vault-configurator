@@ -17,10 +17,28 @@ import {
 } from "../../planner.mjs";
 import { getJson, postJson } from "./api";
 import { uid } from "./labels";
-import { newLayer } from "./stack";
-import type { Bom, ExportFile, Meta, Plan, PlannerState, PresetMap, Printer, SettingsSection, Spool, TabId, ThemeChoice } from "./types";
+import { applyStartOver, layerKeySlice, newLayer, remapLayerKeys, replaceLayerKeySlice, sameLayerKeySlice } from "./stack";
+import type { Bom, ExportFile, Layer, Meta, Plan, PlannerState, PresetMap, Printer, SettingsSection, Spool, TabId, ThemeChoice } from "./types";
 
 const COMPUTE_MS = import.meta.env.MODE === "test" ? 0 : 350;
+
+type RemovedLayerCapture = {
+  layer: Layer;
+  index: number;
+  overrides: PlannerState["overrides"];
+  assemble: NonNullable<PlannerState["progress"]["assemble"]>;
+  survivors: Layer[];
+  baseline: Layer[];
+  survivorOverrides: PlannerState["overrides"];
+  survivorAssemble: NonNullable<PlannerState["progress"]["assemble"]>;
+  /** Tagged records as of capture (post-removal numbering), advanced with
+   * baseline rows on BOM adoption: edits to a survivor's colours/checks
+   * under its normalized group count as user edits of that survivor. */
+  baselineOverrides: PlannerState["overrides"];
+  baselineAssemble: NonNullable<PlannerState["progress"]["assemble"]>;
+  /** False once survivors are reordered: positions no longer identify them. */
+  positionsHold: boolean;
+};
 
 type Store = {
   ready: boolean;
@@ -45,12 +63,19 @@ type Store = {
   setSettingsSection: (section: SettingsSection) => void;
   removedPrinter: { printer: Printer; index: number; mode?: string; fitTarget?: string } | null;
   setRemovedPrinter: (removed: Store["removedPrinter"]) => void;
+  removedLayer: RemovedLayerCapture | null;
+  setRemovedLayer: (removed: Store["removedLayer"]) => void;
+  restoreLayer: () => void;
+  resetChecklist: () => void;
+  startOver: () => void;
   archive: { done: number; total: number; msg?: string };
   status: string;
   exportStatus: string;
   helpTopic: string;
   helpSerial: number;
+  helpAsk: number;
   showHelp: (topic: string) => void;
+  askHelp: (topic: string) => void;
   expandedLayer: number | null;
   setExpandedLayer: (index: number | null) => void;
   viewer: { file: string; label: string; color: string; opener: HTMLElement | null } | null;
@@ -60,6 +85,7 @@ type Store = {
   setTab: (tab: TabId) => void;
   addLayer: () => void;
   removeLayer: (index: number) => void;
+  duplicateLayer: (index: number) => void;
   moveLayer: (index: number, delta: number) => void;
   saveProject: () => void;
   loadProject: (id: string) => void;
@@ -164,11 +190,14 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsSection, setSettingsSection] = useState<SettingsSection>("printers");
   const [removedPrinter, setRemovedPrinter] = useState<Store["removedPrinter"]>(null);
+  const [removedLayer, setRemovedLayer] = useState<Store["removedLayer"]>(null);
+  const removedLayerRef = useRef<Store["removedLayer"]>(null);
   const [archive, setArchive] = useState<{ done: number; total: number; msg?: string }>({ done: 0, total: 0 });
   const [status, setStatus] = useState("");
   const [exportStatus, setExportStatus] = useState("");
   const [helpTopic, setHelpTopic] = useState("");
   const [helpSerial, setHelpSerial] = useState(0);
+  const [helpAsk, setHelpAsk] = useState(0);
   const [expandedLayer, setExpandedLayer] = useState<number | null>(null);
   const [viewer, setViewer] = useState<Store["viewer"]>(null);
   const [importStatus, setImportStatus] = useState("");
@@ -177,6 +206,7 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
   const [presetStatus, setPresetStatus] = useState("");
   const stateRef = useRef<PlannerState | null>(null);
   stateRef.current = state;
+  removedLayerRef.current = removedLayer;
 
   // The pending printer-removal Undo lives here, not in Settings, so it survives section
   // switches and closing Settings. A selection the user changes after the removal is their
@@ -277,7 +307,39 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
           setBom(next);
           setBomSig(requestSig);
           setStatus("");
-          setState((prev) => (prev ? applyBomResult(prev, requestSig, next) : prev));
+          setState((prev) => {
+            if (!prev) return prev;
+            const applied = applyBomResult(prev, requestSig, next);
+            // BOM adoption is the only non-user layer writer: when it rewrites
+            // a pending capture's baseline rows (normalization), advance those
+            // rows to what was written, so restore can tell normalization apart
+            // from user edits. Per-row on purpose: editing one survivor during
+            // the compute window must not forfeit an untouched survivor's
+            // revert. A spliced list advances nothing. Deferred out of the
+            // updater.
+            const capture = removedLayerRef.current;
+            if (capture
+              && capture.positionsHold
+              && capture.baseline.length === prev.stack.layers.length
+              && applied.stack.layers.length === prev.stack.layers.length) {
+              let baseline: Layer[] | null = null;
+              let baselineOverrides = capture.baselineOverrides;
+              let baselineAssemble = capture.baselineAssemble;
+              capture.baseline.forEach((row, pos) => {
+                if (JSON.stringify(prev.stack.layers[pos]) === JSON.stringify(row)
+                  && JSON.stringify(applied.stack.layers[pos]) !== JSON.stringify(row)) {
+                  (baseline ??= [...capture.baseline])[pos] = applied.stack.layers[pos];
+                  baselineOverrides = replaceLayerKeySlice(baselineOverrides, applied.overrides, pos);
+                  baselineAssemble = replaceLayerKeySlice(baselineAssemble, applied.progress.assemble || {}, pos);
+                }
+              });
+              if (baseline) {
+                const next = { ...capture, baseline, baselineOverrides, baselineAssemble };
+                queueMicrotask(() => setRemovedLayer((current) => (current === capture ? next : current)));
+              }
+            }
+            return applied;
+          });
         } catch (error) {
           if (!cancel) setStatus(error instanceof Error ? error.message : "Could not compute this stack.");
         }
@@ -339,6 +401,19 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
         return next;
       });
     };
+    const openHelp = (topic: string): boolean => {
+      if (stateRef.current?.help === false) return false;
+      setHelpTopic(topic);
+      setHelpSerial((serial) => serial + 1);
+      return true;
+    };
+    // Every wholesale stack replacement goes through here: the pending layer
+    // Undo and the open editor index address the stack being thrown away.
+    const replaceStack = (recipe: (draft: PlannerState) => void) => {
+      setRemovedLayer(null);
+      setExpandedLayer(null);
+      patch(recipe);
+    };
     const value: Store = {
       ready,
       bootError,
@@ -366,16 +441,18 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
       setSettingsSection,
       removedPrinter,
       setRemovedPrinter,
+      removedLayer,
+      setRemovedLayer,
       archive,
       status,
       exportStatus,
       helpTopic,
       helpSerial,
-      showHelp: (topic) => {
-        if (stateRef.current?.help === false) return;
-        setHelpTopic(topic);
-        setHelpSerial((serial) => serial + 1);
-      },
+      helpAsk,
+      showHelp: (topic) => { openHelp(topic); },
+      // askHelp is a deliberate request (a ? button): like showHelp, plus the
+      // Help card may scroll itself into view when it is off-screen.
+      askHelp: (topic) => { if (openHelp(topic)) setHelpAsk((serial) => serial + 1); },
       expandedLayer,
       setExpandedLayer,
       viewer,
@@ -388,15 +465,161 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
       addLayer: () => patch((draft) => {
         draft.stack.layers.push(newLayer(draft.stack, meta));
       }),
-      removeLayer: (index) => patch((draft) => {
-        draft.stack.layers.splice(index, 1);
-      }),
-      moveLayer: (index, delta) => patch((draft) => {
+      removeLayer: (index) => {
+        const current = stateRef.current;
+        const layer = current?.stack.layers[index];
+        if (!layer || !current) return;
+        // Single-slot capture like removedPrinter: Undo restores this exact
+        // layer at its index, with its colour overrides and assembly checks;
+        // a second removal replaces the capture. The capture holds only this
+        // layer's entries, so restoring cannot roll back unrelated changes.
+        setRemovedLayer(structuredClone({
+          layer,
+          index,
+          overrides: remapLayerKeys(current.overrides, (i) => (i === index ? [index] : []), false),
+          assemble: remapLayerKeys(current.progress.assemble || {}, (i) => (i === index ? [index] : []), false),
+          // Pre-removal copies of the surviving layers, in post-removal order,
+          // plus their tagged record entries: the BOM round-trip normalizes
+          // survivors against the new base (an exposed SS layer becomes S,
+          // renaming its catalog group and orphaning its checks), and Undo
+          // reverts exactly that. `baseline` starts as the same list and is
+          // advanced by BOM adoption alone, so restore can tell normalization
+          // apart from user edits.
+          survivors: current.stack.layers.filter((_, i) => i !== index),
+          baseline: current.stack.layers.filter((_, i) => i !== index),
+          survivorOverrides: remapLayerKeys(current.overrides, (i) => (i === index ? [] : [i]), false),
+          survivorAssemble: remapLayerKeys(current.progress.assemble || {}, (i) => (i === index ? [] : [i]), false),
+          baselineOverrides: remapLayerKeys(current.overrides, (i) => (i === index ? [] : [i > index ? i - 1 : i]), false),
+          baselineAssemble: remapLayerKeys(current.progress.assemble || {}, (i) => (i === index ? [] : [i > index ? i - 1 : i]), false),
+          positionsHold: true,
+        }));
+        setExpandedLayer((open) => (open === index ? null : open !== null && open > index ? open - 1 : open));
+        patch((draft) => {
+          draft.stack.layers.splice(index, 1);
+          const down = (i: number) => (i === index ? [] : [i > index ? i - 1 : i]);
+          draft.overrides = remapLayerKeys(draft.overrides, down);
+          if (draft.progress.assemble) draft.progress.assemble = remapLayerKeys(draft.progress.assemble, down);
+        });
+      },
+      restoreLayer: () => {
+        const restore = removedLayer;
+        if (!restore) return;
+        setRemovedLayer(null);
+        // Inverse of removeLayer's shift: indices at or above the insertion
+        // point move up one, so the open editor keeps its layer.
+        setExpandedLayer((open) => {
+          const insertAt = Math.min(restore.index, stateRef.current?.stack.layers.length ?? restore.index);
+          return open !== null && open >= insertAt ? open + 1 : open;
+        });
+        patch((draft) => {
+          const insertAt = Math.min(restore.index, draft.stack.layers.length);
+          const spliced = draft.stack.layers.length !== restore.baseline.length;
+          // Survivor record edits are judged in post-removal numbering,
+          // before the renumber below moves them: baseline records carry
+          // the same numbering.
+          const recordsEdited = restore.survivors.map((_, pos) => (
+            !sameLayerKeySlice(restore.baselineOverrides, draft.overrides, pos)
+            || (draft.progress.assemble ? !sameLayerKeySlice(restore.baselineAssemble, draft.progress.assemble, pos) : false)
+          ));
+          const up = (i: number) => [i >= insertAt ? i + 1 : i];
+          draft.overrides = {
+            ...remapLayerKeys(draft.overrides, up),
+            ...remapLayerKeys(structuredClone(restore.overrides), () => [insertAt], false),
+          };
+          if (draft.progress.assemble || Object.keys(restore.assemble).length) {
+            draft.progress.assemble = {
+              ...remapLayerKeys(draft.progress.assemble || {}, up),
+              ...remapLayerKeys(structuredClone(restore.assemble), () => [insertAt], false),
+            };
+          }
+          draft.stack.layers.splice(insertAt, 0, structuredClone(restore.layer));
+          // Revert BOM normalization where a survivor still deep-equals its
+          // baseline (the last BOM-adopted form) and its tagged records are
+          // untouched since adoption: any user edit — to the layer, or to
+          // its colours/checks under the normalized group — wins, and the
+          // row is left alone so those newer edits keep applying. Skipped
+          // entirely when the list was spliced (add/remove/duplicate changed
+          // its length) or reordered (positionsHold off): positions no
+          // longer identify survivors. Reverted rows also get
+          // back the tagged entries reconciliation dropped when normalization
+          // renamed their group, without overwriting anything present now.
+          if (!spliced && restore.positionsHold) {
+            restore.survivors.forEach((captured, pos) => {
+              const at = draft.stack.layers[pos >= insertAt ? pos + 1 : pos];
+              if (!at || JSON.stringify(at) !== JSON.stringify(restore.baseline[pos])) return;
+              const original = pos >= restore.index ? pos + 1 : pos;
+              if (recordsEdited[pos]) return;
+              at.layout = captured.layout;
+              at.height = captured.height;
+              at.facades = structuredClone(captured.facades);
+              const restoreKeys = <T,>(snapshot: Record<string, T>, into: Record<string, T>) => {
+                for (const [key, value] of Object.entries(layerKeySlice(snapshot, original))) {
+                  if (!(key in into)) into[key] = structuredClone(value);
+                }
+              };
+              restoreKeys(restore.survivorOverrides, draft.overrides);
+              if (draft.progress.assemble) restoreKeys(restore.survivorAssemble, draft.progress.assemble);
+            });
+          }
+        });
+      },
+      // An explicit checklist reset outranks a pending layer Undo: the
+      // capture's checks (the removed layer's and the survivors') are
+      // invalidated here so restoreLayer cannot resurrect them. The layer
+      // and survivor geometry recovery are unaffected.
+      resetChecklist: () => {
+        // Uncheck in place rather than emptying: reconciliation recreates
+        // missing entries as unchecked on the next recompute, and the
+        // capture baseline set here must match that recreated form or Undo
+        // would mistake an unrelated recompute for a user edit.
+        const unchecked = Object.fromEntries(
+          Object.entries(stateRef.current?.progress.assemble || {}).map(([key, entry]) => [key, { ...entry, done: false }]),
+        );
+        patch((draft) => {
+          draft.progress.hardware = {};
+          draft.progress.assemble = structuredClone(unchecked);
+        });
+        setRemovedLayer((current) => (current ? { ...current, assemble: {}, survivorAssemble: {}, baselineAssemble: unchecked } : current));
+      },
+      startOver: () => replaceStack(applyStartOver),
+      duplicateLayer: (index) => {
+        if (!stateRef.current?.stack.layers[index]) return;
+        patch((draft) => {
+          // The clone inherits the original's overrides at the shared index;
+          // the original and everything above it renumber up one. Assembly
+          // checks only shift: the clone has not been built, so it starts
+          // unchecked.
+          draft.overrides = remapLayerKeys(draft.overrides, (i) => (i < index ? [i] : i === index ? [index, index + 1] : [i + 1]));
+          if (draft.progress.assemble) draft.progress.assemble = remapLayerKeys(draft.progress.assemble, (i) => [i >= index ? i + 1 : i]);
+          draft.stack.layers.splice(index, 0, structuredClone(draft.stack.layers[index]));
+        });
+        // The clone takes the original's slot in display order, directly
+        // beneath it; open the clone (display is top-first, index order).
+        setExpandedLayer(index);
+      },
+      moveLayer: (index, delta) => {
+        const layers = stateRef.current?.stack.layers;
         const target = index + delta;
-        if (target < 0 || target >= draft.stack.layers.length) return;
-        const [row] = draft.stack.layers.splice(index, 1);
-        draft.stack.layers.splice(target, 0, row);
-      }),
+        if (!layers || target === index || target < 0 || target >= layers.length) return;
+        // A real reorder breaks the positional identity the pending Undo's
+        // survivor recovery relies on — after a swap, equal-valued layers
+        // are interchangeable and position cannot tell them apart. Keep the
+        // layer restore; turn survivor field/key recovery off. A drop on
+        // the same card (delta 0) returns above and changes nothing.
+        setRemovedLayer((current) => (current ? { ...current, positionsHold: false } : current));
+        patch((draft) => {
+          const movedTarget = index + delta;
+          if (movedTarget < 0 || movedTarget >= draft.stack.layers.length) return;
+          const order = draft.stack.layers.map((_, i) => i);
+          const [moved] = order.splice(index, 1);
+          order.splice(movedTarget, 0, moved);
+          const permute = (i: number) => [order.indexOf(i)];
+          draft.overrides = remapLayerKeys(draft.overrides, permute);
+          if (draft.progress.assemble) draft.progress.assemble = remapLayerKeys(draft.progress.assemble, permute);
+          const [row] = draft.stack.layers.splice(index, 1);
+          draft.stack.layers.splice(movedTarget, 0, row);
+        });
+      },
       saveProject: () => patch((draft) => {
         const id = draft.activeProjectId || uid();
         draft.activeProjectId = id;
@@ -412,20 +635,22 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
         if (index >= 0) draft.projects[index] = snap;
         else draft.projects.push(snap);
       }),
-      loadProject: (id) => patch((draft) => {
+      loadProject: (id) => {
         if (!id) {
-          draft.activeProjectId = "";
+          patch((draft) => { draft.activeProjectId = ""; });
           return;
         }
-        const project = draft.projects.find((item) => item.id === id);
-        if (!project) return;
-        draft.activeProjectId = id;
-        draft.stack = structuredClone(project.stack);
-        repairStackCatalog(draft.stack, meta.depths, meta.roofs);
-        draft.overrides = structuredClone(project.overrides || {});
-        draft.progress = structuredClone(project.progress || { layoutKey: "", plates: {}, hardware: {}, assemble: {} });
-      }),
-      newProject: () => patch((draft) => {
+        replaceStack((draft) => {
+          const project = draft.projects.find((item) => item.id === id);
+          if (!project) return;
+          draft.activeProjectId = id;
+          draft.stack = structuredClone(project.stack);
+          repairStackCatalog(draft.stack, meta.depths, meta.roofs);
+          draft.overrides = structuredClone(project.overrides || {});
+          draft.progress = structuredClone(project.progress || { layoutKey: "", plates: {}, hardware: {}, assemble: {} });
+        });
+      },
+      newProject: () => replaceStack((draft) => {
         const fresh = defaultPlannerState(meta.defaults) as PlannerState;
         draft.stack = fresh.stack;
         draft.overrides = {};
@@ -436,7 +661,7 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
         draft.projects = draft.projects.filter((project) => project.id !== id);
         if (draft.activeProjectId === id) draft.activeProjectId = "";
       }),
-      importLayers: (layers) => patch((draft) => {
+      importLayers: (layers) => replaceStack((draft) => {
         const blank = newLayer(draft.stack, meta);
         draft.stack.layers = layers.map((layer) => ({
           ...blank,
@@ -447,6 +672,7 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
           facades: layer.facades || blank.facades,
         }));
         draft.overrides = {};
+        if (draft.progress) draft.progress.assemble = {};
       }),
       importPdf: async (file) => {
         setImportStatus("reading…");
@@ -454,7 +680,7 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
           const response = await fetch("/api/import_pdf", { method: "POST", headers: { "Content-Type": "application/pdf" }, body: await file.arrayBuffer() });
           const payload = await response.json() as { error?: string; layers?: PlannerState["stack"]["layers"]; warnings?: string[] };
           if (payload.error) throw new Error(payload.error);
-          patch((draft) => {
+          replaceStack((draft) => {
             const blank = newLayer({ ...draft.stack, layers: [] }, meta);
             draft.stack.layers = (payload.layers || []).map((layer) => ({
               ...blank,
@@ -465,6 +691,7 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
               facades: layer.facades || blank.facades,
             }));
             draft.overrides = {};
+            if (draft.progress) draft.progress.assemble = {};
           });
           setImportStatus(`${payload.layers?.length || 0} layers imported. ${(payload.warnings || []).join(" ")}`);
         } catch (error) {
@@ -486,10 +713,11 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
         try {
           const payload = JSON.parse(await file.text()) as { stack?: PlannerState["stack"]; overrides?: PlannerState["overrides"] };
           if (!payload.stack || !Array.isArray(payload.stack.layers)) throw new Error("not a stack file");
-          patch((draft) => {
+          replaceStack((draft) => {
             draft.stack = { ...defaultPlannerState(meta.defaults).stack, ...payload.stack } as PlannerState["stack"];
             repairStackCatalog(draft.stack, meta.depths, meta.roofs);
             draft.overrides = payload.overrides || {};
+            if (draft.progress) draft.progress.assemble = {};
           });
           setStackFileStatus(`loaded “${payload.stack.name || "stack"}” (${payload.stack.layers.length} layers)`);
         } catch (error) {
@@ -601,7 +829,7 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
       },
     };
     return value;
-  }, [archive, bom, bomSig, bootError, expandedLayer, exportFiles, exportMain, exportSig, exportStatus, helpSerial, helpTopic, importStatus, meta, plan, planNote, presetStatus, presets, ready, removedPrinter, settingsOpen, settingsSection, spoolStatus, spools, stackFileStatus, state, status, theme, viewer]);
+  }, [archive, bom, bomSig, bootError, expandedLayer, exportFiles, exportMain, exportSig, exportStatus, helpAsk, helpSerial, helpTopic, importStatus, meta, plan, planNote, presetStatus, presets, ready, removedLayer, removedPrinter, settingsOpen, settingsSection, spoolStatus, spools, stackFileStatus, state, status, theme, viewer]);
 
   if (bootError && !api) return <p className="boot-error">{bootError}</p>;
   return <Ctx.Provider value={api}>{children}</Ctx.Provider>;

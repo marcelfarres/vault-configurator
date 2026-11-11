@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, expect, test, vi } from "vitest";
 import { App } from "./App";
 import { applyBomResult, applyPlanProgress, signature } from "./store";
+import { remapLayerKeys } from "./stack";
 import type { Meta, PlannerState } from "./types";
 
 // jsdom has no WebGL; the dialog lifecycle is what is under test, so stub the three.js surface Viewer touches.
@@ -766,6 +767,601 @@ test("collapsed layer rows summarise boxes, interior, and a non-default lock", a
   expect(screen.getByText("2 boxes · grid 2×3 · hidden key")).toBeInTheDocument();
   expect(screen.getByText("sealed")).toBeInTheDocument();
   expect(screen.getByText("dividers")).toBeInTheDocument();
+});
+
+const hardenDrawer = {
+  type: "Drawers", layout: "S", height: 2, facades: [[1, 1]], interior: "grid", key: "hidden",
+  labels: true, rails: false, manualSupports: false, variant: "Flat", baseplate: false,
+  gridW: 2, gridD: 3, divW: 1, divD: 2,
+};
+const hardenSustainer = {
+  type: "Sustainers", layout: "L", height: 1, facades: [[1]], interior: "none", key: "key",
+  labels: true, rails: false, manualSupports: false, variant: "Sealed", baseplate: false,
+  gridW: 1, gridD: 1, divW: 1, divD: 2, dividers: true,
+};
+
+function seedStack(layers: unknown[]) {
+  localStorage.setItem("vault-configurator", JSON.stringify({
+    tab: "stack",
+    stack: { name: "my-vault", depth: 5, layers, roof: { type: "none", topHandle: true }, mods: { backbone: "none", pegboard: "none" } },
+    settings: meta.defaults,
+  }));
+  stubBom([], []);
+}
+const hardenDivided = {
+  type: "Sustainers", layout: "S", height: 1, facades: [[1]], interior: "none", key: "key",
+  labels: true, rails: false, manualSupports: false, variant: "Sealed", baseplate: false,
+  gridW: 1, gridD: 1, divW: 1, divD: 2, dividers: true,
+};
+
+test("removing a layer offers Undo, and Undo restores it in place", async () => {
+  const user = userEvent.setup();
+  // Middle-of-three: an append-on-restore implementation would put "sealed"
+  // on top instead of back between its neighbours.
+  seedStack([hardenDrawer, hardenSustainer, hardenDivided]);
+  const { container } = render(<App />);
+  await screen.findByRole("heading", { name: "Compose your stack" });
+  const summaries = () => [...container.querySelectorAll(".layer-summary")].map((node) => node.textContent);
+  expect(summaries()).toEqual(["dividers", "sealed", "2 boxes · grid 2×3 · hidden key"]);
+  await user.click(screen.getByRole("button", { name: "Edit S sustainer" }));
+  await user.click(screen.getByRole("button", { name: "Remove L sustainer" }));
+  expect(screen.getByText(/L sustainer removed\./)).toBeInTheDocument();
+  expect(summaries()).toEqual(["dividers", "2 boxes · grid 2×3 · hidden key"]);
+  await user.click(screen.getByRole("button", { name: "Undo" }));
+  expect(summaries()).toEqual(["dividers", "sealed", "2 boxes · grid 2×3 · hidden key"]);
+  // The open editor still targets the same (top) layer after removal and restore.
+  expect(screen.getByRole("button", { name: "Edit S sustainer" })).toHaveAttribute("aria-expanded", "true");
+  expect(screen.getByRole("button", { name: "Edit L sustainer" })).toHaveAttribute("aria-expanded", "false");
+  expect(screen.queryByText(/L sustainer removed\./)).not.toBeInTheDocument();
+});
+
+test("Start over clears nothing until it is confirmed by count", async () => {
+  const user = userEvent.setup();
+  seedStack([hardenDrawer, hardenSustainer]);
+  render(<App />);
+  await screen.findByRole("heading", { name: "Compose your stack" });
+  await user.click(screen.getByRole("button", { name: "Start over" }));
+  expect(screen.getByText(/Start over removes 2 layers/)).toBeInTheDocument();
+  expect(screen.getByText("sealed")).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Keep my stack" }));
+  expect(screen.queryByText(/Start over removes 2 layers/)).not.toBeInTheDocument();
+  expect(screen.getByText("sealed")).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Start over" }));
+  await user.click(screen.getByRole("button", { name: "Start over" }));
+  expect(screen.getAllByText(/No layers yet/).length).toBeGreaterThan(0);
+  expect(screen.queryByText("sealed")).not.toBeInTheDocument();
+});
+
+test("Duplicate layer opens an independent clone beneath the original", async () => {
+  const user = userEvent.setup();
+  seedStack([hardenDrawer]);
+  const { container } = render(<App />);
+  await screen.findByRole("heading", { name: "Compose your stack" });
+  const summaries = () => [...container.querySelectorAll(".layer-summary")].map((node) => node.textContent);
+  await user.click(screen.getByRole("button", { name: "Edit S drawer" }));
+  await user.click(screen.getByRole("button", { name: "Duplicate layer" }));
+  expect(summaries()).toEqual(["2 boxes · grid 2×3 · hidden key", "2 boxes · grid 2×3 · hidden key"]);
+  // The clone (second row, directly beneath) is the open editor, not the original.
+  const editors = screen.getAllByRole("button", { name: "Edit S drawer" });
+  expect(editors[0]).toHaveAttribute("aria-expanded", "false");
+  expect(editors[1]).toHaveAttribute("aria-expanded", "true");
+  // Editing the clone's nested facades must not leak into the original:
+  // structuredClone keeps shared references shared, so a shallow duplicate fails here.
+  await user.selectOptions(screen.getByLabelText("Facades"), "[2]");
+  expect(summaries()).toEqual(["2 boxes · grid 2×3 · hidden key", "grid 2×3 · hidden key"]);
+});
+
+test("? buttons ask for help without toggling their field", async () => {
+  const user = userEvent.setup();
+  seedStack([hardenDrawer]);
+  render(<App />);
+  await screen.findByRole("heading", { name: "Compose your stack" });
+  // Tab order: the field comes before its ? button in the DOM.
+  const depthField = screen.getByLabelText("Depth");
+  const depthHelp = screen.getByRole("button", { name: "Help: Depth" });
+  expect(depthField.compareDocumentPosition(depthHelp) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  await user.click(depthHelp);
+  expect(screen.getByRole("heading", { name: "Depth" })).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Edit S drawer" }));
+  const labels = screen.getByRole("checkbox", { name: "labels" });
+  expect(labels).toBeChecked();
+  await user.click(screen.getByRole("button", { name: "Help: labels" }));
+  expect(screen.getByRole("heading", { name: "Labels" })).toBeInTheDocument();
+  expect(labels).toBeChecked();
+});
+
+test("Start over also confirms before discarding a roof-only design", async () => {
+  const user = userEvent.setup();
+  localStorage.setItem("vault-configurator", JSON.stringify({
+    tab: "stack",
+    stack: { name: "my-vault", depth: 5, layers: [], roof: { type: "grid", topHandle: true }, mods: { backbone: "none", pegboard: "none" } },
+    overrides: { anything: "red" },
+    settings: meta.defaults,
+  }));
+  stubBom([], []);
+  render(<App />);
+  await screen.findByRole("heading", { name: "Compose your stack" });
+  await user.click(screen.getByRole("button", { name: "Start over" }));
+  expect(screen.getByText(/discards colour overrides, and resets the roof and mods/)).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Keep my stack" }));
+  expect(screen.getByLabelText("Roof")).toHaveValue("grid");
+});
+
+test("replacing the stack clears a pending layer Undo", async () => {
+  const user = userEvent.setup();
+  seedStack([hardenDrawer]);
+  render(<App />);
+  await screen.findByRole("heading", { name: "Compose your stack" });
+  await user.click(screen.getByRole("button", { name: "Remove S drawer" }));
+  expect(screen.getByText(/S drawer removed\./)).toBeInTheDocument();
+  // Zero layers left, so New needs no window.confirm; it replaces the stack.
+  await user.click(screen.getByText("Load"));
+  await user.click(screen.getByRole("button", { name: "New" }));
+  expect(screen.queryByText(/S drawer removed\./)).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Undo" })).not.toBeInTheDocument();
+});
+
+test("remapLayerKeys renumbers layer groups and leaves other keys alone", () => {
+  const overrides = {
+    "L1 · S5 2U drawers|Latch": { role: "accent" },
+    "L2 · S5 2U drawers|Latch": { role: "dark" },
+    "Roof|Roof Whole": { role: "main" },
+  };
+  // Insert at 0 with inheritance (duplicate): L1 copies stay and move, L2 shifts.
+  expect(Object.keys(remapLayerKeys(overrides, (i) => (i === 0 ? [0, 1] : [i + 1]))).sort()).toEqual([
+    "L1 · S5 2U drawers|Latch", "L2 · S5 2U drawers|Latch", "L3 · S5 2U drawers|Latch", "Roof|Roof Whole",
+  ]);
+  // Remove at 0: its keys drop, higher layers shift down.
+  expect(Object.keys(remapLayerKeys(overrides, (i) => (i === 0 ? [] : [i - 1]))).sort()).toEqual([
+    "L1 · S5 2U drawers|Latch", "Roof|Roof Whole",
+  ]);
+  // Undo capture (keepUntagged false): only the removed layer's entries, so
+  // restoring cannot roll back a Roof colour changed in between.
+  expect(remapLayerKeys(overrides, (i) => (i === 0 ? [0] : []), false)).toEqual({
+    "L1 · S5 2U drawers|Latch": { role: "accent" },
+  });
+});
+
+test("duplicating a layer renumbers colour overrides onto the right layers", async () => {
+  const user = userEvent.setup();
+  localStorage.setItem("vault-configurator", JSON.stringify({
+    tab: "stack",
+    stack: { name: "my-vault", depth: 5, layers: [hardenDrawer, hardenDrawer], roof: { type: "none", topHandle: true }, mods: { backbone: "none", pegboard: "none" } },
+    overrides: { "L2 · S5 2U drawers|Latch": { role: "accent" } },
+    settings: meta.defaults,
+  }));
+  stubBom([], []);
+  render(<App />);
+  await screen.findByRole("heading", { name: "Compose your stack" });
+  // Duplicate the bottom drawer (second row shown, storage index 0).
+  await user.click(screen.getAllByRole("button", { name: "Edit S drawer" })[1]);
+  await user.click(screen.getByRole("button", { name: "Duplicate layer" }));
+  await waitFor(() => {
+    const saved = JSON.parse(localStorage.getItem("vault-configurator") || "{}");
+    expect(saved.overrides).toEqual({ "L3 · S5 2U drawers|Latch": { role: "accent" } });
+  });
+});
+
+// A BOM whose Latch rows follow the requested stack, so progress
+// reconciliation preserves (or exposes) whatever the remap produced.
+function stubBomPerLayer() {
+  const base = vi.mocked(fetch).getMockImplementation()!;
+  vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo, init?: RequestInit) => {
+    const response = await base(input, init);
+    if (!String(input).includes("/api/bom")) return response;
+    const body = await response.json() as Record<string, unknown>;
+    const requested = JSON.parse(String(init?.body || "{}")) as { stack?: { layers?: unknown[] } };
+    const parts = (requested.stack?.layers || []).map((_, i) => ({
+      group: `L${i + 1} · S5 2U drawers`, name: "Latch", qty: 2, role: "lock", file: "", size: [10, 10, 10],
+    }));
+    return json({ ...body, parts, hardware: [] });
+  }));
+}
+
+function seedCheckedStack(assemble: Record<string, { qty: number; done: boolean }>) {
+  localStorage.setItem("vault-configurator", JSON.stringify({
+    tab: "stack",
+    stack: { name: "my-vault", depth: 5, layers: [hardenDrawer, hardenDrawer], roof: { type: "none", topHandle: true }, mods: { backbone: "none", pegboard: "none" } },
+    progress: { layoutKey: "", plates: {}, hardware: {}, assemble },
+    settings: meta.defaults,
+  }));
+  stubBomPerLayer();
+}
+
+function persistedAssembleDone(): Record<string, boolean> {
+  const saved = JSON.parse(localStorage.getItem("vault-configurator") || "{}") as Partial<PlannerState>;
+  return Object.fromEntries(Object.entries(saved.progress?.assemble || {}).map(([key, value]) => [key, !!value?.done]));
+}
+
+test("duplicating a checked layer keeps the check on the original, clone unchecked", async () => {
+  const user = userEvent.setup();
+  // Both layers checked, and the duplicated (bottom) one is among them:
+  // copying completion to the clone would leave L1 checked.
+  seedCheckedStack({
+    "L1 · S5 2U drawers|Latch": { qty: 2, done: true },
+    "L2 · S5 2U drawers|Latch": { qty: 2, done: true },
+  });
+  render(<App />);
+  await screen.findByRole("heading", { name: "Compose your stack" });
+  await user.click(screen.getAllByRole("button", { name: "Edit S drawer" })[1]);
+  await user.click(screen.getByRole("button", { name: "Duplicate layer" }));
+  await waitFor(() => {
+    expect(persistedAssembleDone()).toEqual({
+      "L1 · S5 2U drawers|Latch": false,
+      "L2 · S5 2U drawers|Latch": true,
+      "L3 · S5 2U drawers|Latch": true,
+    });
+  });
+});
+
+test("remove and Undo keep assembly checks with their layers", async () => {
+  const user = userEvent.setup();
+  seedCheckedStack({
+    "L1 · S5 2U drawers|Latch": { qty: 2, done: true },
+    "L2 · S5 2U drawers|Latch": { qty: 2, done: true },
+  });
+  render(<App />);
+  await screen.findByRole("heading", { name: "Compose your stack" });
+  await user.click(screen.getAllByRole("button", { name: "Remove S drawer" })[1]);
+  await waitFor(() => {
+    expect(persistedAssembleDone()).toEqual({ "L1 · S5 2U drawers|Latch": true });
+  });
+  await user.click(screen.getByRole("button", { name: "Undo" }));
+  await waitFor(() => {
+    expect(persistedAssembleDone()).toEqual({
+      "L1 · S5 2U drawers|Latch": true,
+      "L2 · S5 2U drawers|Latch": true,
+    });
+  });
+});
+
+test("Start over clears assembly checks so a re-added layer starts unchecked", async () => {
+  const user = userEvent.setup();
+  seedCheckedStack({ "L1 · S5 2U drawers|Latch": { qty: 2, done: true } });
+  render(<App />);
+  await screen.findByRole("heading", { name: "Compose your stack" });
+  await user.click(screen.getByRole("button", { name: "Start over" }));
+  await user.click(screen.getByRole("button", { name: "Start over" }));
+  await waitFor(() => {
+    expect(persistedAssembleDone()).toEqual({});
+  });
+  await user.click(screen.getByRole("button", { name: "Add layer" }));
+  await waitFor(() => {
+    expect(persistedAssembleDone()).toEqual({ "L1 · S5 2U drawers|Latch": false });
+  });
+});
+
+function seedSsStack(assemble: Record<string, { qty: number; done: boolean }> = {}) {
+  const baseDrawer = { ...hardenDrawer, layout: "L", facades: [[2]], interior: "none", key: "key" };
+  const ssDrawer = { ...hardenDrawer, layout: "SS", facades: [[1, 1], [2]], interior: "none", key: "none" };
+  localStorage.setItem("vault-configurator", JSON.stringify({
+    tab: "stack",
+    stack: { name: "my-vault", depth: 5, layers: [baseDrawer, ssDrawer], roof: { type: "none", topHandle: true }, mods: { backbone: "none", pegboard: "none" } },
+    progress: { layoutKey: "", plates: {}, hardware: {}, assemble },
+    settings: meta.defaults,
+  }));
+  stubBomNormalizing();
+}
+
+function stubBomNormalizing() {
+  // Emulate stackfit.normalize for this shape: SS is only legal above an L
+  // base; exposed as the base it is rewritten to S with a single bay. Part
+  // groups follow the normalized layout, like the real catalog.
+  const base = vi.mocked(fetch).getMockImplementation()!;
+  vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo, init?: RequestInit) => {
+    const response = await base(input, init);
+    if (!String(input).includes("/api/bom")) return response;
+    const body = await response.json() as Record<string, unknown>;
+    const requested = JSON.parse(String(init?.body || "{}")) as { stack?: { layers?: Array<Record<string, unknown>> } };
+    const layers = (requested.stack?.layers || []).map((layer, i) => (
+      i === 0 && layer.layout === "SS" ? { ...layer, layout: "S", facades: [[1, 1]] } : layer
+    ));
+    const parts = layers.map((layer, i) => ({
+      group: `L${i + 1} · ${String(layer.layout)}5 2U drawers`, name: "Latch", qty: 2, role: "lock", file: "", size: [10, 10, 10],
+    }));
+    return json({ ...body, stack: { ...requested.stack, layers }, parts, hardware: [] });
+  }));
+}
+
+function persistedLayouts(): string[] {
+  const saved = JSON.parse(localStorage.getItem("vault-configurator") || "{}") as Partial<PlannerState>;
+  return (saved.stack?.layers || []).map((layer) => layer.layout);
+}
+
+test("Undo restores SS settings the BOM normalization rewrote after base removal", async () => {
+  const user = userEvent.setup();
+  seedSsStack();
+  render(<App />);
+  await screen.findByRole("heading", { name: "Compose your stack" });
+  expect(screen.getByText("3 boxes · empty · no lock")).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Remove L drawer" }));
+  // The BOM round-trip adopts the normalized S form (one bay, 2 boxes).
+  await screen.findByText("2 boxes · empty · no lock");
+  await user.click(screen.getByRole("button", { name: "Undo" }));
+  // Undo restores the base and reverts the normalization on the survivor.
+  expect(await screen.findByText("3 boxes · empty · no lock")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Edit SS drawer" })).toBeInTheDocument();
+});
+
+test("Undo does not revert a survivor the user edited after normalization", async () => {
+  const user = userEvent.setup();
+  seedSsStack();
+  render(<App />);
+  await screen.findByRole("heading", { name: "Compose your stack" });
+  await user.click(screen.getByRole("button", { name: "Remove L drawer" }));
+  await screen.findByText("2 boxes · empty · no lock");
+  // Intervening user edit of exactly a normalization-owned field (height).
+  await user.click(screen.getByRole("button", { name: "Edit S drawer" }));
+  await user.selectOptions(screen.getByLabelText("Height"), "4");
+  await user.click(screen.getByRole("button", { name: "Undo" }));
+  await waitFor(() => {
+    const saved = JSON.parse(localStorage.getItem("vault-configurator") || "{}") as Partial<PlannerState>;
+    expect(saved.stack?.layers.map((layer) => [layer.layout, layer.height])).toEqual([["L", 2], ["S", 4]]);
+  });
+});
+
+test("Undo still reverts normalization after an unrelated edit elsewhere", async () => {
+  const user = userEvent.setup();
+  seedSsStack();
+  render(<App />);
+  await screen.findByRole("heading", { name: "Compose your stack" });
+  await user.click(screen.getByRole("button", { name: "Remove L drawer" }));
+  await screen.findByText("2 boxes · empty · no lock");
+  // An unrelated patch (Roof) after normalization must not mark the
+  // untouched survivor as user-edited.
+  await user.selectOptions(screen.getByLabelText("Roof"), "grid");
+  await user.click(screen.getByRole("button", { name: "Undo" }));
+  expect(await screen.findByText("3 boxes · empty · no lock")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Edit SS drawer" })).toBeInTheDocument();
+  expect(screen.getByLabelText("Roof")).toHaveValue("grid");
+});
+
+test("Undo restores assembly checks normalization invalidated by the group rename", async () => {
+  const user = userEvent.setup();
+  seedSsStack({ "L2 · SS5 2U drawers|Latch": { qty: 2, done: true } });
+  render(<App />);
+  await screen.findByRole("heading", { name: "Compose your stack" });
+  await waitFor(() => {
+    expect(persistedAssembleDone()["L2 · SS5 2U drawers|Latch"]).toBe(true);
+  });
+  await user.click(screen.getByRole("button", { name: "Remove L drawer" }));
+  // Normalization renames the group to S, so reconciliation drops the check.
+  await screen.findByText("2 boxes · empty · no lock");
+  await waitFor(() => {
+    expect(persistedAssembleDone()).toEqual({ "L1 · S5 2U drawers|Latch": false });
+  });
+  await user.click(screen.getByRole("button", { name: "Undo" }));
+  await waitFor(() => {
+    expect(persistedAssembleDone()["L2 · SS5 2U drawers|Latch"]).toBe(true);
+  });
+});
+
+test("duplicating a normalized survivor keeps Undo from stamping SS onto the clone", async () => {
+  const user = userEvent.setup();
+  seedSsStack();
+  render(<App />);
+  await screen.findByRole("heading", { name: "Compose your stack" });
+  await user.click(screen.getByRole("button", { name: "Remove L drawer" }));
+  await screen.findByText("2 boxes · empty · no lock");
+  await user.click(screen.getByRole("button", { name: "Edit S drawer" }));
+  await user.click(screen.getByRole("button", { name: "Duplicate layer" }));
+  await waitFor(() => {
+    expect(persistedLayouts()).toEqual(["S", "S"]);
+  });
+  await user.click(screen.getByRole("button", { name: "Undo" }));
+  // The layer list was spliced since capture, so field reverts are refused:
+  // the base returns, both S layers stay S, nothing becomes SS.
+  await waitFor(() => {
+    expect(persistedLayouts()).toEqual(["L", "S", "S"]);
+  });
+});
+
+test("a second removal replaces the capture and its Undo still reverts normalization", async () => {
+  const user = userEvent.setup();
+  const baseDrawer = { ...hardenDrawer, layout: "L", facades: [[2]], interior: "none", key: "key" };
+  const ssDrawer = { ...hardenDrawer, layout: "SS", facades: [[1, 1], [2]], interior: "none", key: "none" };
+  const topDrawer = { ...hardenDrawer, layout: "L", facades: [[2]], interior: "none", key: "hidden" };
+  localStorage.setItem("vault-configurator", JSON.stringify({
+    tab: "stack",
+    stack: { name: "my-vault", depth: 5, layers: [baseDrawer, ssDrawer, topDrawer], roof: { type: "none", topHandle: true }, mods: { backbone: "none", pegboard: "none" } },
+    settings: meta.defaults,
+  }));
+  stubBomNormalizing();
+  render(<App />);
+  await screen.findByRole("heading", { name: "Compose your stack" });
+  // Remove the top L first (first row shown), then the base L.
+  await user.click(screen.getAllByRole("button", { name: "Remove L drawer" })[0]);
+  await user.click(screen.getByRole("button", { name: "Remove L drawer" }));
+  await screen.findByText("2 boxes · empty · no lock");
+  await user.click(screen.getByRole("button", { name: "Undo" }));
+  expect(await screen.findByText("3 boxes · empty · no lock")).toBeInTheDocument();
+  expect(persistedLayouts()).toEqual(["L", "SS"]);
+});
+
+test("editing one survivor during the compute window keeps the untouched survivor's revert", async () => {
+  const user = userEvent.setup();
+  const baseDrawer = { ...hardenDrawer, layout: "L", facades: [[2]], interior: "none", key: "key" };
+  const ssDrawer = { ...hardenDrawer, layout: "SS", facades: [[1, 1], [2]], interior: "none", key: "none" };
+  const topDrawer = { ...hardenDrawer, layout: "L", facades: [[2]], interior: "none", key: "hidden" };
+  localStorage.setItem("vault-configurator", JSON.stringify({
+    tab: "stack",
+    stack: { name: "my-vault", depth: 5, layers: [baseDrawer, ssDrawer, topDrawer], roof: { type: "none", topHandle: true }, mods: { backbone: "none", pegboard: "none" } },
+    settings: meta.defaults,
+  }));
+  stubBomNormalizing();
+  // Hold BOM responses until released, so the Height edit lands while the
+  // normalization round-trip is still in flight.
+  let releaseBom: () => void = () => {};
+  const gate = new Promise<void>((resolve) => { releaseBom = () => resolve(undefined); });
+  const inner = vi.mocked(fetch).getMockImplementation()!;
+  vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo, init?: RequestInit) => {
+    if (String(input).includes("/api/bom")) await gate;
+    return inner(input, init);
+  }));
+  render(<App />);
+  await screen.findByRole("heading", { name: "Compose your stack" });
+  // Rows display top-first: [top L, SS, base L] — the base is the last Remove.
+  const removes = screen.getAllByRole("button", { name: "Remove L drawer" });
+  await user.click(removes[removes.length - 1]);
+  await user.click(screen.getByRole("button", { name: "Edit L drawer" }));
+  await user.selectOptions(screen.getByLabelText("Height"), "4");
+  releaseBom();
+  await screen.findByText("2 boxes · empty · no lock");
+  await user.click(screen.getByRole("button", { name: "Undo" }));
+  expect(await screen.findByText("3 boxes · empty · no lock")).toBeInTheDocument();
+  const saved = JSON.parse(localStorage.getItem("vault-configurator") || "{}") as Partial<PlannerState>;
+  expect(saved.stack?.layers.map((layer) => [layer.layout, layer.height])).toEqual([["L", 2], ["SS", 2], ["L", 4]]);
+});
+
+test("Undo after swapping identical survivors does not resurrect the moved override at its old key", async () => {
+  const user = userEvent.setup();
+  const drawer = { ...hardenDrawer };
+  localStorage.setItem("vault-configurator", JSON.stringify({
+    tab: "stack",
+    stack: { name: "my-vault", depth: 5, layers: [drawer, drawer, drawer], roof: { type: "none", topHandle: true }, mods: { backbone: "none", pegboard: "none" } },
+    overrides: { "L3 · S5 2U drawers|Latch": { role: "accent" } },
+    settings: meta.defaults,
+  }));
+  render(<App />);
+  await screen.findByRole("heading", { name: "Compose your stack" });
+  // Rows display top-first: the base is the last Remove.
+  const removes = screen.getAllByRole("button", { name: "Remove S drawer" });
+  await user.click(removes[removes.length - 1]);
+  // Move the top survivor (which carries the override) toward the base.
+  await user.click(screen.getAllByRole("button", { name: "Edit S drawer" })[0]);
+  await user.click(screen.getByRole("button", { name: "Move toward base" }));
+  await user.click(screen.getByRole("button", { name: "Undo" }));
+  await waitFor(() => {
+    const saved = JSON.parse(localStorage.getItem("vault-configurator") || "{}") as Partial<PlannerState>;
+    expect(saved.stack?.layers).toHaveLength(3);
+    // The override followed its layer to L2; recovery must not also
+    // resurrect it at the captured L3 key.
+    expect(saved.overrides).toEqual({ "L2 · S5 2U drawers|Latch": { role: "accent" } });
+  });
+});
+
+test("Undo restores SS beside a twin S layer equal to its normalized form, with no reorder", async () => {
+  const user = userEvent.setup();
+  const baseDrawer = { ...hardenDrawer, layout: "L", facades: [[2]], interior: "none", key: "key" };
+  const ssDrawer = { ...hardenDrawer, layout: "SS", facades: [[1, 1], [2]], interior: "none", key: "none" };
+  // Exactly what the normalizing stub rewrites SS to: after adoption both
+  // survivors are equal-valued, but nothing was reordered, so positions
+  // still identify them and recovery must not be refused.
+  const twinDrawer = { ...ssDrawer, layout: "S", facades: [[1, 1]] };
+  localStorage.setItem("vault-configurator", JSON.stringify({
+    tab: "stack",
+    stack: { name: "my-vault", depth: 5, layers: [baseDrawer, ssDrawer, twinDrawer], roof: { type: "none", topHandle: true }, mods: { backbone: "none", pegboard: "none" } },
+    settings: meta.defaults,
+  }));
+  stubBomNormalizing();
+  render(<App />);
+  await screen.findByRole("heading", { name: "Compose your stack" });
+  await user.click(screen.getByRole("button", { name: "Remove L drawer" }));
+  await waitFor(() => {
+    expect(persistedLayouts()).toEqual(["S", "S"]);
+  });
+  await user.click(screen.getByRole("button", { name: "Undo" }));
+  await waitFor(() => {
+    expect(persistedLayouts()).toEqual(["L", "SS", "S"]);
+  });
+  const saved = JSON.parse(localStorage.getItem("vault-configurator") || "{}") as Partial<PlannerState>;
+  expect(saved.stack?.layers[1].facades).toEqual([[1, 1], [2]]);
+  expect(saved.stack?.layers[2].facades).toEqual([[1, 1]]);
+});
+
+test("a checklist reset keeps Undo from resurrecting captured survivor checks", async () => {
+  const user = userEvent.setup();
+  seedSsStack({ "L2 · SS5 2U drawers|Latch": { qty: 2, done: true } });
+  render(<App />);
+  await screen.findByRole("heading", { name: "Compose your stack" });
+  await waitFor(() => {
+    expect(persistedAssembleDone()["L2 · SS5 2U drawers|Latch"]).toBe(true);
+  });
+  await user.click(screen.getByRole("button", { name: "Remove L drawer" }));
+  await screen.findByText("2 boxes · empty · no lock");
+  await waitFor(() => {
+    expect(persistedAssembleDone()).toEqual({ "L1 · S5 2U drawers|Latch": false });
+  });
+  // Complete the remaining checklist, then explicitly reset it.
+  await user.click(screen.getByRole("tab", { name: "4 Assemble" }));
+  await user.click(screen.getByRole("checkbox", { name: "2× Latch" }));
+  await user.click(await screen.findByRole("button", { name: "Review checklist again" }));
+  await user.click(screen.getByRole("tab", { name: /Design/ }));
+  await user.click(screen.getByRole("button", { name: "Undo" }));
+  // Geometry reverts, but the reset checks do not come back.
+  expect(await screen.findByText("3 boxes · empty · no lock")).toBeInTheDocument();
+  await waitFor(() => {
+    expect(persistedAssembleDone()["L2 · SS5 2U drawers|Latch"]).toBe(false);
+  });
+});
+
+test("a Roof recompute after a checklist reset does not block Undo geometry recovery", async () => {
+  const user = userEvent.setup();
+  seedSsStack({ "L2 · SS5 2U drawers|Latch": { qty: 2, done: true } });
+  render(<App />);
+  await screen.findByRole("heading", { name: "Compose your stack" });
+  await waitFor(() => {
+    expect(persistedAssembleDone()["L2 · SS5 2U drawers|Latch"]).toBe(true);
+  });
+  await user.click(screen.getByRole("button", { name: "Remove L drawer" }));
+  await screen.findByText("2 boxes · empty · no lock");
+  await waitFor(() => {
+    expect(persistedAssembleDone()).toEqual({ "L1 · S5 2U drawers|Latch": false });
+  });
+  await user.click(screen.getByRole("tab", { name: "4 Assemble" }));
+  await user.click(screen.getByRole("checkbox", { name: "2× Latch" }));
+  await user.click(await screen.findByRole("button", { name: "Review checklist again" }));
+  await user.click(screen.getByRole("tab", { name: /Design/ }));
+  // An unrelated edit recomputes the BOM; reconciliation's recreated
+  // unchecked entries must not be mistaken for user edits of the survivor.
+  // Gate that BOM so Undo provably happens after its adoption, not merely
+  // after the unchecked map reset already wrote synchronously.
+  let releaseBom: () => void = () => {};
+  const gate = new Promise<void>((resolve) => { releaseBom = () => resolve(undefined); });
+  let roofBomReturned = false;
+  const inner = vi.mocked(fetch).getMockImplementation()!;
+  vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo, init?: RequestInit) => {
+    if (!String(input).includes("/api/bom")) return inner(input, init);
+    await gate;
+    const response = await inner(input, init);
+    roofBomReturned = true;
+    return response;
+  }));
+  await user.selectOptions(screen.getByLabelText("Roof"), "grid");
+  releaseBom();
+  await waitFor(() => {
+    expect(roofBomReturned).toBe(true);
+    expect(persistedAssembleDone()).toEqual({ "L1 · S5 2U drawers|Latch": false });
+  });
+  await user.click(screen.getByRole("button", { name: "Undo" }));
+  expect(await screen.findByText("3 boxes · empty · no lock")).toBeInTheDocument();
+  await waitFor(() => {
+    expect(persistedAssembleDone()["L2 · SS5 2U drawers|Latch"]).toBe(false);
+  });
+  expect(screen.getByLabelText("Roof")).toHaveValue("grid");
+});
+
+test("checking the normalized survivor in Assemble keeps Undo from reverting it to SS", async () => {
+  const user = userEvent.setup();
+  seedSsStack();
+  render(<App />);
+  await screen.findByRole("heading", { name: "Compose your stack" });
+  await user.click(screen.getByRole("button", { name: "Remove L drawer" }));
+  await screen.findByText("2 boxes · empty · no lock");
+  await waitFor(() => {
+    expect(persistedAssembleDone()).toEqual({ "L1 · S5 2U drawers|Latch": false });
+  });
+  // A newer edit under the renamed S group: check the survivor off.
+  await user.click(screen.getByRole("tab", { name: "4 Assemble" }));
+  await user.click(screen.getByRole("checkbox", { name: "2× Latch" }));
+  await user.click(screen.getByRole("tab", { name: /Design/ }));
+  await user.click(screen.getByRole("button", { name: "Undo" }));
+  // The base returns, but the survivor stays S so its check keeps applying;
+  // reverting to SS would orphan it under the obsolete S-group key.
+  await waitFor(() => {
+    expect(persistedLayouts()).toEqual(["L", "S"]);
+    expect(persistedAssembleDone()["L2 · S5 2U drawers|Latch"]).toBe(true);
+  });
 });
 
 test("a test-plate group removed from the stack no longer enables export", async () => {

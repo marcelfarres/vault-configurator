@@ -1,17 +1,18 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { footprintLine, partFitsScope } from "../../../planner.mjs";
 import { HELP } from "../help";
 import { INTERIOR_LABEL, LAYOUT_LABEL, ROOF_LABEL, depthOptionLabel, heightLabel, labeledChoices, layerSummary, layerTitle, patternName, roleColor, stackHeightMm } from "../labels";
-import { facadeCatalog, heightCatalog, isMisfitNote, layerFitNotes, layoutCatalog } from "../stack";
+import { facadeCatalog, finishCustomized, heightCatalog, isMisfitNote, layerFitNotes, layoutCatalog } from "../stack";
 import { usePlanner } from "../store";
 import type { Layer } from "../types";
-import { Card, ChoiceSelect, Grip, StepFooter, Switch } from "./ui";
+import { Card, ChoiceSelect, Grip, HelpButton, StepFooter, Switch } from "./ui";
 import { Preview } from "./Preview";
 
 export function Design() {
   const store = usePlanner();
-  const { state, meta, bom, patch, showHelp } = store;
+  const { state, meta, bom, patch, showHelp, removedLayer } = store;
+  const [confirmReset, setConfirmReset] = useState(false);
   const depth = labeledChoices("depth", {
     choices: bom?.choices || null,
     catalog: meta.depths,
@@ -68,30 +69,56 @@ export function Design() {
             {[...state.stack.layers.keys()].reverse().map((index) => (
               <LayerCard key={index} index={index} />
             ))}
-            <button type="button" className="btn ghost" onClick={() => patch((draft) => {
-              draft.stack.layers = [];
-              draft.overrides = {};
-              draft.stack.roof = { type: "none", topHandle: true };
-              draft.stack.mods = { backbone: "none", pegboard: "none" };
-            })}>Start over</button>
+            {removedLayer ? (
+              <p className="note" role="status">
+                {layerTitle(removedLayer.layer)} removed.{" "}
+                <button type="button" className="btn" onClick={() => store.restoreLayer()}>Undo</button>
+              </p>
+            ) : null}
+            {confirmReset ? (
+              <p className="confirm-remove" role="status">
+                <span className="note">Start over {[
+                  state.stack.layers.length ? `removes ${state.stack.layers.length} ${state.stack.layers.length === 1 ? "layer" : "layers"}` : null,
+                  Object.keys(state.overrides).length ? "discards colour overrides" : null,
+                  "resets the roof and mods",
+                ].filter(Boolean).join(", ").replace(/, ([^,]*)$/, ", and $1")}.</span>
+                <button type="button" className="btn" onClick={() => {
+                  setConfirmReset(false);
+                  store.startOver();
+                }}>Start over</button>
+                <button type="button" className="btn" onClick={() => setConfirmReset(false)}>Keep my stack</button>
+              </p>
+            ) : (
+              <button type="button" className="btn ghost" onClick={() => {
+                const customized = state.stack.layers.length > 0
+                  || Object.keys(state.overrides).length > 0
+                  || finishCustomized(state.stack);
+                if (customized) setConfirmReset(true);
+                else store.startOver();
+              }}>Start over</button>
+            )}
           </Card>
           <Card title="Finish">
             <ChoiceSelect label="Roof" help="roof" view={roof} onChange={(value) => patch((draft) => {
               draft.stack.roof = { ...draft.stack.roof, type: value };
             })} />
             {state.stack.roof?.type === "grid" ? (
-              <label className="check" onClick={() => showHelp("topHandle")}>
-                <input type="checkbox" checked={state.stack.roof.topHandle !== false} onChange={(event) => patch((draft) => {
-                  draft.stack.roof.topHandle = event.target.checked;
-                })} />
-                Top handle
-              </label>
+              <span className="check-row">
+                <label className="check" onClick={() => showHelp("topHandle")}>
+                  <input type="checkbox" checked={state.stack.roof.topHandle !== false} onChange={(event) => patch((draft) => {
+                    draft.stack.roof.topHandle = event.target.checked;
+                  })} />
+                  Top handle
+                </label>
+                <HelpButton topic="topHandle" label="Top handle" />
+              </span>
             ) : null}
             <div className="finish-row">
               <span onClick={() => showHelp("backbone")}>Backbone</span>
               <Switch pressed={backbone !== "none"} label="Backbone" onToggle={(on) => patch((draft) => {
                 draft.stack.mods.backbone = on ? "wide" : "none";
               })} />
+              <HelpButton topic="backbone" label="Backbone" />
             </div>
             <p className="note">Boards bolted up the back of the stack. They carry the handle, pegboard and wall mounts.</p>
             {backbone !== "none" ? (
@@ -108,6 +135,7 @@ export function Design() {
               <Switch pressed={pegboard !== "none"} label="Pegboard back" onToggle={(on) => patch((draft) => {
                 draft.stack.mods.pegboard = on ? "ussa" : "none";
               })} />
+              <HelpButton topic="pegboard" label="Pegboard back" />
             </div>
             <p className="note">Attachment rails on the back for hanging tools. The pegboard panel itself is bought or printed separately.</p>
             {pegboard !== "none" ? (
@@ -132,10 +160,13 @@ export function Design() {
                   ["connectors", "Module connectors"],
                   ["wallmount", "Wall mounts"],
                 ] as const).map(([key, label]) => (
-                  <label key={key} className="check" onClick={() => showHelp(key)}>
-                    <input type="checkbox" checked={!!mods[key]} onChange={(event) => patch((draft) => { draft.stack.mods[key] = event.target.checked; })} />
-                    {label}
-                  </label>
+                  <span key={key} className="check-row">
+                    <label className="check" onClick={() => showHelp(key)}>
+                      <input type="checkbox" checked={!!mods[key]} onChange={(event) => patch((draft) => { draft.stack.mods[key] = event.target.checked; })} />
+                      {label}
+                    </label>
+                    <HelpButton topic={key} label={label} />
+                  </span>
                 ))}
               </div>
             </details>
@@ -209,6 +240,7 @@ function LayerCard({ index }: { index: number }) {
   const allBaysSplit = facades.length > 0 && facades.every((faces) => faces.length > 1);
   const someBaySplit = facades.some((faces) => faces.length > 1);
   const title = layerTitle(layer);
+  const lockView = labeledChoices("key", { catalog: ["key", "hidden", "none"], current: layer.key }, (value) => (value === "hidden" ? "hidden key" : String(value)));
   return (
     <div
       className="layer"
@@ -295,14 +327,15 @@ function LayerCard({ index }: { index: number }) {
                 }, (value) => INTERIOR_LABEL[String(value)] || String(value))}
                 onChange={(value) => patch((draft) => { draft.stack.layers[index].interior = value; })}
               />
-              <label className="field">
-                <span>Lock</span>
-                <select aria-label="Lock" value={layer.key} onFocus={() => store.showHelp("key")} onChange={(event) => patch((draft) => { draft.stack.layers[index].key = event.target.value; })}>
-                  <option value="key">key</option>
-                  <option value="hidden">hidden key</option>
-                  <option value="none">none</option>
-                </select>
-              </label>
+              <ChoiceSelect
+                label="Lock"
+                help="key"
+                view={lockView}
+                onChange={(value) => patch((draft) => {
+                  draft.stack.layers[index].key =
+                    value;
+                })}
+              />
               <Flag index={index} field="labels" label="labels" help="labels" />
               <Flag index={index} field="rails" label="geared rails" help="rails" forced={allBaysSplit} note={someBaySplit && !allBaysSplit ? "split bays always include them" : undefined} />
               <Flag index={index} field="manualSupports" label="manual support wall" help="manualSupports" />
@@ -335,6 +368,7 @@ function LayerCard({ index }: { index: number }) {
           )}
           <button type="button" className="btn" onClick={() => store.moveLayer(index, 1)}>Move toward top</button>
           <button type="button" className="btn" onClick={() => store.moveLayer(index, -1)}>Move toward base</button>
+          <button type="button" className="btn" onClick={() => store.duplicateLayer(index)}>Duplicate layer</button>
           {notes.slice(0, 3).map((note) => <p key={note} className="warn">{note}</p>)}
         </div>
       ) : null}
@@ -355,20 +389,23 @@ function Flag({ index, field, label, help, forced = false, note }: { index: numb
   const layer = state.stack.layers[index];
   const checked = forced || (field === "dividers" ? !!layer.dividers : !!layer[field]);
   return (
-    <label className="check" onClick={() => showHelp(help)}>
-      <input
-        type="checkbox"
-        checked={checked}
-        disabled={forced}
-        title={forced ? "Required when a module holds more than one box" : note}
-        onChange={(event) => patch((draft) => {
-          const row = draft.stack.layers[index];
-          if (field === "dividers") row.dividers = event.target.checked;
-          else row[field] = event.target.checked;
-        })}
-      />
-      {label}{forced ? " (required)" : note ? ` (${note})` : ""}
-    </label>
+    <span className="check-row">
+      <label className="check" onClick={() => showHelp(help)}>
+        <input
+          type="checkbox"
+          checked={checked}
+          disabled={forced}
+          title={forced ? "Required when a module holds more than one box" : note}
+          onChange={(event) => patch((draft) => {
+            const row = draft.stack.layers[index];
+            if (field === "dividers") row.dividers = event.target.checked;
+            else row[field] = event.target.checked;
+          })}
+        />
+        {label}{forced ? " (required)" : note ? ` (${note})` : ""}
+      </label>
+      <HelpButton topic={help} label={label} />
+    </span>
   );
 }
 
@@ -389,7 +426,7 @@ function NumberField({ index, field, label }: { index: number; field: "gridW" | 
 }
 
 function HelpCard() {
-  const { helpTopic, helpSerial } = usePlanner();
+  const { helpTopic, helpSerial, helpAsk } = usePlanner();
   const block = HELP[helpTopic];
   const ref = useRef<HTMLElement>(null);
   // Help updates as fields are focussed and scrolls inside its own card (the
@@ -398,6 +435,19 @@ function HelpCard() {
   useEffect(() => {
     if (ref.current) ref.current.scrollTop = 0;
   }, [helpTopic, helpSerial]);
+  // A ? button is a deliberate request: if the card is off-screen (before the
+  // column sticks, or in the single-column layout), bring its heading in.
+  // Seeded with the counter at mount, so remounting (returning to Design)
+  // never replays an old request.
+  const handledAsk = useRef(helpAsk);
+  useEffect(() => {
+    if (helpAsk === handledAsk.current) return;
+    handledAsk.current = helpAsk;
+    const el = ref.current;
+    if (!el || typeof el.scrollIntoView !== "function") return;
+    const rect = el.getBoundingClientRect();
+    if (rect.top < 0 || rect.top > window.innerHeight - 48) el.scrollIntoView({ block: "start" });
+  }, [helpAsk]);
   return (
     <section className="card" id="help" ref={ref}>
       <h2>Help</h2>

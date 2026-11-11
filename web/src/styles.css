@@ -413,6 +413,54 @@
     margin: 0;
   }
 
+  .check-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+
+  /* DOM order is label, control, ? (tab reaches the field first); the grid
+     puts the ? back beside the label text. */
+  .field.has-help {
+    display: grid;
+    grid-template-columns: auto auto;
+    justify-content: start;
+    column-gap: 0.3rem;
+  }
+
+  .field.has-help select {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .field.has-help .help-btn {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: center;
+  }
+
+  .field.has-help .warn {
+    grid-column: 1 / -1;
+  }
+
+  .help-btn {
+    inline-size: 1.15rem;
+    block-size: 1.15rem;
+    flex: none;
+    border: 1px solid var(--input);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--muted-foreground);
+    font-size: 0.72rem;
+    line-height: 1;
+    padding: 0;
+  }
+
+  .help-btn:hover {
+    color: var(--foreground);
+    border-color: var(--foreground);
+  }
+
   .field-row, .finish-row, .editor, .actions {
     display: flex;
     flex-wrap: wrap;
@@ -423,6 +471,18 @@
   .finish-row {
     justify-content: space-between;
     padding-block: 0.45rem;
+    column-gap: 0.3rem;
+  }
+
+  /* DOM order is name, switch, ? (tab reaches the switch first); visually
+     the ? sits with the name and the switch keeps the far edge. */
+  .finish-row .help-btn {
+    order: 2;
+  }
+
+  .finish-row .switch {
+    order: 3;
+    margin-inline-start: auto;
   }
 
   .finish-row + .finish-row {
