@@ -7,5 +7,7 @@ output/
 slicers/
 __pycache__/
 *.pyc
-web/node_modules/
+node_modules/
 *.tsbuildinfo
+# critique screenshot captures: working evidence, summarised in the critique records; may be taken with an archive connected
+.impeccable/review/

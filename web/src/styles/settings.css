@@ -1,0 +1,167 @@
+/* Settings: printer fleet table, section nav, filament rows.
+   Imported into the components layer by ../styles.css; no @layer wrapper here. */
+  .printer-table {
+    table-layout: fixed;
+    /* Below this the fixed Bed/Z columns starve Name/Profile; let
+       .table-wrap scroll instead of crushing the identity fields. */
+    min-inline-size: 34rem;
+  }
+
+  .printer-table col.printer-use {
+    inline-size: 2.75rem;
+  }
+
+  .printer-table col.printer-bed {
+    inline-size: 7rem;
+  }
+
+  .printer-table col.printer-z {
+    inline-size: 6rem;
+  }
+
+  .printer-table col.printer-action {
+    inline-size: 3rem;
+  }
+
+  .printer-table td input[type="number"] {
+    min-inline-size: 0;
+  }
+
+  .settings {
+    display: grid;
+    grid-template-columns: 12.5rem minmax(0, 1fr);
+    gap: 2rem;
+    align-items: start;
+  }
+
+  .settings-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .settings-nav button {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    text-align: start;
+    border: none;
+    background: transparent;
+    border-radius: var(--radius-md);
+    padding: 0.5rem 0.75rem;
+    min-block-size: 2.25rem;
+    font-size: 0.875rem;
+    color: var(--muted-foreground);
+  }
+
+  .settings-nav button:hover {
+    background: var(--muted);
+    color: var(--foreground);
+  }
+
+  .settings-nav button[aria-current="page"] {
+    background: var(--card);
+    color: var(--foreground);
+    font-weight: 500;
+    box-shadow: 0 0 0 1px var(--border), var(--shadow-sm);
+  }
+
+  .segment {
+    gap: 0.5rem;
+  }
+
+  .segment button {
+    min-inline-size: 5.5rem;
+  }
+
+  .filament-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 1rem;
+    border: 1px solid var(--border);
+    background: var(--background);
+    border-radius: var(--radius);
+    padding: 0.75rem 0.75rem 0.75rem 1rem;
+    margin-block: 0.5rem;
+  }
+
+  .color-disc {
+    position: relative;
+    inline-size: 2.25rem;
+    block-size: 2.25rem;
+    flex: none;
+    overflow: hidden;
+    border-radius: 999px;
+    border: 1px solid color-mix(in oklch, var(--foreground) 15%, transparent);
+    cursor: pointer;
+  }
+
+  .color-disc input[type="color"] {
+    position: absolute;
+    inset: 0;
+    inline-size: 100%;
+    block-size: 100%;
+    opacity: 0;
+    cursor: pointer;
+  }
+
+  .color-disc:has(input:focus-visible) {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  .ghost-input {
+    flex: 1 1 10rem;
+    border: 1px solid transparent;
+    background: transparent;
+    border-radius: var(--radius-md);
+    padding: 0.5rem 0.75rem;
+    min-block-size: 2.25rem;
+    font-size: 0.875rem;
+    color: var(--foreground);
+  }
+
+  .ghost-input:hover, .ghost-input:focus {
+    border-color: var(--input);
+    background: var(--card);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .material-select {
+    inline-size: 7rem;
+  }
+
+  .menu {
+    margin-block-start: 0.35rem;
+    padding: 0.5rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--card);
+    box-shadow: var(--shadow-md);
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    min-inline-size: 16rem;
+    position: absolute;
+    z-index: 40;
+  }
+
+  .load {
+    position: relative;
+  }
+
+  .menu button {
+    text-align: start;
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 0.4rem 0.45rem;
+    min-block-size: 2.1rem;
+    font-size: 0.875rem;
+  }
+
+  .menu button:hover {
+    background: var(--muted);
+  }
+

@@ -2,7 +2,7 @@ import { checkedCount, exportCandidates, missingFileLines, plateKey, printerLabe
 import { fmtH } from "../labels";
 import { exportPrinters, estimatePrinter, usePlanner } from "../store";
 import type { Filament, Plate } from "../types";
-import { NumberField, StepFooter } from "./ui";
+import { Icon, NumberField, StepFooter } from "./ui";
 
 export function Plates() {
   const store = usePlanner();
@@ -27,14 +27,19 @@ export function Plates() {
     test: "test plates exported",
     "test-stale": "test plates exported for an earlier selection",
   }[store.exportState];
+  const planSummary = plan
+    ? plan.synthetic
+      ? `${plan.plates.length} example ${plan.plates.length === 1 ? "plate" : "plates"} shown`
+      : `${plan.plates.length} ${plan.plates.length === 1 ? "plate" : "plates"} planned`
+    : "";
   const readyParts = [
-    plan ? `${plan.plates.length} ${plan.plates.length === 1 ? "plate" : "plates"} planned` : "",
-    unplaceable ? `${unplaceable} ${unplaceable === 1 ? "part" : "parts"} cannot be placed` : "",
+    planSummary,
+    !plan?.synthetic && unplaceable ? `${unplaceable} ${unplaceable === 1 ? "part" : "parts"} cannot be placed` : "",
     exportLine,
   ].filter(Boolean).join(" · ");
   const ready = `${readyParts.charAt(0).toUpperCase()}${readyParts.slice(1)}.${store.exportState === "current" ? "" : " You can start assembling before you export."}`;
   return (
-    <div className="page">
+    <div className="page page-plates">
       <h1>Plates & export</h1>
       <p className="lede">Choose which shop printers to export for. Each export is a 3MF: a slicer project file, for Bambu Studio or OrcaSlicer, with every plate already laid out.</p>
       <section className="card">
@@ -44,7 +49,7 @@ export function Plates() {
             <button
               type="button"
               key={printer.id}
-              className="chip"
+              className="btn printer-toggle"
               aria-pressed={printer.forExport !== false}
               aria-label={`Export ${printerLabel(printer)}`}
               onClick={() => patch((draft) => {
@@ -60,8 +65,8 @@ export function Plates() {
         <p className="note">Packing with {packing.map((printer) => printerLabel(printer)).join(", ") || "no printer"}.{packing.length > 1 ? " Each part is packed once, shared between them to balance print time." : ""}</p>
         <p className="note">Weight estimate uses {bomPrinter(store.bom?.estimate?.printer, estimate ? printerLabel(estimate) : "")}.</p>
         <div className="actions">
-          <button type="button" className="btn" disabled={emptyStack || !partLines.length} onClick={() => void store.previewPlates()}>Preview plates</button>
-          <button type="button" className="btn primary" disabled={!canExport} onClick={() => void store.runExport("/api/export")}>Export 3MF</button>
+          <button type="button" className="btn" disabled={emptyStack || !partLines.length} onClick={() => void store.previewPlates()}><Icon name="eye" />Preview plates</button>
+          <button type="button" className="btn primary" disabled={!canExport} onClick={() => void store.runExport("/api/export")}><Icon name="download" />Export 3MF</button>
           {!meta.files ? <button type="button" className="btn" onClick={() => void store.showSample()}>Show a sample plate</button> : null}
         </div>
         <p className="note">{store.exportStatus}</p>
@@ -162,19 +167,25 @@ function PlanView() {
   if (!plan) return null;
   const name = (id: string) => printerLabel(state.settings.printers.find((printer) => printer.id === id) || { name: id });
   return (
-    <div className="spaced">
-      {plan.synthetic ? <p className="warn">{plan.label}</p> : null}
+    <section className="spaced" aria-label={plan.synthetic ? "Example plate layout" : undefined}>
+      {plan.synthetic ? (
+        <>
+          <h2>Example plate layout</h2>
+          <p className="warn">{plan.label || "Synthetic example. Not VAULT parts."}</p>
+          <p className="note">Example only — these plates do not describe your stack or its print progress.</p>
+        </>
+      ) : null}
       {planNote ? <p className="warn">{planNote}</p> : null}
-      <p className="note">{checkedCount(state.progress).plates}/{plan.plates.length} plates marked printed. This is a manual check, not a connection to a printer.</p>
+      {!plan.synthetic ? <p className="note">{checkedCount(state.progress).plates}/{plan.plates.length} plates marked printed. This is a manual check, not a connection to a printer.</p> : null}
       {(plan.unplaceable || []).map((row) => (
         <p key={row.name} className="bad">{row.qty || 1}× {row.name} does not fit an export printer. {row.reason || ""}</p>
       ))}
       <div className="plate-grid">
         {plan.plates.map((plate, index) => (
           <article key={plateKey(plate)} className="card plate-card">
-            <h3>Plate {index + 1} · {plate.name || name(plate.printer)}</h3>
             <Bed plate={plate} filaments={state.settings.filaments} />
-            <p className="note">{name(plate.printer)}{plate.seconds != null ? ` · ${fmtH(plate.seconds)}` : ""}{plate.grams != null ? ` · ${Math.round(plate.grams)} g` : ""}</p>
+            <h3>{plan.synthetic ? "Example plate" : "Plate"} {index + 1} · {plate.name || name(plate.printer)}</h3>
+            <p className="note mono">{name(plate.printer)}{plate.seconds != null ? ` · ${fmtH(plate.seconds)}` : ""}{plate.grams != null ? ` · ${Math.round(plate.grams)} g` : ""}</p>
             <p className="note">{counts(plate)}</p>
             {!plan.synthetic ? (
               <label className="check">
@@ -194,7 +205,7 @@ function PlanView() {
           </article>
         ))}
       </div>
-    </div>
+    </section>
   );
 }
 

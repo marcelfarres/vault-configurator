@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-07T17:49:53+00:00",
+  "generatedAt": "2026-11-11T00:00:00+00:00",
   "title": "Design System: VAULT configurator",
   "extensions": {
     "colorMeta": {
@@ -338,7 +338,7 @@
     "typographyMeta": {
       "headline": {
         "displayName": "Headline",
-        "purpose": "The single h1 per page (Design, Parts, Plates)."
+        "purpose": "The single h1 per page (Compose your stack, Parts & colours, Plates & export)."
       },
       "title": {
         "displayName": "Title",
@@ -354,7 +354,7 @@
       },
       "label": {
         "displayName": "Label",
-        "purpose": "Chips, pills, status chips, preview meta."
+        "purpose": "Mono chips, pills, status chips, tab numerals, preview meta."
       },
       "wordmark": {
         "displayName": "Wordmark",
@@ -367,21 +367,34 @@
     },
     "shadows": [
       {
-        "name": "card-whisper",
-        "value": "0 1px 2px oklch(0.21 0.006 286 / 6%)",
-        "purpose": "Cards and the current settings-nav item; a contact line, not a lift."
+        "name": "control-shadow",
+        "value": "0 1px 2px oklch(0.21 0.006 286 / 8%)",
+        "purpose": "Outline buttons, inputs, selects, the switch track, current settings-nav item."
       },
       {
-        "name": "card-whisper-dark",
-        "value": "0 1px 2px oklch(0 0 0 / 30%)",
-        "purpose": "The same contact line in the dark theme."
+        "name": "primary-shadow",
+        "value": "0 1px 3px oklch(0.21 0.006 286 / 10%), 0 1px 2px -1px oklch(0.21 0.006 286 / 10%)",
+        "purpose": "The ink-filled primary button."
+      },
+      {
+        "name": "menu-shadow",
+        "value": "0 4px 6px -1px oklch(0.21 0.006 286 / 10%), 0 2px 4px -2px oklch(0.21 0.006 286 / 10%)",
+        "purpose": "Popover menus. Dark theme deepens all three steps to 30-40% black."
       }
     ],
     "motion": [],
     "breakpoints": [
       {
+        "name": "preview-narrows",
+        "value": "1100px"
+      },
+      {
         "name": "collapse",
         "value": "900px"
+      },
+      {
+        "name": "tight-gutters",
+        "value": "640px"
       }
     ]
   },
@@ -390,89 +403,97 @@
       "name": "Button",
       "kind": "button",
       "refersTo": "button",
-      "description": "Default action: Card Stock fill, hairline border, 0.65rem corner.",
+      "description": "Default (outline) action: Bench Paper fill, hairline border, control shadow, 0.375rem corner; hover takes the Teal Wash.",
       "html": "<button class=\"ds-btn\">Save</button>",
-      "css": ".ds-btn{font-family:var(--font, 'IBM Plex Sans', 'Segoe UI', sans-serif);line-height:1.45;display:inline-flex;align-items:center;justify-content:center;gap:.35rem;min-height:2.25rem;padding:.3rem .75rem;border:1px solid var(--border, oklch(0.91 0.004 286));border-radius:.65rem;background:var(--card, oklch(0.995 0.002 90));color:var(--foreground, oklch(0.21 0.006 286));font-size:1rem;cursor:pointer} .ds-btn:hover{background:var(--muted, oklch(0.95 0.003 286))} .ds-btn:focus-visible{outline:2px solid var(--ring, oklch(0.52 0.07 195));outline-offset:2px;}"
+      "css": ".ds-btn{font-family:var(--font, 'IBM Plex Sans', 'Segoe UI', sans-serif);line-height:1.45;display:inline-flex;align-items:center;justify-content:center;gap:.5rem;min-height:2.25rem;padding:.5rem 1rem;border:1px solid var(--border, oklch(0.91 0.004 286));border-radius:calc(var(--radius, .5rem) - 2px);background:var(--background, oklch(0.975 0.003 90));color:var(--foreground, oklch(0.21 0.006 286));font-size:.875rem;font-weight:500;box-shadow:var(--shadow-sm, 0 1px 2px oklch(0.21 0.006 286 / 8%));cursor:pointer} .ds-btn:hover{background:var(--accent, oklch(0.93 0.03 190));color:var(--accent-foreground, oklch(0.35 0.06 195))} .ds-btn:focus-visible{outline:2px solid var(--ring, oklch(0.52 0.07 195));outline-offset:2px;}"
     },
     {
       "name": "Primary Button",
       "kind": "button",
       "refersTo": "button-primary",
-      "description": "The chosen or committed action: Bench Ink fill. Also the pressed state of a segmented control.",
-      "html": "<button class=\"ds-btn-primary\">Export</button>",
-      "css": ".ds-btn-primary{font-family:var(--font, 'IBM Plex Sans', 'Segoe UI', sans-serif);line-height:1.45;display:inline-flex;align-items:center;justify-content:center;gap:.35rem;min-height:2.25rem;padding:.3rem .75rem;border:1px solid var(--primary, oklch(0.21 0.006 286));border-radius:.65rem;background:var(--primary, oklch(0.21 0.006 286));color:var(--primary-foreground, oklch(0.985 0.002 90));font-size:1rem;cursor:pointer} .ds-btn-primary:focus-visible{outline:2px solid var(--ring, oklch(0.52 0.07 195));outline-offset:2px;}"
+      "description": "The chosen or committed action: Bench Ink fill with the primary shadow. Also the pressed state of a segmented control.",
+      "html": "<button class=\"ds-btn-primary\">Export 3MF</button>",
+      "css": ".ds-btn-primary{font-family:var(--font, 'IBM Plex Sans', 'Segoe UI', sans-serif);line-height:1.45;display:inline-flex;align-items:center;justify-content:center;gap:.5rem;min-height:2.25rem;padding:.5rem 1rem;border:1px solid var(--primary, oklch(0.21 0.006 286));border-radius:calc(var(--radius, .5rem) - 2px);background:var(--primary, oklch(0.21 0.006 286));color:var(--primary-foreground, oklch(0.985 0.002 90));font-size:.875rem;font-weight:500;box-shadow:var(--shadow, 0 1px 3px oklch(0.21 0.006 286 / 10%));cursor:pointer} .ds-btn-primary:hover{background:color-mix(in oklch, var(--primary, oklch(0.21 0.006 286)) 90%, var(--card, oklch(0.995 0.002 90)))} .ds-btn-primary:focus-visible{outline:2px solid var(--ring, oklch(0.52 0.07 195));outline-offset:2px;}"
     },
     {
       "name": "Ghost Button",
       "kind": "button",
       "refersTo": "button-ghost",
-      "description": "Quiet action with the border kept and no fill.",
-      "html": "<button class=\"ds-btn-ghost\">Settings</button>",
-      "css": ".ds-btn-ghost{font-family:var(--font, 'IBM Plex Sans', 'Segoe UI', sans-serif);line-height:1.45;display:inline-flex;align-items:center;justify-content:center;gap:.35rem;min-height:2.25rem;padding:.3rem .75rem;border:1px solid var(--border, oklch(0.91 0.004 286));border-radius:.65rem;background:transparent;color:var(--foreground, oklch(0.21 0.006 286));font-size:1rem;cursor:pointer} .ds-btn-ghost:hover{background:var(--muted, oklch(0.95 0.003 286))} .ds-btn-ghost:focus-visible{outline:2px solid var(--ring, oklch(0.52 0.07 195));outline-offset:2px;}"
+      "description": "Quiet header action: no fill, no border, Teal Wash on hover. Save and Load wear it at the small size.",
+      "html": "<button class=\"ds-btn-ghost\">Save</button>",
+      "css": ".ds-btn-ghost{font-family:var(--font, 'IBM Plex Sans', 'Segoe UI', sans-serif);line-height:1.45;display:inline-flex;align-items:center;justify-content:center;gap:.5rem;min-height:2rem;padding:.25rem .6rem;border:1px solid transparent;border-radius:calc(var(--radius, .5rem) - 2px);background:transparent;color:var(--foreground, oklch(0.21 0.006 286));font-size:.75rem;font-weight:500;cursor:pointer} .ds-btn-ghost:hover{background:var(--accent, oklch(0.93 0.03 190));color:var(--accent-foreground, oklch(0.35 0.06 195))} .ds-btn-ghost:focus-visible{outline:2px solid var(--ring, oklch(0.52 0.07 195));outline-offset:2px;}"
     },
     {
       "name": "Chip",
       "kind": "chip",
       "refersTo": "chip",
-      "description": "Round toggle for printers and filters. Selected is Pressed Grey; in the export row it is Teal Wash.",
-      "html": "<span class=\"ds-chip-row\"><button class=\"ds-chip\" aria-pressed=\"false\">H2D</button><button class=\"ds-chip ds-chip-on\" aria-pressed=\"true\">H2C</button></span>",
-      "css": ".ds-chip-row{display:inline-flex;gap:.35rem} .ds-chip{font-family:var(--font, 'IBM Plex Sans', 'Segoe UI', sans-serif);line-height:1.45;display:inline-flex;align-items:center;gap:.3rem;min-height:1.7rem;padding:.12rem .55rem;border:1px solid var(--border, oklch(0.91 0.004 286));border-radius:999px;background:var(--card, oklch(0.995 0.002 90));color:var(--foreground, oklch(0.21 0.006 286));font-size:.8rem;cursor:pointer} .ds-chip-on{background:var(--accent, oklch(0.93 0.03 190));color:var(--accent-foreground, oklch(0.35 0.06 195));border-color:transparent} .ds-chip:focus-visible{outline:2px solid var(--ring, oklch(0.52 0.07 195));outline-offset:2px;}"
+      "description": "Round mono label chip. Selected is Pressed Grey; the teal pill carries facts like backbone.",
+      "html": "<span class=\"ds-chip-row\"><span class=\"ds-chip\">2U · 99.5 mm</span><span class=\"ds-chip ds-chip-teal\">backbone</span></span>",
+      "css": ".ds-chip-row{display:inline-flex;gap:.5rem} .ds-chip{font-family:'IBM Plex Mono', ui-monospace, monospace;line-height:1.45;display:inline-flex;align-items:center;gap:.375rem;padding:.125rem .625rem;border:1px solid var(--border, oklch(0.91 0.004 286));border-radius:999px;background:var(--card, oklch(0.995 0.002 90));color:var(--muted-foreground, oklch(0.52 0.012 286));font-size:.75rem} .ds-chip-teal{background:var(--accent, oklch(0.93 0.03 190));color:var(--accent-foreground, oklch(0.35 0.06 195));border-color:var(--teal, oklch(0.52 0.07 195))}"
+    },
+    {
+      "name": "Printer Toggle",
+      "kind": "chip",
+      "refersTo": "printer-toggle",
+      "description": "Export-row printer selector: name plus bed size in small mono. Selected is Teal Wash with a Bench Teal border.",
+      "html": "<span class=\"ds-chip-row\"><button class=\"ds-ptoggle ds-ptoggle-on\" aria-pressed=\"true\">U1 <span class=\"ds-pmono\">270×270</span></button><button class=\"ds-ptoggle\" aria-pressed=\"false\">P1S <span class=\"ds-pmono\">256×256</span></button></span>",
+      "css": ".ds-ptoggle{font-family:var(--font, 'IBM Plex Sans', 'Segoe UI', sans-serif);line-height:1.45;border:1px solid var(--border, oklch(0.91 0.004 286));border-radius:calc(var(--radius, .5rem) - 2px);background:var(--background, oklch(0.975 0.003 90));color:var(--foreground, oklch(0.21 0.006 286));padding:.5rem 1rem;font-size:.875rem;cursor:pointer} .ds-ptoggle:hover{border-color:var(--teal, oklch(0.52 0.07 195))} .ds-ptoggle-on{border-color:var(--teal, oklch(0.52 0.07 195));background:var(--accent, oklch(0.93 0.03 190));color:var(--accent-foreground, oklch(0.35 0.06 195))} .ds-pmono{font-family:'IBM Plex Mono', ui-monospace, monospace;font-size:.75rem;opacity:.7} .ds-ptoggle:focus-visible{outline:2px solid var(--ring, oklch(0.52 0.07 195));outline-offset:2px;}"
     },
     {
       "name": "Status Chip",
       "kind": "chip",
       "refersTo": "status-chip",
-      "description": "Non-interactive state report in Pencil Grey.",
-      "html": "<span class=\"ds-status\">3 printers</span>",
-      "css": ".ds-status{font-family:var(--font, 'IBM Plex Sans', 'Segoe UI', sans-serif);line-height:1.45;display:inline-flex;align-items:center;min-height:1.7rem;padding:.12rem .55rem;border:1px solid var(--border, oklch(0.91 0.004 286));border-radius:999px;background:transparent;color:var(--muted-foreground, oklch(0.52 0.012 286));font-size:.8rem;cursor:default}"
+      "description": "Non-interactive state report in mono Pencil Grey (enabled printers in the header).",
+      "html": "<span class=\"ds-status\">U1</span>",
+      "css": ".ds-status{font-family:'IBM Plex Mono', ui-monospace, monospace;line-height:1.45;display:inline-flex;align-items:center;padding:.125rem .5rem;border:1px solid var(--border, oklch(0.91 0.004 286));border-radius:999px;background:var(--card, oklch(0.995 0.002 90));color:var(--muted-foreground, oklch(0.52 0.012 286));font-size:.75rem;cursor:default}"
     },
     {
       "name": "Text Field",
       "kind": "input",
       "refersTo": "input",
-      "description": "Input with a label above, firmer Field Edge border, 2.25rem tall.",
-      "html": "<label class=\"ds-field\"><span>Project name</span><input class=\"ds-input\" type=\"text\" value=\"Demo cart\"></label>",
-      "css": ".ds-field{font-family:var(--font, 'IBM Plex Sans', 'Segoe UI', sans-serif);line-height:1.45;display:flex;flex-direction:column;align-items:flex-start;gap:.3rem;color:var(--foreground, oklch(0.21 0.006 286));font-size:1rem} .ds-input{font:inherit;color:var(--foreground, oklch(0.21 0.006 286));border:1px solid var(--input, oklch(0.62 0.008 286));background:var(--card, oklch(0.995 0.002 90));border-radius:.5rem;padding:.4rem .55rem;min-height:2.25rem} .ds-input:focus-visible{outline:2px solid var(--ring, oklch(0.52 0.07 195));outline-offset:2px;}"
+      "description": "Input with a 500-weight label above, Field Edge border, control shadow, 2.25rem tall.",
+      "html": "<label class=\"ds-field\"><span>Depth</span><select class=\"ds-input\"><option>5 units · 240.1 mm</option></select></label>",
+      "css": ".ds-field{font-family:var(--font, 'IBM Plex Sans', 'Segoe UI', sans-serif);line-height:1.45;display:flex;flex-direction:column;align-items:flex-start;gap:.5rem;color:var(--foreground, oklch(0.21 0.006 286));font-size:.875rem;font-weight:500} .ds-input{font:inherit;font-weight:400;color:var(--foreground, oklch(0.21 0.006 286));border:1px solid var(--input, oklch(0.62 0.008 286));background:var(--card, oklch(0.995 0.002 90));border-radius:calc(var(--radius, .5rem) - 2px);padding:.5rem .75rem;min-height:2.25rem;box-shadow:var(--shadow-sm, 0 1px 2px oklch(0.21 0.006 286 / 8%))} .ds-input:focus-visible{outline:2px solid var(--ring, oklch(0.52 0.07 195));outline-offset:2px;}"
     },
     {
       "name": "Switch",
       "kind": "custom",
       "refersTo": "input",
-      "description": "Round toggle; off is Pressed Grey with a Field Edge border, on is Bench Teal with a Card Stock thumb.",
+      "description": "Round 2.25rem × 1.25rem toggle; off is a 22% ink tint, on is Bench Ink, with a Bench Paper thumb.",
       "html": "<span class=\"ds-switch-row\"><button class=\"ds-switch\" role=\"switch\" aria-checked=\"false\" aria-label=\"Off\"><span></span></button><button class=\"ds-switch ds-switch-on\" role=\"switch\" aria-checked=\"true\" aria-label=\"On\"><span></span></button></span>",
-      "css": ".ds-switch-row{display:inline-flex;gap:.6rem} .ds-switch{position:relative;width:2.55rem;height:1.45rem;padding:0;border:1px solid var(--input, oklch(0.62 0.008 286));border-radius:999px;background:var(--secondary, oklch(0.94 0.004 286));cursor:pointer} .ds-switch span{position:absolute;top:2px;left:2px;width:1.05rem;height:1.05rem;border-radius:999px;background:var(--card, oklch(0.995 0.002 90))} .ds-switch-on{background:var(--teal, oklch(0.52 0.07 195));border-color:var(--teal, oklch(0.52 0.07 195))} .ds-switch-on span{left:calc(100% - 1.05rem - 2px)} .ds-switch:focus-visible{outline:2px solid var(--ring, oklch(0.52 0.07 195));outline-offset:2px;}"
+      "css": ".ds-switch-row{display:inline-flex;gap:.6rem} .ds-switch{position:relative;width:2.25rem;height:1.25rem;padding:0;border:2px solid transparent;border-radius:999px;background:color-mix(in oklch, var(--foreground, oklch(0.21 0.006 286)) 22%, transparent);box-shadow:var(--shadow-sm, 0 1px 2px oklch(0.21 0.006 286 / 8%));cursor:pointer} .ds-switch span{position:absolute;top:0;left:0;width:1rem;height:1rem;border-radius:999px;background:var(--background, oklch(0.975 0.003 90));box-shadow:0 2px 4px oklch(0.21 0.006 286 / 25%)} .ds-switch-on{background:var(--primary, oklch(0.21 0.006 286))} .ds-switch-on span{left:calc(100% - 1rem)} .ds-switch:focus-visible{outline:2px solid var(--ring, oklch(0.52 0.07 195));outline-offset:2px;}"
     },
     {
       "name": "Step Tabs",
       "kind": "nav",
       "refersTo": "tab",
-      "description": "Text-only tabs on a hairline baseline; the selected one is Bench Ink, weight 600, with a 2px Bench Teal underline.",
-      "html": "<nav class=\"ds-tabs\"><button>1 Design</button><button class=\"ds-tab-on\" aria-selected=\"true\">2 Parts</button><button>3 Plates</button><button>4 Assemble</button></nav>",
-      "css": ".ds-tabs{font-family:var(--font, 'IBM Plex Sans', 'Segoe UI', sans-serif);line-height:1.45;display:flex;gap:1.25rem;padding:.35rem 1.25rem 0;border-bottom:1px solid var(--border, oklch(0.91 0.004 286))} .ds-tabs button{font:inherit;background:transparent;border:none;border-bottom:2px solid transparent;color:var(--muted-foreground, oklch(0.52 0.012 286));padding:.7rem .1rem .55rem;min-height:2.5rem;cursor:pointer} .ds-tabs .ds-tab-on{color:var(--foreground, oklch(0.21 0.006 286));border-bottom-color:var(--teal, oklch(0.52 0.07 195));font-weight:600} .ds-tabs button:not(.ds-tab-on):hover{color:var(--foreground, oklch(0.21 0.006 286))} .ds-tabs button:focus-visible{outline:2px solid var(--ring, oklch(0.52 0.07 195));outline-offset:2px;}"
+      "description": "Tabs in the sticky shell: small mono numeral at 60% opacity, selected is Bench Ink at weight 500 with a 2px Bench Teal underline.",
+      "html": "<nav class=\"ds-tabs\"><button class=\"ds-tab-on\" aria-selected=\"true\"><span class=\"ds-tabnum\">1</span>Design</button><button><span class=\"ds-tabnum\">2</span>Parts</button><button><span class=\"ds-tabnum\">3</span>Plates</button><button><span class=\"ds-tabnum\">4</span>Assemble</button></nav>",
+      "css": ".ds-tabs{font-family:var(--font, 'IBM Plex Sans', 'Segoe UI', sans-serif);line-height:1.45;display:flex;gap:.25rem;border-bottom:1px solid var(--border, oklch(0.91 0.004 286))} .ds-tabs button{font:inherit;font-size:.875rem;background:transparent;border:none;border-bottom:2px solid transparent;margin-bottom:-1px;color:var(--muted-foreground, oklch(0.52 0.012 286));padding:.625rem 1rem;min-height:2.5rem;cursor:pointer} .ds-tabnum{font-family:'IBM Plex Mono', ui-monospace, monospace;font-size:.75rem;opacity:.6;margin-right:.375rem} .ds-tabs .ds-tab-on{color:var(--foreground, oklch(0.21 0.006 286));border-bottom-color:var(--teal, oklch(0.52 0.07 195));font-weight:500} .ds-tabs button:not(.ds-tab-on):hover{color:var(--foreground, oklch(0.21 0.006 286))} .ds-tabs button:focus-visible{outline:2px solid var(--ring, oklch(0.52 0.07 195));outline-offset:2px;}"
     },
     {
       "name": "Card",
       "kind": "card",
       "refersTo": "card",
-      "description": "Card Stock surface with a hairline border and the single Card whisper shadow.",
-      "html": "<section class=\"ds-card\"><div class=\"ds-card-head\"><h2>Parts</h2><span class=\"ds-note\">120 pieces</span></div><p class=\"ds-note\">Identical parts are joined across modules and layers.</p></section>",
-      "css": ".ds-card{font-family:var(--font, 'IBM Plex Sans', 'Segoe UI', sans-serif);line-height:1.45;background:var(--card, oklch(0.995 0.002 90));color:var(--foreground, oklch(0.21 0.006 286));border:1px solid var(--border, oklch(0.91 0.004 286));border-radius:.65rem;box-shadow:var(--shadow, 0 1px 2px oklch(0.21 0.006 286 / 6%));padding:1rem 1.05rem 1.1rem;max-width:22rem} .ds-card-head{display:flex;align-items:center;justify-content:space-between;gap:.75rem;margin-bottom:.35rem} .ds-card h2{margin:0;font-size:1rem;font-weight:600} .ds-note{margin:0;color:var(--muted-foreground, oklch(0.52 0.012 286));font-size:.86rem}"
+      "description": "Card Stock surface, hairline border, 1.5rem padding, no shadow; 0.875rem semibold title.",
+      "html": "<section class=\"ds-card\"><div class=\"ds-card-head\"><h2>Footprint</h2></div><p class=\"ds-note\">Fits every enabled printer.</p></section>",
+      "css": ".ds-card{font-family:var(--font, 'IBM Plex Sans', 'Segoe UI', sans-serif);line-height:1.45;background:var(--card, oklch(0.995 0.002 90));color:var(--foreground, oklch(0.21 0.006 286));border:1px solid var(--border, oklch(0.91 0.004 286));border-radius:var(--radius, .5rem);padding:1.5rem;max-width:24rem} .ds-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;margin-bottom:1rem} .ds-card h2{margin:0;font-size:.875rem;font-weight:600} .ds-note{margin:0;color:var(--muted-foreground, oklch(0.52 0.012 286));font-size:.875rem}"
     },
     {
       "name": "Layer Row",
       "kind": "custom",
       "refersTo": "layer-row",
-      "description": "Signature: a Recess strip with grip, layer name, height pill and remove button. The open one takes Teal Wash.",
-      "html": "<div class=\"ds-layer\"><svg class=\"ds-grip\" viewBox=\"0 0 16 16\" width=\"16\" height=\"16\" aria-hidden=\"true\"><circle cx=\"5\" cy=\"3.5\" r=\"1.15\"/><circle cx=\"11\" cy=\"3.5\" r=\"1.15\"/><circle cx=\"5\" cy=\"8\" r=\"1.15\"/><circle cx=\"11\" cy=\"8\" r=\"1.15\"/><circle cx=\"5\" cy=\"12.5\" r=\"1.15\"/><circle cx=\"11\" cy=\"12.5\" r=\"1.15\"/></svg><button class=\"ds-layer-name\">Layer 1 · S 2U Drawers</button><span class=\"ds-pill\">2U</span><button class=\"ds-icon\" aria-label=\"Remove layer\">×</button></div><div class=\"ds-layer ds-layer-open\" style=\"margin-top:.5rem\"><span class=\"ds-layer-name\">Layer 2 · S 2U Drawers (open)</span><span class=\"ds-pill\">2U</span></div>",
-      "css": ".ds-layer{font-family:var(--font, 'IBM Plex Sans', 'Segoe UI', sans-serif);line-height:1.45;display:flex;align-items:center;gap:.55rem;background:var(--muted, oklch(0.95 0.003 286));border-radius:.7rem;padding:.45rem .55rem;color:var(--foreground, oklch(0.21 0.006 286));max-width:24rem} .ds-grip{fill:var(--muted-foreground, oklch(0.52 0.012 286));cursor:grab;flex:none} .ds-layer-name{flex:1;text-align:left;font:inherit;font-weight:500;background:transparent;border:none;padding:.35rem .2rem;min-height:2.25rem;color:inherit;cursor:pointer} .ds-pill{display:inline-flex;align-items:center;min-height:1.7rem;padding:.12rem .55rem;border:1px solid var(--border, oklch(0.91 0.004 286));border-radius:999px;background:var(--card, oklch(0.995 0.002 90));font-size:.8rem} .ds-icon{width:2rem;height:2rem;border:none;border-radius:999px;background:transparent;color:var(--muted-foreground, oklch(0.52 0.012 286));font-size:1rem;cursor:pointer} .ds-layer-name:focus-visible,.ds-icon:focus-visible{outline:2px solid var(--ring, oklch(0.52 0.07 195));outline-offset:2px;}.ds-layer-open{background:var(--accent, oklch(0.93 0.03 190))}"
+      "description": "Signature: a Bench Paper bordered strip with grip, layer name plus one-line summary, mono height pill and remove icon. The open one takes Teal Wash with a teal border.",
+      "html": "<div class=\"ds-layer\"><svg class=\"ds-grip\" viewBox=\"0 0 16 16\" width=\"16\" height=\"16\" fill=\"currentColor\" aria-hidden=\"true\"><circle cx=\"5\" cy=\"3.5\" r=\"1.15\"/><circle cx=\"11\" cy=\"3.5\" r=\"1.15\"/><circle cx=\"5\" cy=\"8\" r=\"1.15\"/><circle cx=\"11\" cy=\"8\" r=\"1.15\"/><circle cx=\"5\" cy=\"12.5\" r=\"1.15\"/><circle cx=\"11\" cy=\"12.5\" r=\"1.15\"/></svg><button class=\"ds-layer-name\">S drawer<span class=\"ds-layer-sum\">empty</span></button><span class=\"ds-pill\">2U · 99.5 mm</span></div><div class=\"ds-layer ds-layer-open\" style=\"margin-top:.5rem\"><span class=\"ds-layer-name\">S drawer (open)</span><span class=\"ds-pill\">2U · 99.5 mm</span></div>",
+      "css": ".ds-layer{font-family:var(--font, 'IBM Plex Sans', 'Segoe UI', sans-serif);line-height:1.45;display:flex;align-items:center;gap:.75rem;background:var(--background, oklch(0.975 0.003 90));border:1px solid var(--border, oklch(0.91 0.004 286));border-radius:calc(var(--radius, .5rem) - 2px);padding:.625rem .75rem;color:var(--foreground, oklch(0.21 0.006 286));max-width:26rem} .ds-grip{color:var(--muted-foreground, oklch(0.52 0.012 286));cursor:grab;flex:none} .ds-layer-name{flex:1;display:flex;flex-direction:column;align-items:flex-start;text-align:left;font:inherit;font-size:.875rem;font-weight:500;background:transparent;border:none;padding:.35rem .2rem;min-height:2.25rem;color:inherit;cursor:pointer} .ds-layer-sum{font-size:.86rem;font-weight:400;color:var(--muted-foreground, oklch(0.52 0.012 286))} .ds-pill{display:inline-flex;align-items:center;padding:.125rem .625rem;border:1px solid var(--border, oklch(0.91 0.004 286));border-radius:999px;background:var(--card, oklch(0.995 0.002 90));color:var(--muted-foreground, oklch(0.52 0.012 286));font-family:'IBM Plex Mono', ui-monospace, monospace;font-size:.75rem} .ds-layer-open{background:var(--accent, oklch(0.93 0.03 190));border-color:var(--teal, oklch(0.52 0.07 195))}"
     },
     {
       "name": "Filament Swatch",
       "kind": "custom",
       "refersTo": "swatch",
-      "description": "Signature: the one place colour is allowed. The user's filament colour in a 2.2rem square, plus the small dot form.",
-      "html": "<span class=\"ds-sw-row\"><span class=\"ds-swatch\" style=\"background:#2a2b2e\"></span><span class=\"ds-swatch\" style=\"background:#ece6d9\"></span><span class=\"ds-swatch\" style=\"background:#c8a256\"></span><span class=\"ds-dot\" style=\"background:#3b4f6b\"></span><span class=\"ds-dot\" style=\"background:#a9adb3\"></span></span>",
-      "css": ".ds-sw-row{display:inline-flex;align-items:center;gap:.5rem} .ds-swatch{width:2.2rem;height:2.2rem;border-radius:.45rem;border:1px solid var(--input, oklch(0.62 0.008 286))} .ds-dot{width:.7rem;height:.7rem;border-radius:999px;border:1px solid var(--input, oklch(0.62 0.008 286))}"
+      "description": "Signature: the one place colour is allowed. A 2.5rem square on piece cards, overlapping 1rem dots in the header, a 2.25rem colour disc picker in Settings.",
+      "html": "<span class=\"ds-sw-row\"><span class=\"ds-swatch\" style=\"background:#2a2b2e\"></span><span class=\"ds-swatch\" style=\"background:#ece6d9\"></span><span class=\"ds-dots\"><span class=\"ds-dot\" style=\"background:#c8a256\"></span><span class=\"ds-dot\" style=\"background:#3b4f6b\"></span><span class=\"ds-dot\" style=\"background:#a9adb3\"></span></span><span class=\"ds-disc\" style=\"background:#3b4f6b\"></span></span>",
+      "css": ".ds-sw-row{display:inline-flex;align-items:center;gap:.75rem} .ds-swatch{width:2.5rem;height:2.5rem;border-radius:calc(var(--radius, .5rem) - 4px);border:1px solid var(--input, oklch(0.62 0.008 286))} .ds-dots{display:inline-flex} .ds-dot{width:1rem;height:1rem;border-radius:999px;border:1px solid color-mix(in oklch, var(--foreground, oklch(0.21 0.006 286)) 15%, transparent);box-shadow:0 0 0 2px var(--card, oklch(0.995 0.002 90));margin-left:-.25rem} .ds-dot:first-child{margin-left:0} .ds-disc{width:2.25rem;height:2.25rem;border-radius:999px;border:1px solid color-mix(in oklch, var(--foreground, oklch(0.21 0.006 286)) 15%, transparent)}"
     },
     {
       "name": "Progress",
@@ -501,14 +522,14 @@
   ],
   "narrative": {
     "northStar": "The Neutral Bench",
-    "overview": "A clean workbench that lets the user's own filament colours and the designer's real renders be the loudest colour in the room. The chrome is warm off-white paper, ink-dark text, and hairline rules; the one accent is a muted teal that means \"this is selected, on or in progress\": the current tab, the open layer, a switch that is on, a plate marked printed, the focus ring. Everything else that carries colour is data: a swatch, a drawer front in the stack preview, a part on a plate bed. When the interface stays this quiet, a wrong number or an unprintable part is the loudest thing on screen.\n\nThe mood is calm, precise and restrained. Density is real, because this is a planner with part lists, plate beds and printer fleets, but it is held together by a single rhythm of hairline borders, small even gaps and consistent control heights rather than by decoration. Controls are refined and restrained: soft corners, ink-filled primary actions, no gradients, no flourish.\n\nThis is an independent tool with a neutral identity (see PRODUCT.md). Nothing here borrows the VAULT or USSA Design look.",
+    "overview": "A clean workbench that lets the user's own filament colours and the designer's real renders be the loudest colour in the room. The chrome is warm off-white paper, ink-dark text, and hairline rules under a sticky, blurred header; the one accent is a muted teal that means \"this is selected or in progress\": the current tab, the open layer, a plate marked printed, the focus ring. A switch that is on is ink-filled, like a primary button. Everything else that carries colour is data: a swatch, a drawer front in the stack preview, a part on a plate bed. When the interface stays this quiet, a wrong number or an unprintable part is the loudest thing on screen.\n\nThe mood is calm, precise and restrained, at an airier scale than the bench's first rendition: a centred 80rem column, 1.5rem card padding and 2rem column gaps (the rendition pinned from the \"Vault Configurator UI prototype\" on Lovable, ported 2026-11). Density is still real, because this is a planner with part lists, plate beds and printer fleets, but it is held together by hairline borders, a three-step shadow scale on controls only, and consistent control heights rather than by decoration. Icons are a single 2px-stroke set drawn inline, used only where they name an action.\n\nThis is an independent tool with a neutral identity (see PRODUCT.md). Nothing here borrows the VAULT or USSA Design look.",
     "keyCharacteristics": [
       "Colour belongs to the user's filaments; the UI itself is paper, ink and one teal that marks selection and state.",
-      "Flat by default: depth is tonal layering (paper, card stock, recess) plus a single whisper of shadow.",
+      "Cards are flat with hairline borders; controls carry a small resting shadow so editable things read as objects on the bench.",
       "Hairline borders do the structural work that fills and shadows do elsewhere.",
-      "Plex Sans for everything; Plex Mono only for measured dimensions.",
+      "Plex Sans for prose and controls; Plex Mono for the wordmark, chips, counts and measured dimensions.",
       "Light and dark themes share one set of semantic token names and one warm-neutral hue family, each composed on its own.",
-      "Desktop-first, mouse and keyboard; one breakpoint at 900px."
+      "Desktop-first, mouse and keyboard; breakpoints at 1100px (preview narrows), 900px (one column) and 640px (tight gutters)."
     ],
     "rules": [
       {
@@ -523,7 +544,7 @@
       },
       {
         "name": "The Millimetre Rule",
-        "body": "Measured dimensions, sizes and coordinates are set in Plex Mono so figures align and read as data. Prose never uses it.",
+        "body": "Measured dimensions, sizes and coordinates are set in Plex Mono so figures align and read as data; the same mono carries the wordmark, chips, tab numerals and counts — short data labels only. Prose never uses it.",
         "section": "typography"
       },
       {
@@ -533,33 +554,34 @@
       },
       {
         "name": "The One Column Collapse Rule",
-        "body": "Below 900px every multi-column grid becomes a single column in source order. Do not invent intermediate layouts.",
+        "body": "Below 900px every multi-column grid becomes a single column in source order. The 1100px preview narrowing is the one intermediate step.",
         "section": "layout"
       },
       {
-        "name": "The Flat-By-Default Rule",
-        "body": "Surfaces are flat at rest and nothing lifts on hover. Hover is a colour or border change (a menu item sinks to Recess, a part card takes a teal edge, an inactive tab darkens to ink), never a shadow or a movement.",
+        "name": "The Flat-Cards Rule",
+        "body": "Surfaces and cards are flat at rest and nothing lifts on hover. Shadows belong to controls and menus only. Hover is a colour or border change (a button takes the Teal Wash, a piece card takes a teal edge, an inactive tab darkens to ink), never a movement.",
         "section": "elevation"
       }
     ],
     "dos": [
       "**Do** let colour come from filaments and renders. A swatch, a dot, a plate part or a drawer front is where a saturated hue belongs; Bench Teal marks selection and state beside them.",
-      "**Do** separate surfaces with a 1px Hairline border and a tonal step (Paper, Card Stock, Recess). Reach for the Card whisper shadow only on cards.",
-      "**Do** keep controls on the 2.25rem rhythm (chips 1.7rem, tabs 2.5rem) so rows align across the page.",
-      "**Do** set measured dimensions in IBM Plex Mono and state limits with the number (\"329.6 mm wide\", not \"too big\").",
+      "**Do** separate surfaces with a 1px Hairline border and a tonal step (Paper, Card Stock, Recess). Keep shadows on controls and menus, from the three-step scale only.",
+      "**Do** keep controls on the 2.25rem rhythm (small header size 2rem, tabs 2.5rem) and corners on the one radius scale (0.25 / 0.375 / 0.5rem) so rows align across the page.",
+      "**Do** set measured dimensions, chips and counts in IBM Plex Mono and state limits with the number (\"329.6 mm wide\", not \"too big\").",
+      "**Do** use the inline 2px-stroke icon set where an icon names the action (save, load, add, export); pair it with a text label on buttons.",
       "**Do** report faults as a short Caution or Fault sentence beside the control that caused it; give a blocking full-width message its faint wash.",
       "**Do** keep a visible 2px Bench Teal focus ring on every interactive element; this is a keyboard-and-mouse desk tool.",
       "**Do** take every colour from the token set so light and dark both work. Add a token before adding a literal."
     ],
     "donts": [
-      "**Don't** add a second accent colour, gradients, glow, or decorative coloured backgrounds on panels. Tinted backgrounds are limited to the three signal washes on message lines and Teal Wash on the documented selected/open states.",
+      "**Don't** add a second accent colour, gradients, glow, or decorative coloured backgrounds on panels. Tinted backgrounds are limited to the three signal washes on message lines and Teal Wash on the documented selected, open and hover states.",
       "**Don't** use Caution, Fault or Confirmed as saturated fills, borders, left-edge stripes or banners; they colour text, and a message line may add its faint wash.",
-      "**Don't** lift on hover or add shadows beyond the Card whisper.",
+      "**Don't** lift on hover, shadow a card, or add shadow steps beyond the three named ones.",
       "**Don't** introduce a display typeface or a size jump to show emphasis; use weight.",
       "**Don't** import the look of the VAULT product or USSA Design (logo, palette, imagery as chrome); the identity stays neutral and independent.",
-      "**Don't** add decorative icons or hero-metric treatments; the interface carries data, not ornament.",
+      "**Don't** use emoji or text glyphs (`×`, `←`, `+`) as icons, or icons as ornament; the interface carries data.",
       "**Don't** hard-code a colour in a component's CSS for UI chrome. The only literal colours in code are fallbacks for filament data (`#c9ccd0`, `#ccc`).",
-      "**Don't** design for touch or narrow screens beyond the single 900px collapse unless the product brief changes."
+      "**Don't** design for touch or narrow screens beyond the documented 1100 / 900 / 640px steps unless the product brief changes."
     ]
   }
 }

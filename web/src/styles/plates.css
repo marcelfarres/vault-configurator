@@ -1,0 +1,68 @@
+/* Plates step: bed previews, plate cards, export-for toggles.
+   Imported into the components layer by ../styles.css; no @layer wrapper here. */
+  .bed {
+    inline-size: 100%;
+    max-inline-size: 420px;
+    background: var(--bed);
+    border-radius: var(--radius-md);
+    display: block;
+  }
+
+  .bed-grid line {
+    stroke: var(--bed-grid);
+    stroke-width: 0.35;
+  }
+
+  .bed-part {
+    stroke: var(--bed-outline);
+    /* Screen pixels, not bed millimetres, so a 350 mm plate does not shrink the edge away. */
+    stroke-width: 2.5px;
+    stroke-linejoin: round;
+    vector-effect: non-scaling-stroke;
+  }
+
+  .plate-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1rem;
+  }
+
+  .plate-card {
+    padding: 1rem;
+  }
+
+  .plate-card h3 {
+    font-size: 0.875rem;
+    font-weight: 500;
+    margin-block: 0.75rem 0.25rem;
+  }
+
+  .plate-card:has(input:checked) {
+    border-color: var(--teal);
+  }
+
+  .export-for {
+    gap: 0.5rem;
+  }
+
+  /* Box from .btn; only the teal selection delta lives here (teal marks
+     what is selected — not the segment's primary pressed fill). */
+  .printer-toggle {
+    font-weight: 400;
+  }
+
+  .printer-toggle:hover {
+    border-color: var(--teal);
+  }
+
+  .printer-toggle[aria-pressed="true"] {
+    border-color: var(--teal);
+    background: var(--accent);
+    color: var(--accent-foreground);
+  }
+
+  .printer-toggle .mono {
+    font-size: 0.75rem;
+    opacity: 0.7;
+  }
+

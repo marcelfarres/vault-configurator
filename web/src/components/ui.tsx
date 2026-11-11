@@ -3,17 +3,80 @@ import { parseSettingNumber } from "../../../planner.mjs";
 import type { ChoiceView } from "../labels";
 import { usePlanner } from "../store";
 
-export function Gear() {
+/** Stroke icons in the Lucide manner (24 viewBox, 2px round stroke), drawn
+ * inline so the app keeps its zero-icon-dependency install. */
+const ICON_PATHS = {
+  save: (
+    <>
+      <path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" />
+      <path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7" />
+      <path d="M7 3v4a1 1 0 0 0 1 1h7" />
+    </>
+  ),
+  "folder-open": (
+    <path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2" />
+  ),
+  store: (
+    <>
+      <path d="M15 21v-5a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v5" />
+      <path d="M17.77 10.31a4 4 0 0 1-5.55 0h-.44a4 4 0 0 1-5.55 0A4 4 0 0 1 3.4 5.2l.86-2.06A1 1 0 0 1 5.18 2.5h13.64a1 1 0 0 1 .92.64l.86 2.06a4 4 0 0 1-2.83 5.11Z" />
+      <path d="M4 10.5V19a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8.5" />
+    </>
+  ),
+  plus: <path d="M5 12h14M12 5v14" />,
+  x: <path d="M18 6 6 18M6 6l12 12" />,
+  eye: (
+    <>
+      <path d="M2.06 12.35a1 1 0 0 1 0-.7 10.75 10.75 0 0 1 19.88 0 1 1 0 0 1 0 .7 10.75 10.75 0 0 1-19.88 0" />
+      <circle cx="12" cy="12" r="3" />
+    </>
+  ),
+  download: <path d="M12 15V3m-5 7 5 5 5-5M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />,
+  "arrow-right": <path d="M5 12h14m-7-7 7 7-7 7" />,
+  "arrow-left": <path d="M19 12H5m7 7-7-7 7-7" />,
+  printer: (
+    <>
+      <path d="M6 18H4a2 2 0 0 1-2-2v-6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2h-2" />
+      <path d="M6 14h12v8H6z" />
+      <path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6" />
+    </>
+  ),
+  palette: (
+    <>
+      <path d="M12 22a10 10 0 1 1 10-10c0 4.9-3.6 5-5.5 5H13a2.5 2.5 0 0 0 1.7 4.1c-.5.7-1.4.9-2.7.9Z" />
+      <circle cx="13.5" cy="6.5" r="0.6" fill="currentColor" />
+      <circle cx="17.5" cy="10.5" r="0.6" fill="currentColor" />
+      <circle cx="8.5" cy="7.5" r="0.6" fill="currentColor" />
+      <circle cx="6.5" cy="12.5" r="0.6" fill="currentColor" />
+    </>
+  ),
+  appearance: (
+    <>
+      <circle cx="12" cy="12" r="10" />
+      <path d="M12 2a10 10 0 0 1 0 20Z" fill="currentColor" stroke="none" />
+    </>
+  ),
+  "check-circle": (
+    <>
+      <circle cx="12" cy="12" r="10" />
+      <path d="m9 12 2 2 4-4" />
+    </>
+  ),
+} as const;
+
+export type IconName = keyof typeof ICON_PATHS;
+
+export function Icon({ name }: { name: IconName }) {
   return (
-    <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M12 8.5A3.5 3.5 0 1 0 12 15.5 3.5 3.5 0 0 0 12 8.5Zm8.2 3.1-.9-.2a6.7 6.7 0 0 0-.5-1.2l.6-.8a.9.9 0 0 0-.1-1.2l-1.1-1.1a.9.9 0 0 0-1.2-.1l-.8.6a6.7 6.7 0 0 0-1.2-.5l-.2-.9a.9.9 0 0 0-.9-.7h-1.6a.9.9 0 0 0-.9.7l-.2.9a6.7 6.7 0 0 0-1.2.5l-.8-.6a.9.9 0 0 0-1.2.1L6.7 8.2a.9.9 0 0 0-.1 1.2l.6.8a6.7 6.7 0 0 0-.5 1.2l-.9.2a.9.9 0 0 0-.7.9v1.6c0 .4.3.8.7.9l.9.2c.1.4.3.8.5 1.2l-.6.8a.9.9 0 0 0 .1 1.2l1.1 1.1c.3.3.9.4 1.2.1l.8-.6c.4.2.8.4 1.2.5l.2.9c.1.4.5.7.9.7h1.6c.4 0 .8-.3.9-.7l.2-.9c.4-.1.8-.3 1.2-.5l.8.6c.3.3.9.2 1.2-.1l1.1-1.1a.9.9 0 0 0 .1-1.2l-.6-.8c.2-.4.4-.8.5-1.2l.9-.2c.4-.1.7-.5.7-.9v-1.6a.9.9 0 0 0-.7-.9Z" />
+    <svg className="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {ICON_PATHS[name]}
     </svg>
   );
 }
 
 export function Grip() {
   return (
-    <svg className="icon grip" viewBox="0 0 16 16" aria-hidden="true">
+    <svg className="icon grip" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
       <circle cx="5" cy="3.5" r="1.15" />
       <circle cx="11" cy="3.5" r="1.15" />
       <circle cx="5" cy="8" r="1.15" />
@@ -40,7 +103,7 @@ export function HelpButton({ topic, label }: { topic: string; label: string }) {
   const { state, askHelp } = usePlanner();
   if (state?.help === false) return null;
   return (
-    <button type="button" className="help-btn" aria-label={`Help: ${label}`} onClick={() => askHelp(topic)}>?</button>
+    <button type="button" className="help-btn" aria-label={`Help: ${label}`} onClick={(event) => askHelp(topic, label, event.currentTarget)}>?</button>
   );
 }
 
@@ -172,7 +235,7 @@ export function StepFooter({ ready, next, onNext }: { ready: string; next: strin
             heading.focus({ preventScroll: true });
           }
         });
-      }}>{next}</button>
+      }}>{next}<Icon name="arrow-right" /></button>
     </footer>
   );
 }

@@ -74,8 +74,10 @@ type Store = {
   helpTopic: string;
   helpSerial: number;
   helpAsk: number;
+  helpReturn: { topic: string; label: string; target: HTMLElement } | null;
   showHelp: (topic: string) => void;
-  askHelp: (topic: string) => void;
+  askHelp: (topic: string, label: string, opener: HTMLElement) => void;
+  returnFromHelp: () => void;
   expandedLayer: number | null;
   setExpandedLayer: (index: number | null) => void;
   viewer: { file: string; label: string; color: string; opener: HTMLElement | null } | null;
@@ -198,6 +200,7 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
   const [helpTopic, setHelpTopic] = useState("");
   const [helpSerial, setHelpSerial] = useState(0);
   const [helpAsk, setHelpAsk] = useState(0);
+  const [helpReturn, setHelpReturn] = useState<Store["helpReturn"]>(null);
   const [expandedLayer, setExpandedLayer] = useState<number | null>(null);
   const [viewer, setViewer] = useState<Store["viewer"]>(null);
   const [importStatus, setImportStatus] = useState("");
@@ -449,10 +452,23 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
       helpTopic,
       helpSerial,
       helpAsk,
+      helpReturn,
       showHelp: (topic) => { openHelp(topic); },
       // askHelp is a deliberate request (a ? button): like showHelp, plus the
-      // Help card may scroll itself into view when it is off-screen.
-      askHelp: (topic) => { if (openHelp(topic)) setHelpAsk((serial) => serial + 1); },
+      // Help card may scroll itself into view when it is off-screen, and the
+      // opener is remembered so Help can offer a way back to the field.
+      askHelp: (topic, label, opener) => {
+        if (!openHelp(topic)) return;
+        setHelpReturn({ topic, label, target: opener });
+        setHelpAsk((serial) => serial + 1);
+      },
+      returnFromHelp: () => {
+        const target = helpReturn?.target;
+        setHelpReturn(null);
+        if (!target || !target.isConnected) return;
+        if (typeof target.scrollIntoView === "function") target.scrollIntoView({ block: "center" });
+        target.focus({ preventScroll: true });
+      },
       expandedLayer,
       setExpandedLayer,
       viewer,
@@ -829,7 +845,7 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
       },
     };
     return value;
-  }, [archive, bom, bomSig, bootError, expandedLayer, exportFiles, exportMain, exportSig, exportStatus, helpAsk, helpSerial, helpTopic, importStatus, meta, plan, planNote, presetStatus, presets, ready, removedLayer, removedPrinter, settingsOpen, settingsSection, spoolStatus, spools, stackFileStatus, state, status, theme, viewer]);
+  }, [archive, bom, bomSig, bootError, expandedLayer, exportFiles, exportMain, exportSig, exportStatus, helpAsk, helpReturn, helpSerial, helpTopic, importStatus, meta, plan, planNote, presetStatus, presets, ready, removedLayer, removedPrinter, settingsOpen, settingsSection, spoolStatus, spools, stackFileStatus, state, status, theme, viewer]);
 
   if (bootError && !api) return <p className="boot-error">{bootError}</p>;
   return <Ctx.Provider value={api}>{children}</Ctx.Provider>;

@@ -1,0 +1,304 @@
+/* Shell and shared controls: top bar, tabs, buttons, fields, page column.
+   Imported into the components layer by ../styles.css; no @layer wrapper here. */
+  .boot, .boot-error {
+    padding: 2rem;
+  }
+
+  .app-head {
+    position: sticky;
+    inset-block-start: 0;
+    z-index: 30;
+    border-block-end: 1px solid var(--border);
+    background: color-mix(in oklch, var(--card) 95%, transparent);
+    backdrop-filter: blur(8px);
+  }
+
+  .topbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: safe center;
+    gap: 0.75rem 0.6rem;
+    padding: 0.75rem var(--page-pad);
+  }
+
+  .topbar .muted {
+    font-size: 0.75rem;
+  }
+
+  .fit-controls {
+    display: flex;
+    flex: 0 0 auto;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.45rem 0.5rem;
+  }
+
+  .fit-label {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  .brand {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+  }
+
+  .wordmark {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    font-size: 1.125rem;
+  }
+
+  .project-name {
+    border: none;
+    background: transparent;
+    color: var(--muted-foreground);
+    font-size: 0.875rem;
+    inline-size: 4.5rem;
+    padding: 0.2rem 0;
+    box-shadow: none;
+  }
+
+  .btn, .load > summary, .segment button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-block-size: 2.25rem;
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--background);
+    color: var(--foreground);
+    font-size: 0.875rem;
+    font-weight: 500;
+    box-shadow: var(--shadow-sm);
+    list-style: none;
+  }
+
+  .btn:hover, .load > summary:hover, .segment button:hover {
+    background: var(--accent);
+    color: var(--accent-foreground);
+  }
+
+  .btn.sm, .topbar .btn, .topbar .load > summary {
+    min-block-size: 2rem;
+    padding: 0.25rem 0.6rem;
+    font-size: 0.75rem;
+  }
+
+  .load > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .btn.primary, .segment button[aria-pressed="true"] {
+    background: var(--primary);
+    color: var(--primary-foreground);
+    border-color: var(--primary);
+    box-shadow: var(--shadow);
+  }
+
+  .btn.primary:hover, .segment button[aria-pressed="true"]:hover {
+    background: color-mix(in oklch, var(--primary) 90%, var(--card));
+    color: var(--primary-foreground);
+  }
+
+  .btn.ghost {
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
+  }
+
+  .settings-btn {
+    margin-inline-start: auto;
+  }
+
+  .fleet, .dots, .segment, .export-for {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  .status-chip {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--card);
+    color: var(--muted-foreground);
+    padding: 0.125rem 0.5rem;
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.75rem;
+    cursor: default;
+  }
+
+  .chip, .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--card);
+    color: var(--muted-foreground);
+    padding: 0.125rem 0.625rem;
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.75rem;
+  }
+
+  .chip[aria-pressed="true"] {
+    background: var(--secondary);
+  }
+
+  .dots {
+    gap: 0;
+  }
+
+  .dot {
+    inline-size: 1rem;
+    block-size: 1rem;
+    border-radius: 999px;
+    border: 1px solid color-mix(in oklch, var(--foreground) 15%, transparent);
+    box-shadow: 0 0 0 2px var(--card);
+    margin-inline-start: -0.25rem;
+  }
+
+  .dot:first-child {
+    margin-inline-start: 0;
+  }
+
+  .check {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-block-size: 2.25rem;
+    color: var(--foreground);
+    font-size: 0.92rem;
+  }
+
+  .fit-target select, select, input[type="text"], input[type="number"], input[type="url"] {
+    border: 1px solid var(--input);
+    background: var(--card);
+    border-radius: var(--radius-md);
+    padding: 0.5rem 0.75rem;
+    min-block-size: 2.25rem;
+    max-inline-size: 100%;
+    font-size: 0.875rem;
+    font-weight: 400;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .fit-target select {
+    inline-size: 10rem;
+    min-block-size: 2rem;
+    padding-block: 0.25rem;
+    font-size: 0.75rem;
+  }
+
+  td input[type="text"], td input[type="number"], td select {
+    inline-size: 100%;
+    min-inline-size: 3.25rem;
+  }
+
+  /* Numbers must stay readable whole (270, not 27) even when the table scrolls. */
+  td input[type="number"] {
+    min-inline-size: 4.6rem;
+  }
+
+  .muted, .note {
+    color: var(--muted-foreground);
+    font-size: 0.86rem;
+  }
+
+  .warn { color: var(--warn); }
+  .bad { color: var(--bad); }
+  .ok { color: var(--ok); }
+
+  p.warn, p.bad, p.ok {
+    margin-block: 0.35rem;
+    padding: 0.4rem 0.7rem;
+    border-radius: var(--radius);
+  }
+
+  p.warn { background: var(--warn-bg); }
+  p.bad { background: var(--bad-bg); }
+  p.ok { background: var(--ok-bg); }
+  .num-field { display: inline-flex; flex-direction: column; gap: 0.15rem; }
+  .field-error { color: var(--bad); font-size: 0.8rem; }
+  input[aria-invalid="true"] { border-color: var(--bad); }
+  .confirm-remove { display: inline-flex; gap: 0.35rem; flex-wrap: wrap; }
+  .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; }
+
+  .tabs {
+    display: flex;
+    gap: 0.25rem;
+    padding-inline: var(--page-pad);
+  }
+
+  .tabs button {
+    background: transparent;
+    border: none;
+    border-block-end: 2px solid transparent;
+    margin-block-end: -1px;
+    color: var(--muted-foreground);
+    padding: 0.625rem 1rem;
+    min-block-size: 2.5rem;
+    font-size: 0.875rem;
+  }
+
+  .tab-num {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.75rem;
+    opacity: 0.6;
+    margin-inline-end: 0.375rem;
+  }
+
+  .tabs button:hover {
+    color: var(--foreground);
+  }
+
+  .tabs button[aria-selected="true"] {
+    color: var(--foreground);
+    border-block-end-color: var(--teal);
+    font-weight: 500;
+  }
+
+  .page {
+    box-sizing: border-box;
+    padding: 2.5rem 2rem 3rem;
+    max-inline-size: 80rem;
+    margin-inline: auto;
+  }
+
+  .page-parts {
+    max-inline-size: 56rem;
+  }
+
+  .page-plates {
+    max-inline-size: 64rem;
+  }
+
+  /* The printer fleet table needs more identity/profile width than the
+     narrower Settings sections; the Settings page gets the next step up. */
+  .page-settings {
+    max-inline-size: 72rem;
+  }
+
+  .page-assemble {
+    max-inline-size: 42rem;
+  }
+
+  .page h1 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    letter-spacing: -0.025em;
+  }
+
+  .lede {
+    color: var(--muted-foreground);
+    margin-block: 0.25rem 2rem;
+    max-inline-size: 46rem;
+  }
+

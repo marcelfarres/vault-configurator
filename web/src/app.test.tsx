@@ -105,7 +105,7 @@ beforeEach(() => {
       return json({ parts: [], hardware: [], warnings: [], choices: null, stack: body.stack, judged: { scope: "every", printers: judged }, estimate: { wallMm: 0.8, infill: 0.21, preset: null, printer: "P1S" } });
     }
     if (url.includes("/api/plan")) return json({ plan: { plates: [], unplaceable: [], pieces: 0, placed: 0, fingerprint: "abc" } });
-    if (url.includes("/api/sample_plan")) return json({ synthetic: true, plates: [], label: "sample", unplaceable: [] });
+    if (url.includes("/api/sample_plan")) return json({ synthetic: true, label: "Synthetic rectangles on a U1 bed. Not VAULT parts.", unplaceable: [], plates: [{ printer: "u1", name: "Charcoal", slots: [0], bed: [270, 270], items: [{ part: "synthetic large", slot: 0, corners: [[8, 8], [120, 8], [120, 70], [8, 70]] }] }] });
     return json({ error: url }, 500);
   }));
 });
@@ -136,7 +136,7 @@ test("design, settings theme, and export list follow the shop rules", async () =
 
   await user.click(screen.getByRole("button", { name: "Add layer" }));
   expect(screen.getByText("Fits every enabled printer — change this with the All printers dropdown in the header.")).toBeInTheDocument();
-  await user.selectOptions(screen.getByLabelText("All printers"), "u1");
+  await user.selectOptions(screen.getByLabelText("Judge fit against"), "u1");
   expect(screen.getByText("Fits U1 — change this with the All printers dropdown in the header.")).toBeInTheDocument();
   expect(screen.queryByText("Fits every enabled printer — change this with the All printers dropdown in the header.")).not.toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Edit S drawer" })).toHaveAttribute("aria-expanded", "true");
@@ -172,8 +172,12 @@ test("design, settings theme, and export list follow the shop rules", async () =
   expect(screen.getByRole("button", { name: "Export H2D left" })).toHaveAttribute("aria-pressed", "false");
   expect(screen.getByRole("button", { name: "Export U1" })).toHaveAttribute("aria-pressed", "true");
   expect(screen.getByText("Packing with U1, P1S. Each part is packed once, shared between them to balance print time.")).toBeInTheDocument();
-  expect(screen.getByLabelText("All printers").querySelector("option[value='h2d-left']")).toBeTruthy();
-  expect(screen.getByRole("button", { name: "Show a sample plate" })).toBeInTheDocument();
+  expect(screen.getByLabelText("Judge fit against").querySelector("option[value='h2d-left']")).toBeTruthy();
+  await user.click(screen.getByRole("button", { name: "Show a sample plate" }));
+  expect(await screen.findByRole("heading", { name: "Example plate layout" })).toBeInTheDocument();
+  expect(screen.getByText(/1 example plate shown/)).toBeInTheDocument();
+  expect(screen.queryByText(/plates marked printed/)).not.toBeInTheDocument();
+  expect(screen.queryByText(/1 plate planned/)).not.toBeInTheDocument();
 });
 
 test("patch writes a legal export mode and fit target into saved state", async () => {
@@ -187,7 +191,7 @@ test("patch writes a legal export mode and fit target into saved state", async (
   render(<App />);
   expect(await screen.findByRole("heading", { name: "Plates & export" })).toBeInTheDocument();
   expect(screen.getByLabelText("Pack plates for")).toHaveValue("u1");
-  expect(screen.getByLabelText("All printers")).toHaveValue("h2d-left");
+  expect(screen.getByLabelText("Judge fit against")).toHaveValue("h2d-left");
   await user.click(screen.getByRole("button", { name: "Settings" }));
   await user.click(screen.getByRole("checkbox", { name: "Enabled H2D left" }));
   await user.click(screen.getByRole("button", { name: "Close settings" }));
@@ -199,7 +203,7 @@ test("patch writes a legal export mode and fit target into saved state", async (
   expect(afterExport.settings.printers.find((printer: { id: string }) => printer.id === "u1").forExport).toBe(false);
   expect(afterExport.settings.mode).toBe("both");
   expect(screen.getByLabelText("Pack plates for")).toHaveValue("both");
-  expect(screen.getByLabelText("All printers")).toHaveValue("every");
+  expect(screen.getByLabelText("Judge fit against")).toHaveValue("every");
 });
 
 test("removing the printer export and fit point at says so, and undo restores both", async () => {
@@ -243,8 +247,8 @@ test("undo after the user re-picks a fit target keeps the newer choice", async (
   await user.click(screen.getByRole("button", { name: "Remove U1" }));
   // The user picks a new fit target in the header, then switches back to All printers:
   // that explicit "every" is a newer choice, not the untouched removal fallback.
-  await user.selectOptions(screen.getByLabelText("All printers"), "p1s");
-  await user.selectOptions(screen.getByLabelText("All printers"), "every");
+  await user.selectOptions(screen.getByLabelText("Judge fit against"), "p1s");
+  await user.selectOptions(screen.getByLabelText("Judge fit against"), "every");
   await user.click(screen.getByRole("button", { name: "Undo" }));
   const afterUndo = JSON.parse(localStorage.getItem("vault-configurator") || "{}");
   expect(afterUndo.settings.printers.some((printer: { id: string }) => printer.id === "u1")).toBe(true);
@@ -482,7 +486,7 @@ test("each step ends with a readiness line and a next action that never blocks, 
   expect(screen.getByText("2U · 99.5 mm")).toBeInTheDocument();
   expect(screen.getByText("1U · 51.5 mm")).toBeInTheDocument();
 
-  await user.click(screen.getByRole("button", { name: "Continue to colours" }));
+  await user.click(screen.getByRole("button", { name: "Continue to Parts & colours" }));
   expect(await screen.findByRole("heading", { name: "Parts & colours" })).toBeInTheDocument();
   await waitFor(() => expect(screen.getByRole("heading", { name: "Parts & colours" })).toHaveFocus());
   // The Box has no fit data (`unknown`), so it is not counted as not fitting.
@@ -513,6 +517,7 @@ test("Assembly complete appears only once every hardware and assembly line is ch
   stubBom([{ group: "L1 Drawer", name: "Box", qty: 1, role: "box", file: "box.stl" }], [{ item: "Screws", qty: 4 }]);
   render(<App />);
   expect(await screen.findByText(/1\/1 hardware lines · 0\/1 assembly lines checked/)).toBeInTheDocument();
+  expect(screen.getByRole("checkbox", { name: "Have 4 Screws" })).toBeChecked();
   expect(screen.queryByRole("heading", { name: "Assembly complete" })).not.toBeInTheDocument();
   await user.click(screen.getByRole("checkbox", { name: "1× Box" }));
   expect(screen.getByRole("heading", { name: "Assembly complete" })).toBeInTheDocument();
@@ -552,7 +557,7 @@ test("Assembly complete is not claimed while the BOM still belongs to an earlier
   // A signature change (fit target) starts a new BOM; while it is in flight the
   // previous BOM and its checks must not claim the new configuration is built.
   hold.on = true;
-  await user.selectOptions(screen.getByLabelText("All printers"), "u1");
+  await user.selectOptions(screen.getByLabelText("Judge fit against"), "u1");
   expect(screen.queryByRole("heading", { name: "Assembly complete" })).not.toBeInTheDocument();
 });
 
@@ -581,7 +586,7 @@ test("the Plates footer does not count files exported for an earlier build", asy
   await user.click(screen.getByRole("button", { name: "Export 3MF" }));
   expect(await screen.findByText(/1 file exported\./, undefined, { timeout: 5000 })).toBeInTheDocument();
   // Changing the fit target changes the signature: the export no longer matches this build.
-  await user.selectOptions(screen.getByLabelText("All printers"), "u1");
+  await user.selectOptions(screen.getByLabelText("Judge fit against"), "u1");
   expect(screen.getByText(/exported files are for an earlier build/)).toBeInTheDocument();
   expect(screen.queryByText(/1 file exported\./)).not.toBeInTheDocument();
 });
@@ -617,7 +622,7 @@ test("an export that finishes after the build changed does not overwrite the new
   await user.click(screen.getByRole("button", { name: "Export 3MF" }));
   await waitFor(() => expect(releaseStatus).toBeDefined(), { timeout: 5000 });
   // The build changes mid-export; the plan effect answers with the new plan (0 plates).
-  await user.selectOptions(screen.getByLabelText("All printers"), "u1");
+  await user.selectOptions(screen.getByLabelText("Judge fit against"), "u1");
   expect(await screen.findByText(/0 plates planned/)).toBeInTheDocument();
   releaseStatus!();
   // The finished export keeps its files, labeled stale, but must not replace the plan.
@@ -862,11 +867,16 @@ test("? buttons ask for help without toggling their field", async () => {
   expect(depthField.compareDocumentPosition(depthHelp) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   await user.click(depthHelp);
   expect(screen.getByRole("heading", { name: "Depth" })).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Back to Depth" }));
+  expect(depthHelp).toHaveFocus();
   await user.click(screen.getByRole("button", { name: "Edit S drawer" }));
   const labels = screen.getByRole("checkbox", { name: "labels" });
   expect(labels).toBeChecked();
   await user.click(screen.getByRole("button", { name: "Help: labels" }));
   expect(screen.getByRole("heading", { name: "Labels" })).toBeInTheDocument();
+  expect(labels).toBeChecked();
+  await user.click(screen.getByRole("button", { name: "Back to labels" }));
+  expect(screen.getByRole("button", { name: "Help: labels" })).toHaveFocus();
   expect(labels).toBeChecked();
 });
 
@@ -1167,8 +1177,12 @@ test("a second removal replaces the capture and its Undo still reverts normaliza
     settings: meta.defaults,
   }));
   stubBomNormalizing();
+  const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
   render(<App />);
   await screen.findByRole("heading", { name: "Compose your stack" });
+  // The SS layer has two bays both named S; their Preview fronts must not collide on React keys.
+  expect(consoleError.mock.calls.filter((call) => String(call[0]).includes("same key"))).toEqual([]);
+  consoleError.mockRestore();
   // Remove the top L first (first row shown), then the base L.
   await user.click(screen.getAllByRole("button", { name: "Remove L drawer" })[0]);
   await user.click(screen.getByRole("button", { name: "Remove L drawer" }));

@@ -2,15 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import { printerLabel } from "../../../planner.mjs";
 import { usePlanner } from "../store";
 import type { TabId } from "../types";
-import { Gear } from "./ui";
+import { Icon } from "./ui";
 
 const TABS: Array<{ id: TabId; label: string }> = [
-  { id: "stack", label: "1 Design" },
-  { id: "parts", label: "2 Parts" },
-  { id: "plates", label: "3 Plates" },
-  { id: "assemble", label: "4 Assemble" },
+  { id: "stack", label: "Design" },
+  { id: "parts", label: "Parts" },
+  { id: "plates", label: "Plates" },
+  { id: "assemble", label: "Assemble" },
 ];
-
 export function Header() {
   const store = usePlanner();
   const { state, patch } = store;
@@ -31,14 +30,14 @@ export function Header() {
           })}
         />
       </div>
-      <button type="button" className="btn" onClick={() => {
+      <button type="button" className="btn ghost sm" onClick={() => {
         store.saveProject();
         setSaved(true);
         window.clearTimeout(savedTimer.current);
         savedTimer.current = window.setTimeout(() => setSaved(false), 2000);
-      }}>{saved ? "Saved" : "Save"}</button>
+      }}><Icon name="save" />{saved ? "Saved" : "Save"}</button>
       <details className="load">
-        <summary className="btn">Load</summary>
+        <summary className="btn ghost sm"><Icon name="folder-open" />Load</summary>
         <div className="menu">
           <p className="note">Named projects stay in this browser. Save keeps a named copy here; the working copy autosaves as you go. Save stack on Plates writes a file you can move.</p>
           <button type="button" disabled={!state.activeProjectId} onClick={() => store.loadProject("")}>Working copy</button>
@@ -58,8 +57,8 @@ export function Header() {
           }}>Delete saved</button>
         </div>
       </details>
-      <span className="muted" id="enabled-printers">Enabled printers</span>
-      <span className="fleet" role="group" aria-labelledby="enabled-printers">
+      <span className="muted">Enabled</span>
+      <span className="fleet" role="group" aria-label="Enabled printers">
         {enabled.length ? enabled.map((printer) => (
           <span className="status-chip" key={printer.id}>{printerLabel(printer)}</span>
         )) : <span className="note">none</span>}
@@ -85,7 +84,7 @@ export function Header() {
         <label className="fit-target">
           <span className="visually-hidden">Judge fit against</span>
           <select
-            aria-label="All printers"
+            aria-label="Judge fit against"
             value={state.fitTarget}
             onChange={(event) => patch((draft) => {
               draft.fitTarget = event.target.value;
@@ -98,8 +97,8 @@ export function Header() {
           </select>
         </label>
       </div>
-      <button type="button" className="btn settings-btn" onClick={() => store.setSettingsOpen(true)}>
-        <Gear /> Settings
+      <button type="button" className={`btn sm settings-btn${store.settingsOpen ? " primary" : ""}`} onClick={() => store.setSettingsOpen(!store.settingsOpen)}>
+        <Icon name="store" />Settings
       </button>
     </header>
   );
@@ -109,16 +108,17 @@ export function Tabs() {
   const { state, setTab } = usePlanner();
   return (
     <nav className="tabs" aria-label="Steps">
-      {TABS.map((tab) => (
+      {TABS.map((tab, index) => (
         <button
           key={tab.id}
           type="button"
           role="tab"
           data-tab={tab.id}
           aria-selected={state.tab === tab.id}
+          aria-label={`${index + 1} ${tab.label}`}
           onClick={() => setTab(tab.id)}
         >
-          {tab.label}
+          <span className="tab-num" aria-hidden="true">{index + 1}</span>{tab.label}
         </button>
       ))}
     </nav>

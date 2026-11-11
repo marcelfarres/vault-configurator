@@ -1,26 +1,26 @@
-import { useState, type InputHTMLAttributes } from "react";
+import { Fragment, useState, type InputHTMLAttributes } from "react";
 import { legalExportMode, legalFitTarget, printerLabel, printerRemovalNotes, removePrinterById, restorePrinter, spoolLabel } from "../../../planner.mjs";
 import { presetsFor } from "../presets";
 import { usePlanner } from "../store";
 import type { Printer, SettingsSection } from "../types";
-import { NumberField } from "./ui";
+import { Icon, NumberField, type IconName } from "./ui";
 
-const SECTIONS: Array<{ id: SettingsSection; label: string }> = [
-  { id: "printers", label: "Printers" },
-  { id: "filaments", label: "Filaments" },
-  { id: "appearance", label: "Appearance" },
+const SECTIONS: Array<{ id: SettingsSection; label: string; icon: IconName }> = [
+  { id: "printers", label: "Printers", icon: "printer" },
+  { id: "filaments", label: "Filaments", icon: "palette" },
+  { id: "appearance", label: "Appearance", icon: "appearance" },
 ];
 
 export function Settings() {
   const store = usePlanner();
   return (
-    <div className="page">
+    <div className="page page-settings">
       <div className="card-head">
         <div>
           <h1>Settings</h1>
           <p className="lede">Your printers, filament on hand, and appearance. Set once, used by every build.</p>
         </div>
-        <button type="button" className="btn" aria-label="Close settings" onClick={() => store.setSettingsOpen(false)}>← Close settings</button>
+        <button type="button" className="btn sm" aria-label="Close settings" onClick={() => store.setSettingsOpen(false)}><Icon name="arrow-left" />Close settings</button>
       </div>
       <div className="settings">
         <nav className="settings-nav" aria-label="Settings">
@@ -31,7 +31,7 @@ export function Settings() {
               aria-current={store.settingsSection === section.id ? "page" : undefined}
               onClick={() => store.setSettingsSection(section.id)}
             >
-              {section.label}
+              <Icon name={section.icon} />{section.label}
             </button>
           ))}
         </nav>
@@ -80,36 +80,51 @@ function Printers() {
       <h2>Printers</h2>
       <p className="note">The name is the label in the header, on plates, and in the fit list. The profile is the slicer machine preset and can stay longer, for example Snapmaker U1.</p>
       <div className="table-wrap">
-        <table>
+        <table className="printer-table">
+          <colgroup>
+            <col className="printer-use" />
+            <col className="printer-name" />
+            <col className="printer-bed" />
+            <col className="printer-z" />
+            <col className="printer-profile" />
+            <col className="printer-action" />
+          </colgroup>
           <thead>
             <tr><th>Use</th><th>Name</th><th>Bed</th><th>Z</th><th>Profile</th><th></th></tr>
           </thead>
           <tbody>
             {state.settings.printers.map((printer) => (
-              <tr key={printer.id}>
+              <Fragment key={printer.id}>
+              <tr>
                 <td>
                   <input aria-label={`Enabled ${printerLabel(printer) || printer.id}`} type="checkbox" checked={printer.enabled !== false} onChange={(event) => patch((draft) => {
                     const row = findPrinter(draft.settings.printers, printer.id);
                     row.enabled = event.target.checked;
                   })} />
                 </td>
-                <td><input aria-label={`Name for ${printer.id}`} value={printer.name} onChange={(event) => patch((draft) => { findPrinter(draft.settings.printers, printer.id).name = event.target.value; })} /></td>
+                <td><input type="text" aria-label={`Name for ${printer.id}`} title={printer.name || undefined} value={printer.name} onChange={(event) => patch((draft) => { findPrinter(draft.settings.printers, printer.id).name = event.target.value; })} /></td>
                 <td className="mono">
                   <NumberField label={`Bed X for ${printer.id}`} value={printer.bed[0]} min={0} exclusiveMin onCommit={(next) => patch((draft) => { findPrinter(draft.settings.printers, printer.id).bed[0] = next; })} />
                   <NumberField label={`Bed Y for ${printer.id}`} value={printer.bed[1]} min={0} exclusiveMin onCommit={(next) => patch((draft) => { findPrinter(draft.settings.printers, printer.id).bed[1] = next; })} />
                 </td>
                 <td><NumberField label={`Z for ${printer.id}`} value={printer.z} min={0} exclusiveMin onCommit={(next) => patch((draft) => { findPrinter(draft.settings.printers, printer.id).z = next; })} /></td>
-                <td><input aria-label={`Profile for ${printer.id}`} value={printer.profile || ""} onChange={(event) => patch((draft) => { findPrinter(draft.settings.printers, printer.id).profile = event.target.value; })} /></td>
-                <td>{confirmId === printer.id ? (
-                  <span className="confirm-remove">
-                    {impact(printer).length ? <span className="note">{printerLabel(printer) || printer.id} is {impact(printer).join("; ")}.</span> : null}
-                    <button type="button" className="btn" onClick={() => remove(printer)}>Remove {printerLabel(printer) || printer.id}</button>
-                    <button type="button" className="btn" onClick={() => setConfirmId("")}>Keep</button>
-                  </span>
-                ) : (
-                  <button type="button" className="icon-btn" aria-label={`Remove ${printerLabel(printer) || printer.id}`} onClick={() => setConfirmId(printer.id)}>×</button>
-                )}</td>
+                <td><input type="text" aria-label={`Profile for ${printer.id}`} title={printer.profile || undefined} value={printer.profile || ""} onChange={(event) => patch((draft) => { findPrinter(draft.settings.printers, printer.id).profile = event.target.value; })} /></td>
+                <td>{confirmId !== printer.id ? (
+                  <button type="button" className="icon-btn" aria-label={`Remove ${printerLabel(printer) || printer.id}`} onClick={() => setConfirmId(printer.id)}><Icon name="x" /></button>
+                ) : null}</td>
               </tr>
+              {confirmId === printer.id ? (
+                <tr>
+                  <td colSpan={6}>
+                    <span className="confirm-remove">
+                      {impact(printer).length ? <span className="note">{printerLabel(printer) || printer.id} is {impact(printer).join("; ")}.</span> : null}
+                      <button type="button" className="btn" onClick={() => remove(printer)}>Remove {printerLabel(printer) || printer.id}</button>
+                      <button type="button" className="btn" onClick={() => setConfirmId("")}>Keep</button>
+                    </span>
+                  </td>
+                </tr>
+              ) : null}
+              </Fragment>
             ))}
           </tbody>
         </table>
@@ -224,38 +239,32 @@ function Filaments() {
       <h2>Filaments</h2>
       <p className="note">Shelf stock. Parts assigns these slots to colour roles.</p>
       {state.settings.filaments.map((filament, index) => (
-        <div key={filament.id || index} className="editor">
-          <label className="field">Colour
+        <div key={filament.id || index} className="filament-row">
+          <label className="color-disc" style={{ background: toColor(filament.color) }} title="Change colour">
             <input aria-label={`Colour for ${filament.name || index + 1}`} type="color" value={toColor(filament.color)} onChange={(event) => patch((draft) => { const row = draft.settings.filaments.find((item) => item.id === filament.id) || draft.settings.filaments[index]; if (row) row.color = event.target.value; })} />
           </label>
-          <label className="field">Material
-            <select aria-label={`Material for ${filament.name || index + 1}`} value={filament.material} onChange={(event) => patch((draft) => { const row = draft.settings.filaments.find((item) => item.id === filament.id) || draft.settings.filaments[index]; if (row) row.material = event.target.value; })}>
-              {materials.map((material) => <option key={material} value={material}>{material}</option>)}
-            </select>
-          </label>
-          <label className="field">Name
-            <input aria-label={`Filament name ${index + 1}`} value={filament.name} onChange={(event) => patch((draft) => { const row = draft.settings.filaments.find((item) => item.id === filament.id) || draft.settings.filaments[index]; if (row) row.name = event.target.value; })} />
-          </label>
+          <input className="ghost-input" aria-label={`Filament name ${index + 1}`} value={filament.name} onChange={(event) => patch((draft) => { const row = draft.settings.filaments.find((item) => item.id === filament.id) || draft.settings.filaments[index]; if (row) row.name = event.target.value; })} />
           <span className="note">{spoolLabel(filament)}</span>
+          <select className="material-select" aria-label={`Material for ${filament.name || index + 1}`} value={filament.material} onChange={(event) => patch((draft) => { const row = draft.settings.filaments.find((item) => item.id === filament.id) || draft.settings.filaments[index]; if (row) row.material = event.target.value; })}>
+            {materials.map((material) => <option key={material} value={material}>{material}</option>)}
+          </select>
           {spools.length ? (
-            <label className="field">Spool
-              <select aria-label={`Spool for ${filament.name || index + 1}`} value={filament.spool ?? ""} onChange={(event) => {
-                const spool = spools.find((item) => String(item.id) === event.target.value);
-                patch((draft) => {
-                  const row = draft.settings.filaments.find((item) => item.id === filament.id) || draft.settings.filaments[index];
-                  if (!row) return;
-                  if (!spool) { row.spool = undefined; row.spoolType = undefined; return; }
-                  row.name = `${spool.vendor || ""} ${spool.name}`.trim() || row.name;
-                  row.color = spool.color;
-                  if (spool.material) row.material = spool.material;
-                  row.spool = spool.id;
-                  row.spoolType = `${spool.vendor || ""} · ${spool.material || ""}`.trim();
-                });
-              }}>
-                <option value="">(no spool)</option>
-                {spools.map((spool) => <option key={spool.id} value={spool.id}>{spool.label || spool.name}</option>)}
-              </select>
-            </label>
+            <select className="spool-select" aria-label={`Spool for ${filament.name || index + 1}`} value={filament.spool ?? ""} onChange={(event) => {
+              const spool = spools.find((item) => String(item.id) === event.target.value);
+              patch((draft) => {
+                const row = draft.settings.filaments.find((item) => item.id === filament.id) || draft.settings.filaments[index];
+                if (!row) return;
+                if (!spool) { row.spool = undefined; row.spoolType = undefined; return; }
+                row.name = `${spool.vendor || ""} ${spool.name}`.trim() || row.name;
+                row.color = spool.color;
+                if (spool.material) row.material = spool.material;
+                row.spool = spool.id;
+                row.spoolType = `${spool.vendor || ""} · ${spool.material || ""}`.trim();
+              });
+            }}>
+              <option value="">(no spool)</option>
+              {spools.map((spool) => <option key={spool.id} value={spool.id}>{spool.label || spool.name}</option>)}
+            </select>
           ) : null}
         </div>
       ))}

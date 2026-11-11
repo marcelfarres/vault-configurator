@@ -1,0 +1,50 @@
+/* Assemble step: completion card, checklist rows, progress.
+   Imported into the components layer by ../styles.css; no @layer wrapper here. */
+  .complete {
+    border-color: var(--teal);
+    background: var(--accent);
+    color: var(--accent-foreground);
+  }
+
+  .complete h2 {
+    color: inherit;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1rem;
+  }
+
+  .complete h2 .icon {
+    inline-size: 1.25rem;
+    block-size: 1.25rem;
+    color: var(--teal);
+  }
+
+  .assemble-row {
+    display: flex;
+    align-items: flex-start;
+    padding-block: 0.25rem;
+  }
+
+  .assemble-row:has(input:checked) {
+    opacity: 0.6;
+  }
+
+  .assemble-row:has(input:checked) span {
+    text-decoration: line-through;
+  }
+
+  .progress {
+    block-size: 0.4rem;
+    background: var(--muted);
+    border-radius: 999px;
+    overflow: hidden;
+    margin-block: 0.4rem;
+  }
+
+  .progress div {
+    block-size: 100%;
+    background: var(--teal);
+    inline-size: 0;
+  }
+

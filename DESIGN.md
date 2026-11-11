@@ -1,6 +1,6 @@
 ---
 name: VAULT configurator
-description: A calm, hairline-ruled planning bench where filament colours carry the colour and one teal marks what is selected.
+description: A calm, hairline-ruled planning bench with a sticky shell, where filament colours carry the colour and one teal marks what is selected.
 colors:
   bench-paper: "oklch(0.975 0.003 90)"
   card-stock: "oklch(0.995 0.002 90)"
@@ -27,13 +27,13 @@ colors:
 typography:
   headline:
     fontFamily: "IBM Plex Sans, Segoe UI, sans-serif"
-    fontSize: "1.55rem"
+    fontSize: "1.5rem"
     fontWeight: 600
     lineHeight: 1.45
-    letterSpacing: "-0.02em"
+    letterSpacing: "-0.025em"
   title:
     fontFamily: "IBM Plex Sans, Segoe UI, sans-serif"
-    fontSize: "1rem"
+    fontSize: "0.875rem"
     fontWeight: 600
     lineHeight: 1.45
   body:
@@ -43,90 +43,97 @@ typography:
     lineHeight: 1.45
   note:
     fontFamily: "IBM Plex Sans, Segoe UI, sans-serif"
-    fontSize: "0.86rem"
+    fontSize: "0.875rem"
     fontWeight: 400
     lineHeight: 1.45
   label:
-    fontFamily: "IBM Plex Sans, Segoe UI, sans-serif"
-    fontSize: "0.8rem"
+    fontFamily: "IBM Plex Mono, ui-monospace, monospace"
+    fontSize: "0.75rem"
     fontWeight: 400
     lineHeight: 1.45
   wordmark:
-    fontFamily: "IBM Plex Sans, Segoe UI, sans-serif"
-    fontSize: "0.95rem"
+    fontFamily: "IBM Plex Mono, ui-monospace, monospace"
+    fontSize: "1.125rem"
     fontWeight: 600
     lineHeight: 1.45
-    letterSpacing: "0.14em"
+    letterSpacing: "0.1em"
   mono:
     fontFamily: "IBM Plex Mono, ui-monospace, monospace"
-    fontSize: "0.86rem"
+    fontSize: "0.875rem"
     fontWeight: 400
     lineHeight: 1.45
 rounded:
-  sm: "0.45rem"
-  md: "0.5rem"
-  lg: "0.65rem"
-  xl: "0.7rem"
+  sm: "0.25rem"
+  md: "0.375rem"
+  lg: "0.5rem"
   full: "999px"
 spacing:
-  xs: "0.35rem"
-  sm: "0.65rem"
+  xs: "0.25rem"
+  sm: "0.5rem"
   md: "1rem"
-  lg: "1.25rem"
+  lg: "1.5rem"
+  xl: "2rem"
+  2xl: "2.5rem"
 components:
   button:
-    backgroundColor: "{colors.card-stock}"
+    backgroundColor: "{colors.bench-paper}"
     textColor: "{colors.bench-ink}"
     typography: "{typography.body}"
-    rounded: "{rounded.lg}"
-    padding: "0.3rem 0.75rem"
+    rounded: "{rounded.md}"
+    padding: "0.5rem 1rem"
     height: "2.25rem"
   button-primary:
     backgroundColor: "{colors.bench-ink}"
     textColor: "{colors.ink-reverse}"
-    rounded: "{rounded.lg}"
-    padding: "0.3rem 0.75rem"
+    rounded: "{rounded.md}"
+    padding: "0.5rem 1rem"
     height: "2.25rem"
   button-ghost:
     backgroundColor: "transparent"
     textColor: "{colors.bench-ink}"
-    rounded: "{rounded.lg}"
-    padding: "0.3rem 0.75rem"
+    rounded: "{rounded.md}"
+    padding: "0.5rem 1rem"
     height: "2.25rem"
   chip:
     backgroundColor: "{colors.card-stock}"
-    textColor: "{colors.bench-ink}"
-    typography: "{typography.label}"
-    rounded: "{rounded.full}"
-    padding: "0.12rem 0.55rem"
-    height: "1.7rem"
-  chip-selected:
-    backgroundColor: "{colors.pressed-grey}"
-  chip-export-selected:
-    backgroundColor: "{colors.teal-wash}"
-    textColor: "{colors.deep-teal}"
-  status-chip:
-    backgroundColor: "transparent"
     textColor: "{colors.pencil-grey}"
     typography: "{typography.label}"
     rounded: "{rounded.full}"
-    padding: "0.12rem 0.55rem"
-    height: "1.7rem"
+    padding: "0.125rem 0.625rem"
+  chip-selected:
+    backgroundColor: "{colors.pressed-grey}"
+  printer-toggle:
+    backgroundColor: "{colors.bench-paper}"
+    textColor: "{colors.bench-ink}"
+    typography: "{typography.body}"
+    rounded: "{rounded.md}"
+    padding: "0.5rem 1rem"
+  printer-toggle-selected:
+    backgroundColor: "{colors.teal-wash}"
+    textColor: "{colors.deep-teal}"
+    rounded: "{rounded.md}"
+    padding: "0.5rem 1rem"
+  status-chip:
+    backgroundColor: "{colors.card-stock}"
+    textColor: "{colors.pencil-grey}"
+    typography: "{typography.label}"
+    rounded: "{rounded.full}"
+    padding: "0.125rem 0.5rem"
   input:
     backgroundColor: "{colors.card-stock}"
     textColor: "{colors.bench-ink}"
     rounded: "{rounded.md}"
-    padding: "0.4rem 0.55rem"
+    padding: "0.5rem 0.75rem"
     height: "2.25rem"
   card:
     backgroundColor: "{colors.card-stock}"
     textColor: "{colors.bench-ink}"
     rounded: "{rounded.lg}"
-    padding: "1rem 1.05rem 1.1rem"
+    padding: "1.5rem"
   layer-row:
-    backgroundColor: "{colors.recess}"
-    rounded: "{rounded.xl}"
-    padding: "0.45rem 0.55rem"
+    backgroundColor: "{colors.bench-paper}"
+    rounded: "{rounded.md}"
+    padding: "0.625rem 0.75rem"
   layer-row-open:
     backgroundColor: "{colors.teal-wash}"
   hint:
@@ -134,16 +141,16 @@ components:
     textColor: "{colors.pencil-grey}"
     typography: "{typography.note}"
     rounded: "{rounded.md}"
-    padding: "0.55rem 0.7rem"
+    padding: "0.5rem 0.75rem"
   tab:
     textColor: "{colors.pencil-grey}"
-    padding: "0.7rem 0.1rem 0.55rem"
+    padding: "0.625rem 1rem"
     height: "2.5rem"
   tab-selected:
     textColor: "{colors.bench-ink}"
   swatch:
     rounded: "{rounded.sm}"
-    size: "2.2rem"
+    size: "2.5rem"
 ---
 
 # Design System: VAULT configurator
@@ -152,38 +159,38 @@ components:
 
 **Creative North Star: "The Neutral Bench"**
 
-A clean workbench that lets the user's own filament colours and the designer's real renders be the loudest colour in the room. The chrome is warm off-white paper, ink-dark text, and hairline rules; the one accent is a muted teal that means "this is selected, on or in progress": the current tab, the open layer, a switch that is on, a plate marked printed, the focus ring. Everything else that carries colour is data: a swatch, a drawer front in the stack preview, a part on a plate bed. When the interface stays this quiet, a wrong number or an unprintable part is the loudest thing on screen.
+A clean workbench that lets the user's own filament colours and the designer's real renders be the loudest colour in the room. The chrome is warm off-white paper, ink-dark text, and hairline rules under a sticky, blurred header; the one accent is a muted teal that means "this is selected or in progress": the current tab, the open layer, a plate marked printed, the focus ring. A switch that is on is ink-filled, like a primary button. Everything else that carries colour is data: a swatch, a drawer front in the stack preview, a part on a plate bed. When the interface stays this quiet, a wrong number or an unprintable part is the loudest thing on screen.
 
-The mood is calm, precise and restrained. Density is real, because this is a planner with part lists, plate beds and printer fleets, but it is held together by a single rhythm of hairline borders, small even gaps and consistent control heights rather than by decoration. Controls are refined and restrained: soft corners, ink-filled primary actions, no gradients, no flourish.
+The mood is calm, precise and restrained, at an airier scale than the bench's first rendition: a centred 80rem column, 1.5rem card padding and 2rem column gaps (the rendition pinned from the "Vault Configurator UI prototype" on Lovable, ported 2026-11). Density is still real, because this is a planner with part lists, plate beds and printer fleets, but it is held together by hairline borders, a three-step shadow scale on controls only, and consistent control heights rather than by decoration. Icons are a single 2px-stroke set drawn inline, used only where they name an action.
 
 This is an independent tool with a neutral identity (see PRODUCT.md). Nothing here borrows the VAULT or USSA Design look.
 
 **Key Characteristics:**
 - Colour belongs to the user's filaments; the UI itself is paper, ink and one teal that marks selection and state.
-- Flat by default: depth is tonal layering (paper, card stock, recess) plus a single whisper of shadow.
+- Cards are flat with hairline borders; controls carry a small resting shadow so editable things read as objects on the bench.
 - Hairline borders do the structural work that fills and shadows do elsewhere.
-- Plex Sans for everything; Plex Mono only for measured dimensions.
+- Plex Sans for prose and controls; Plex Mono for the wordmark, chips, counts and measured dimensions.
 - Light and dark themes share one set of semantic token names and one warm-neutral hue family, each composed on its own.
-- Desktop-first, mouse and keyboard; one breakpoint at 900px.
+- Desktop-first, mouse and keyboard; breakpoints at 1100px (preview narrows), 900px (one column) and 640px (tight gutters).
 
 ## Colors
 
 A warm-neutral paper palette with one desaturated teal, plus three signal colours that appear as text and, on full-width message lines only, as a faint matching wash. Values are OKLCH and the frontmatter is the source of truth. The tokens below are the light theme; the dark theme follows.
 
 ### Primary
-- **Bench Ink** (`oklch(0.21 0.006 286)`): body text, the filled primary button, and the outline stroke around parts on a plate bed. It is a near-black with a barely perceptible cool lean.
+- **Bench Ink** (`oklch(0.21 0.006 286)`): body text, the filled primary button, the "on" switch track, and the outline stroke around parts on a plate bed. It is a near-black with a barely perceptible cool lean.
 - **Ink Reverse** (`oklch(0.985 0.002 90)`): text and icons on top of Bench Ink.
 
 ### Secondary
-- **Bench Teal** (`oklch(0.52 0.07 195)`): the only accent, and it marks selection and state, never decoration. It paints the focus ring, the selected-tab underline, the "on" switch track, the progress fill, the text caret, the link underline, hover and checked borders on cards, and the native `accent-color` for checkboxes and radios. It is never a large fill.
-- **Teal Wash** (`oklch(0.93 0.03 190)`) with **Deep Teal** (`oklch(0.35 0.06 195)`) text: the quiet "this is on" tint for the open layer row, the backbone pill and selected printer chips in the export row. Deep Teal is also the link colour (10.8:1 on Card Stock).
+- **Bench Teal** (`oklch(0.52 0.07 195)`): the only accent, and it marks selection and state, never decoration. It paints the focus ring, the selected-tab underline, the progress fill, the text caret, the link underline, hover and checked borders on cards, the selected printer toggle's border, and the native `accent-color` for checkboxes and radios. It is never a large fill.
+- **Teal Wash** (`oklch(0.93 0.03 190)`) with **Deep Teal** (`oklch(0.35 0.06 195)`) text: the quiet "this is on" tint for the open layer row, the backbone pill, selected printer toggles in the export row, the hover wash on outline and ghost buttons, and the Assembly-complete panel. Deep Teal is also the link colour (10.8:1 on Card Stock).
 - **Selection** (`oklch(0.86 0.06 192)`): the text-selection highlight, with Bench Ink text (11.9:1).
 
 ### Neutral
 - **Bench Paper** (`oklch(0.975 0.003 90)`): the page background and top bar.
 - **Card Stock** (`oklch(0.995 0.002 90)`): cards, buttons, inputs, menus. Barely lighter than the page, separated by a hairline rather than a shadow.
-- **Recess** (`oklch(0.95 0.003 286)`): sunken wells, layer rows, piece cards, hints, the preview canvas and the progress track.
-- **Pressed Grey** (`oklch(0.94 0.004 286)`): selected chips and the off state of switches.
+- **Recess** (`oklch(0.95 0.003 286)`): sunken wells, hints, the preview canvas and the progress track.
+- **Pressed Grey** (`oklch(0.94 0.004 286)`): selected plain chips. (The switch's off track is a 22% foreground tint mixed from Bench Ink, so it reads in both themes.)
 - **Pencil Grey** (`oklch(0.52 0.012 286)`): secondary text, table headers, inactive tabs, the quiet half of any label pair.
 - **Hairline** (`oklch(0.91 0.004 286)`): every structural border and row divider.
 - **Field Edge** (`oklch(0.62 0.008 286)`): borders on inputs, selects and filament swatches, and the scrollbar thumb. It is the one border that meets 3:1 on Card Stock (3.6:1), so an editable control and a filament colour are visible without relying on fill.
@@ -202,7 +209,7 @@ Dark is switched by a `dark` class on `<html>`, set before first paint from `loc
 - **Surfaces:** page `oklch(0.165 0.006 286)`, card `oklch(0.205 0.007 286)`, recess `oklch(0.255 0.007 286)`, secondary `oklch(0.28 0.007 286)`. Each step is a visible tonal lift, since a dark card cannot rely on a shadow.
 - **Text:** foreground `oklch(0.955 0.004 90)`, muted `oklch(0.72 0.01 286)` (7.2:1 on card), the inverted primary button `oklch(0.93 0.006 90)` with `oklch(0.18 0.006 286)` text.
 - **Lines:** Hairline `oklch(0.31 0.007 286)`; Field Edge `oklch(0.54 0.008 286)` (3.5:1 on card).
-- **Teal:** `oklch(0.74 0.075 195)` for rings, underlines and switch tracks (8.0:1 on card); wash `oklch(0.30 0.045 195)` with `oklch(0.85 0.07 195)` text.
+- **Teal:** `oklch(0.74 0.075 195)` for rings and underlines (8.0:1 on card); wash `oklch(0.30 0.045 195)` with `oklch(0.85 0.07 195)` text. The on-switch track inverts with the primary button (near-white track, dark thumb).
 - **Signal:** text `oklch(0.80 0.11 75)`, `oklch(0.76 0.13 25)`, `oklch(0.78 0.10 155)` (at least 7.9:1 on card); washes `oklch(0.27 0.045 75)`, `oklch(0.265 0.05 25)`, `oklch(0.26 0.04 155)`.
 - **Plate bed:** `oklch(0.36 0.006 286)` with grid `oklch(0.46 0.006 286)`; part outlines `oklch(0.97 0.004 90)`.
 
@@ -215,101 +222,103 @@ Dark is switched by a `dark` class on `<html>`, set before first paint from `loc
 
 **Display Font:** none. There is no display face.
 **Body Font:** IBM Plex Sans (with Segoe UI, sans-serif), loaded from Google Fonts at 400, 500 and 600.
-**Label/Mono Font:** IBM Plex Mono (with ui-monospace), 400 and 500, used only for measured dimensions.
+**Label/Mono Font:** IBM Plex Mono (with ui-monospace), 400 and 500, for the wordmark, chips and pills, tab numerals, quantities and measured dimensions.
 
 **Character:** A technical-humanist sans with a matching mono. It is engineered enough to be trusted with millimetres and plain enough to disappear. Hierarchy comes from weight and size in small steps, not from a second typeface.
 
 ### Hierarchy
-- **Headline** (600, 1.55rem, 1.45, -0.02em): the one `h1` per page, e.g. "Design", "Parts".
-- **Title** (600, 1rem): card titles (`h2`). Plate card titles (`h3`) step down to 0.95rem 600.
-- **Body** (400, 1rem, 1.45): controls, rows and part names. Names inside rows are `strong` (a weight bump, not a size change).
-- **Note** (400, 0.86rem): secondary text, hints, table body (0.88rem), field help. Colour is Pencil Grey.
-- **Label** (400, 0.8rem): chips, pills, status chips and preview meta.
-- **Wordmark** (600, 0.95rem, +0.14em, caps): "VAULT" in the top bar. The only tracked-out text.
-- **Mono** (400, 0.86rem): the W × D × H line under the preview and other measured values.
+- **Headline** (600, 1.5rem, 1.45, -0.025em): the one `h1` per page, e.g. "Compose your stack", "Parts & colours".
+- **Title** (600, 0.875rem): card titles (`h2` and card `h3`). Plate card titles step down to weight 500 under the bed drawing.
+- **Body** (400, 1rem, 1.45): rows and part names. Controls and labels step down to 0.875rem, weight 500 on buttons and field labels. Names inside rows are `strong` (a weight bump, not a size change).
+- **Note** (400, 0.875rem): secondary text, hints, table body, field help. Colour is Pencil Grey.
+- **Label** (400, 0.75rem, mono): chips, pills, status chips, tab numerals and preview meta.
+- **Wordmark** (600, 1.125rem, mono, +0.1em, caps): "VAULT" in the top bar. The only tracked-out text.
+- **Mono** (400, 0.875rem): the W × D × H line under the preview, plate printer/time/weight lines and other measured values.
 
 ### Named Rules
-**The Millimetre Rule.** Measured dimensions, sizes and coordinates are set in Plex Mono so figures align and read as data. Prose never uses it.
+**The Millimetre Rule.** Measured dimensions, sizes and coordinates are set in Plex Mono so figures align and read as data; the same mono carries the wordmark, chips, tab numerals and counts — short data labels only. Prose never uses it.
 
 **The Weight-Not-Size Rule.** Emphasis inside a row is weight (500 or 600), never a larger size.
 
 ## Layout
 
-A top bar, a numbered step nav, then a single page column.
+A sticky shell (top bar plus numbered step nav), then a single centred page column.
 
-- **Container:** the page content is capped at 1180px with 1.25rem side padding, left-aligned (not centred), which keeps long rows scannable on wide monitors.
-- **Top bar:** one wrapping flex row with `0.55rem 0.75rem` gaps. Brand and project name, Save, Load, enabled printers, filament dots and count, fit controls, then Settings pushed to the far end. It wraps rather than collapses.
-- **Compose layout:** a two-column grid, `minmax(0, 1.2fr) minmax(280px, 0.8fr)` with a 1rem gap. Controls take the wide column; the narrow side column (Preview, then Help) sticks while editing, its drawing scaled to a height budget so any stack height gets the same anchor.
-- **Collections:** part pieces use `repeat(auto-fit, minmax(180px, 1fr))` at 0.6rem; plate cards use `minmax(240px, 1fr)` at 0.8rem. Settings is an 11rem nav plus a content column.
-- **Spacing rhythm:** a small even set rather than a strict scale: 0.35rem (inside a control group), 0.65rem (between related rows), 1rem (between cards and columns), 1.25rem (page edge). Rows divide with a Hairline border, not extra whitespace.
-- **Control height:** buttons, fields and checks are 2.25rem tall, tabs 2.5rem, chips 1.7rem. Touch targets are not the goal; consistent rhythm is.
-- **Responsive:** one breakpoint at 900px collapses the compose, settings and colour-role grids to a single column. The tool is desktop-first; phone use is not a requirement.
+- **Container:** the page is capped at 80rem including its 2rem side padding (`border-box`), centred, with 2.5rem of air under the shell. Parts narrows to 56rem, Plates to 64rem, Assemble to 42rem — reading-width columns for list-shaped work. Settings takes 72rem: the printer fleet table sizes Bed/Z/action to content and gives the rest to Name and Profile, so printer identities stay readable without horizontal scrolling. Design keeps the full 80rem for the editing loop.
+- **Shell:** `.app-head` sticks to the viewport top with a 95% Card Stock ground, an 8px backdrop blur and a Hairline bottom edge. Its rows align to the page column through `--page-pad`; its measured height is published as `--head-h` (a ResizeObserver in `App.tsx`) so the sticky preview column and the drawing budgets sit below it at any wrap state.
+- **Top bar:** one wrapping flex row. Mono wordmark and project name, ghost Save and Load (with icons), enabled-printer mono chips, overlapping filament dots and count, fit controls, then Settings pushed to the far end. It wraps rather than collapses.
+- **Compose layout:** a two-column grid, `minmax(0, 1fr) minmax(300px, 420px)` with a 2rem gap (320px side column under 1100px). Controls take the wide column at 1.5rem card gaps; the side column (Preview, then Help) sticks under the shell while editing, its drawing scaled to a height budget so any stack height gets the same anchor.
+- **Collections:** part pieces use `repeat(auto-fit, minmax(200px, 1fr))` at 0.75rem; plate cards use `minmax(240px, 1fr)` at 1rem. Settings is a 12.5rem icon nav plus a content column at a 2rem gap.
+- **Spacing rhythm:** 0.25rem (inside a chip group), 0.5rem (related controls), 1rem (card head to body), 1.5rem (between cards, card padding), 2rem (columns, page gutter), 2.5rem (under the shell, above the step footer). Rows still divide with a Hairline border, not extra whitespace.
+- **Control height:** buttons, fields and checks are 2.25rem tall (2rem for the small header size), tabs 2.5rem. Touch targets are not the goal; consistent rhythm is.
+- **Responsive:** 1100px narrows the preview column; 900px collapses the compose, settings and colour-role grids to a single column; 640px tightens gutters. The tool is desktop-first; phone use is not a requirement.
 
 ### Named Rules
-**The One Column Collapse Rule.** Below 900px every multi-column grid becomes a single column in source order. Do not invent intermediate layouts.
+**The One Column Collapse Rule.** Below 900px every multi-column grid becomes a single column in source order. The 1100px preview narrowing is the one intermediate step.
 
 ## Elevation & Depth
 
-Flat by default. Depth is conveyed by tonal layering: Bench Paper is the floor, Card Stock sits barely above it with a Hairline border, and Recess sinks wells (layer rows, hints, the preview canvas, progress tracks) below it. There is one shadow in the whole system.
+Cards are flat: Bench Paper is the floor, Card Stock sits barely above it with a Hairline border and no shadow, and Recess sinks wells (hints, the preview canvas, progress tracks) below it. Depth lives on the controls instead — a three-step shadow scale, always with a downward offset and a soft blur, never a halo.
 
 ### Shadow Vocabulary
-- **Card whisper** (`box-shadow: 0 1px 2px oklch(0.21 0.006 286 / 6%)`): cards and the current item in the settings nav. It is a contact line, not a lift.
+- **Control shadow** (`--shadow-sm: 0 1px 2px oklch(0.21 0.006 286 / 8%)`): outline buttons, inputs, selects, the switch track, and (with a 1px Hairline ring) the current item in the settings nav.
+- **Primary shadow** (`--shadow: 0 1px 3px oklch(0.21 0.006 286 / 10%), 0 1px 2px -1px oklch(0.21 0.006 286 / 10%)`): the ink-filled primary button, so the committed action sits a hair above its neighbours.
+- **Menu shadow** (`--shadow-md: 0 4px 6px -1px oklch(0.21 0.006 286 / 10%), 0 2px 4px -2px oklch(0.21 0.006 286 / 10%)`): popover menus (`.menu`).
 
-Popover menus (`.menu`) and the 3D viewer overlay sit above the page by `z-index` and a Hairline border or a dim scrim (`oklch(0.13 0.006 286 / 88%)`), not by shadow. In dark, the Card whisper is `0 1px 2px oklch(0 0 0 / 30%)`.
+The 3D viewer overlay sits above everything (including the sticky shell) by `z-index` with a dim scrim (`oklch(0.13 0.006 286 / 88%)`), not by shadow. In dark, the three shadows deepen to 30–40% black.
 
 ### Named Rules
-**The Flat-By-Default Rule.** Surfaces are flat at rest and nothing lifts on hover. Hover is a colour or border change (a menu item sinks to Recess, a part card takes a teal edge, an inactive tab darkens to ink), never a shadow or a movement.
+**The Flat-Cards Rule.** Surfaces and cards are flat at rest and nothing lifts on hover. Shadows belong to controls and menus only. Hover is a colour or border change (a button takes the Teal Wash, a piece card takes a teal edge, an inactive tab darkens to ink), never a movement.
 
 ## Shapes
 
-Soft but not round. Corners sit between 0.45rem and 0.7rem (`--radius` is 0.5rem; cards are `calc(0.5rem + 0.15rem)`; buttons 0.65rem; layer rows and piece cards 0.7rem). Pills, chips, dots and the switch are fully round (999px). Borders are always 1px hairlines; the only 2px strokes are the tab underline, the focus ring and part outlines on plates. There is no clipping, no skew and no decorative geometry; the only drawn geometry is the real stack elevation and the real plate beds.
-
-**Known drift:** the 0.65rem and 0.7rem radii differ by under a pixel and are not a deliberate pair; the menu button radius (0.4rem) and swatch radius (0.45rem) are similarly close. Fold them into one step when next touched.
+Soft but not round. One radius scale derives from `--radius` (0.5rem): small 0.25rem (swatches, menu items), medium 0.375rem (buttons, inputs, selects, layer rows, piece cards, beds, hints), large 0.5rem (cards). Pills, chips, dots and the switch are fully round (999px). Borders are 1px: Hairline for structure, Field Edge for editable controls; the only 2px strokes are the tab underline, the focus ring and part outlines on plates. There is no clipping, no skew and no decorative geometry; the only drawn geometry is the real stack elevation and the real plate beds.
 
 ## Components
 
-All components are refined and restrained: hairline-bordered, ink-filled when primary, flat at rest.
+All components are refined and restrained: hairline-bordered, ink-filled when primary, with resting control shadows and one 2px-stroke icon set (inline SVG, 1rem, round caps) for named actions.
 
 ### Buttons
-- **Shape:** gently curved (0.65rem), 2.25rem tall, `0.3rem 0.75rem` padding, 1px Hairline border.
-- **Default:** Card Stock fill, Bench Ink text.
-- **Primary:** Bench Ink fill, Ink Reverse text. The same treatment marks the active option inside a segmented control (`aria-pressed="true"`).
-- **Ghost:** transparent fill.
-- **Icon button:** 2rem circle, no border, Pencil Grey, used for row actions.
-- **Hover / Focus:** hover is not styled on buttons beyond the browser default; focus is a 2px Bench Teal outline with a 2px offset on every focusable element.
+- **Shape:** gently curved (0.375rem), 2.25rem tall (2rem small), `0.5rem 1rem` padding, 0.875rem at weight 500, icon and label 0.5rem apart.
+- **Default (outline):** Bench Paper fill, Bench Ink text, Hairline border, Control shadow. Hover takes the Teal Wash with Deep Teal text.
+- **Primary:** Bench Ink fill, Ink Reverse text, Primary shadow; hover lightens the ink by a tenth. The same treatment marks the active option inside a segmented control (`aria-pressed="true"`) and the Settings button while Settings is open.
+- **Ghost:** transparent fill and border, Teal Wash on hover (Save, Load, Start over).
+- **Icon button:** 2rem circle, no border, Pencil Grey darkening to ink on hover, for row actions.
+- **Disabled:** half opacity, no hover change. **Focus:** a 2px Bench Teal outline with a 2px offset on every focusable element.
 
-### Chips and pills
-- **Style:** fully round, 1.7rem tall, `0.12rem 0.55rem` padding, 0.8rem label type, Hairline border.
-- **Selected:** Pressed Grey fill. In the export row, a selected chip is Teal Wash with Deep Teal text and no border.
-- **Status chip:** transparent, Pencil Grey, `cursor: default`. It reports a state (for example, an enabled printer in the header); it is not clickable.
-- **Pill (teal):** Teal Wash fill, Deep Teal text, for facts like "backbone".
+### Chips, pills and printer toggles
+- **Chip / pill:** fully round, `0.125rem 0.625rem` padding, 0.75rem mono label type in Pencil Grey, Hairline border on Card Stock.
+- **Selected:** Pressed Grey fill for a plain pressed chip.
+- **Status chip:** the same shell, `cursor: default`. It reports a state (an enabled printer in the header); it is not clickable.
+- **Pill (teal):** Teal Wash fill, Deep Teal text, Bench Teal border, for facts like "backbone".
+- **Printer toggle (export row):** a larger button form of the chip — 0.375rem corner, `0.5rem 1rem` padding, name plus bed size in small mono. Unselected is Bench Paper with a Hairline border (teal on hover); selected is Teal Wash with a Bench Teal border.
 
 ### Cards / Containers
-- **Corner Style:** 0.65rem.
-- **Background:** Card Stock, 1px Hairline border, Card whisper shadow.
-- **Internal Padding:** `1rem 1.05rem 1.1rem`. The head is a flex row with the `h2` title left and optional actions right.
-- **Hint:** an inset Recess panel with Pencil Grey note text, for inline explanation inside a card.
+- **Corner Style:** 0.5rem.
+- **Background:** Card Stock, 1px Hairline border, no shadow.
+- **Internal Padding:** 1.5rem all round (plate cards step down to 1rem). The head is a flex row with the 0.875rem semibold title left and optional actions right, 1rem above the body.
+- **Hint:** an inset Recess panel (0.375rem corner, `0.5rem 0.75rem`) with Pencil Grey note text, for inline explanation inside a card.
 
 ### Inputs / Fields
-- **Style:** Card Stock fill, 1px Field Edge border, 0.5rem corner, 2.25rem tall.
+- **Style:** Card Stock fill, 1px Field Edge border, 0.375rem corner, 2.25rem tall, `0.5rem 0.75rem` padding, Control shadow, 0.875rem type.
 - **Focus:** the global 2px Bench Teal ring.
-- **Select / text / number / url:** share one style. Labels sit above the control (`field`), and an optional Caution warning line follows below it.
-- **Switch:** a 2.55rem × 1.45rem round track; off is Pressed Grey with a Field Edge border, on is Bench Teal, with a Card Stock thumb (5.3:1 against the track).
-- **Project name:** a borderless, transparent input in Pencil Grey in the top bar.
+- **Select / text / number / url:** share one style. Labels sit above the control (`field`, 0.875rem at weight 500, 0.5rem gap), and an optional Caution warning line follows below it. Stacked direct-child fields in a card are 1rem apart.
+- **Switch:** a 2.25rem × 1.25rem round track; off is a 22% ink tint, on is Bench Ink (near-white in dark), with a 1rem Bench Paper thumb carrying its own soft shadow.
+- **Project name:** a borderless, transparent 0.875rem input in Pencil Grey in the top bar.
 
 ### Navigation
-- **Step tabs:** a row of text buttons ("1 Design", "2 Parts", "3 Plates", "4 Assemble") on a Hairline baseline. Inactive: Pencil Grey, darkening to Bench Ink on hover. Selected: Bench Ink, weight 600, with a 2px Bench Teal underline. No fills, no icons.
-- **Settings nav:** a vertical list of text buttons; the current one gets a Card Stock fill and the Card whisper.
+- **Step tabs:** text buttons inside the sticky shell, the step number set in small mono at 60% opacity before each name ("1 Design" … "4 Assemble"). Inactive: Pencil Grey, darkening to Bench Ink on hover. Selected: Bench Ink, weight 500, with a 2px Bench Teal underline overlapping the shell's bottom edge. No fills.
+- **Settings nav:** a vertical list of icon-plus-label buttons; the current one gets a Card Stock fill, a Hairline ring and the Control shadow.
 
 ### Layer row (signature)
-A Recess strip, 0.7rem corner, holding a grip handle, the layer name (borderless button), the layer's height pill and a remove button. While its editor is open, the strip takes the Teal Wash so the layer being edited stands out in a long list. A stack is a vertical list of these, ordered top-down like the designer's drawing. A layer reorders by dragging the grip, or with the "Move toward top" and "Move toward base" buttons in its editor.
+A Bench Paper strip with a Hairline border and a 0.375rem corner, holding a grip handle, the layer name and its one-line summary (borderless button), the layer's height pill (mono, units and millimetres) and a remove icon button. While its editor is open, the strip takes the Teal Wash with a Bench Teal border so the layer being edited stands out in a long list. A stack is a vertical list of these, ordered top-down like the designer's drawing. A layer reorders by dragging the grip, or with the "Move toward top" and "Move toward base" buttons in its editor.
 
 ### Filament swatch (signature)
-A 2.2rem square with a 0.45rem corner and a Field Edge border (so cream and charcoal filaments both read on Recess), filled with the user's filament colour. Smaller 0.7rem round "dots" summarise the filament set in the top bar. This is where the interface is most colourful, and the colour is always the user's.
+Three forms of the user's colour: a 2.5rem square (0.25rem corner, Field Edge border, so cream and charcoal both read) on piece cards; overlapping 1rem round dots ringed in Card Stock in the top bar; and a 2.25rem round colour disc in Settings, where the disc itself is the colour picker and the filament name sits in a borderless input that gains its border and shadow on hover or focus. This is where the interface is most colourful, and the colour is always the user's.
 
 ### Plate bed and cabinet preview (signature)
-- **Bed:** an SVG on Plate Bed with 0.35-unit Plate Grid lines, a Hairline border and 0.5rem corners. Parts are filled with their filament colour and outlined in Bench Ink at a 2.5px non-scaling stroke, so a small part on a large bed never loses its edge.
-- **Cabinet:** a front elevation drawn in Cabinet Frame, one rounded block per layer scaled to the real layer heights, body and knob in their filament colours.
+- **Bed:** an SVG on Plate Bed with 0.35-unit Plate Grid lines and 0.375rem corners, no border, set first in a 1rem-padded plate card with the title below it. Parts are filled with their filament colour and outlined in Bench Ink at a 2.5px non-scaling stroke, so a small part on a large bed never loses its edge.
+- **Cabinet:** a front elevation drawn in Cabinet Frame on a Recess canvas at 2rem padding. Each layer draws its real fronts: bays side by side at their width shares, split facades stacked top-to-bottom at their unit shares, a handle on every front, body and knob in their filament colours. The layer open in the editor is stroked in Bench Teal.
 
 ### Progress
 A 0.4rem round track in Recess with a Bench Teal fill. Its width animation is disabled under `prefers-reduced-motion`.
@@ -318,19 +327,20 @@ A 0.4rem round track in Recess with a Bench Teal fill. Its width animation is di
 
 ### Do:
 - **Do** let colour come from filaments and renders. A swatch, a dot, a plate part or a drawer front is where a saturated hue belongs; Bench Teal marks selection and state beside them.
-- **Do** separate surfaces with a 1px Hairline border and a tonal step (Paper, Card Stock, Recess). Reach for the Card whisper shadow only on cards.
-- **Do** keep controls on the 2.25rem rhythm (chips 1.7rem, tabs 2.5rem) so rows align across the page.
-- **Do** set measured dimensions in IBM Plex Mono and state limits with the number ("329.6 mm wide", not "too big").
+- **Do** separate surfaces with a 1px Hairline border and a tonal step (Paper, Card Stock, Recess). Keep shadows on controls and menus, from the three-step scale only.
+- **Do** keep controls on the 2.25rem rhythm (small header size 2rem, tabs 2.5rem) and corners on the one radius scale (0.25 / 0.375 / 0.5rem) so rows align across the page.
+- **Do** set measured dimensions, chips and counts in IBM Plex Mono and state limits with the number ("329.6 mm wide", not "too big").
+- **Do** use the inline 2px-stroke icon set where an icon names the action (save, load, add, export); pair it with a text label on buttons.
 - **Do** report faults as a short Caution or Fault sentence beside the control that caused it; give a blocking full-width message its faint wash.
 - **Do** keep a visible 2px Bench Teal focus ring on every interactive element; this is a keyboard-and-mouse desk tool.
 - **Do** take every colour from the token set so light and dark both work. Add a token before adding a literal.
 
 ### Don't:
-- **Don't** add a second accent colour, gradients, glow, or decorative coloured backgrounds on panels. Tinted backgrounds are limited to the three signal washes on message lines and Teal Wash on the documented selected/open states.
+- **Don't** add a second accent colour, gradients, glow, or decorative coloured backgrounds on panels. Tinted backgrounds are limited to the three signal washes on message lines and Teal Wash on the documented selected, open and hover states.
 - **Don't** use Caution, Fault or Confirmed as saturated fills, borders, left-edge stripes or banners; they colour text, and a message line may add its faint wash.
-- **Don't** lift on hover or add shadows beyond the Card whisper.
+- **Don't** lift on hover, shadow a card, or add shadow steps beyond the three named ones.
 - **Don't** introduce a display typeface or a size jump to show emphasis; use weight.
 - **Don't** import the look of the VAULT product or USSA Design (logo, palette, imagery as chrome); the identity stays neutral and independent.
-- **Don't** add decorative icons or hero-metric treatments; the interface carries data, not ornament.
+- **Don't** use emoji or text glyphs (`×`, `←`, `+`) as icons, or icons as ornament; the interface carries data.
 - **Don't** hard-code a colour in a component's CSS for UI chrome. The only literal colours in code are fallbacks for filament data (`#c9ccd0`, `#ccc`).
-- **Don't** design for touch or narrow screens beyond the single 900px collapse unless the product brief changes.
+- **Don't** design for touch or narrow screens beyond the documented 1100 / 900 / 640px steps unless the product brief changes.

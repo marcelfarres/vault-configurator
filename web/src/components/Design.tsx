@@ -6,7 +6,7 @@ import { INTERIOR_LABEL, LAYOUT_LABEL, ROOF_LABEL, depthOptionLabel, heightLabel
 import { facadeCatalog, finishCustomized, heightCatalog, isMisfitNote, layerFitNotes, layoutCatalog } from "../stack";
 import { usePlanner } from "../store";
 import type { Layer } from "../types";
-import { Card, ChoiceSelect, Grip, HelpButton, StepFooter, Switch } from "./ui";
+import { Card, ChoiceSelect, Grip, HelpButton, Icon, StepFooter, Switch } from "./ui";
 import { Preview } from "./Preview";
 
 export function Design() {
@@ -58,7 +58,7 @@ export function Design() {
           </Card>
           <Card
             title="Layers"
-            extra={<button type="button" className="btn" aria-label="Add layer" onClick={() => { store.addLayer(); store.setExpandedLayer(state.stack.layers.length); }}>+ Add layer</button>}
+            extra={<button type="button" className="btn sm" aria-label="Add layer" onClick={() => { store.addLayer(); store.setExpandedLayer(state.stack.layers.length); }}><Icon name="plus" />Add layer</button>}
           >
             <p className="note">Top of the list is the top of the stack.</p>
             <label className="check">
@@ -171,6 +171,7 @@ export function Design() {
               </div>
             </details>
           </Card>
+          <StepFooter ready={ready} next="Continue to Parts & colours" onNext={() => store.setTab("parts")} />
           <Card title="Import">
             <details>
               <summary>Import a stack from ussadesign.com</summary>
@@ -201,7 +202,6 @@ export function Design() {
         </div>
       </div>
       <PartsInStack />
-      <StepFooter ready={ready} next="Continue to colours" onNext={() => store.setTab("parts")} />
     </div>
   );
 }
@@ -284,91 +284,110 @@ function LayerCard({ index }: { index: number }) {
           <span className="layer-summary" id={`layer-${index}-summary`}>{layerSummary(layer)}</span>
         </button>
         <span className="pill">{heightLabel(layer.height)}</span>
-        <button type="button" className="icon-btn" aria-label={`Remove ${title}`} onClick={() => store.removeLayer(index)}>×</button>
+        <button type="button" className="icon-btn" aria-label={`Remove ${title}`} onClick={() => store.removeLayer(index)}><Icon name="x" /></button>
       </div>
       {open ? (
-        <div className="editor">
-          <ChoiceSelect label="Type" help="type" view={typeView} onChange={(value) => patch((draft) => { draft.stack.layers[index].type = value; })} />
-          {layer.type === "Sustainers" ? <p className="note">A sustainer is a box with a hinged lid that opens from the top, not a drawer that slides out.</p> : null}
-          <ChoiceSelect label="Width" help="width" view={widthView} onChange={(value) => patch((draft) => { draft.stack.layers[index].layout = value; })} />
-          <ChoiceSelect label="Height" help="height" view={heightView} onChange={(value) => patch((draft) => { draft.stack.layers[index].height = Number(value); })} />
-          {layer.type === "Drawers" ? bays.map((_bay, bayIndex) => {
-            const entries = bom?.choices?.layers?.[index]?.facades?.[bayIndex];
-            const current = JSON.stringify(layer.facades?.[bayIndex] || [layer.height]);
-            const view = labeledChoices("facades", {
-              choices: entries ? { facades: entries } : null,
-              catalog: facadeCatalog(meta, layer.height),
-              fitOnly: state.fitOnly,
-              current,
-            }, patternName);
-            return (
-              <ChoiceSelect
-                key={bayIndex}
-                label={bays.length > 1 ? `Bay ${bayIndex + 1} facades` : "Facades"}
-                help="facades"
-                view={view}
-                onChange={(value) => patch((draft) => {
-                  const next = JSON.parse(value) as number[];
-                  draft.stack.layers[index].facades[bayIndex] = next;
-                })}
-              />
-            );
-          }) : null}
+        <div className="editor-groups">
+          <div className="editor-group">
+            <h3 className="group-title">Structure</h3>
+            <div className="editor">
+              <ChoiceSelect label="Type" help="type" view={typeView} onChange={(value) => patch((draft) => { draft.stack.layers[index].type = value; })} />
+              <ChoiceSelect label="Width" help="width" view={widthView} onChange={(value) => patch((draft) => { draft.stack.layers[index].layout = value; })} />
+              <ChoiceSelect label="Height" help="height" view={heightView} onChange={(value) => patch((draft) => { draft.stack.layers[index].height = Number(value); })} />
+              {layer.type === "Sustainers" ? <p className="note">A sustainer is a box with a hinged lid that opens from the top, not a drawer that slides out.</p> : null}
+            </div>
+          </div>
           {layer.type === "Drawers" ? (
             <>
-              <ChoiceSelect
-                label="Interior"
-                help="interior"
-                view={labeledChoices("interior", {
-                  choices: bom?.choices?.layers?.[index]?.interior ? { interior: bom.choices.layers[index].interior } : null,
-                  catalog: meta.drawerInteriors,
-                  fitOnly: state.fitOnly,
-                  current: layer.interior,
-                }, (value) => INTERIOR_LABEL[String(value)] || String(value))}
-                onChange={(value) => patch((draft) => { draft.stack.layers[index].interior = value; })}
-              />
-              <ChoiceSelect
-                label="Lock"
-                help="key"
-                view={lockView}
-                onChange={(value) => patch((draft) => {
-                  draft.stack.layers[index].key =
-                    value;
-                })}
-              />
-              <Flag index={index} field="labels" label="labels" help="labels" />
-              <Flag index={index} field="rails" label="geared rails" help="rails" forced={allBaysSplit} note={someBaySplit && !allBaysSplit ? "split bays always include them" : undefined} />
-              <Flag index={index} field="manualSupports" label="manual support wall" help="manualSupports" />
-              {layer.interior === "grid" ? (
-                <>
-                  <NumberField index={index} field="gridW" label="Width dividers" />
-                  <NumberField index={index} field="gridD" label="Depth dividers" />
-                </>
-              ) : null}
+              <div className="editor-group">
+                <h3 className="group-title">Drawers &amp; interior</h3>
+                <div className="editor">
+                  {bays.map((_bay, bayIndex) => {
+                    const entries = bom?.choices?.layers?.[index]?.facades?.[bayIndex];
+                    const current = JSON.stringify(layer.facades?.[bayIndex] || [layer.height]);
+                    const view = labeledChoices("facades", {
+                      choices: entries ? { facades: entries } : null,
+                      catalog: facadeCatalog(meta, layer.height),
+                      fitOnly: state.fitOnly,
+                      current,
+                    }, patternName);
+                    return (
+                      <ChoiceSelect
+                        key={bayIndex}
+                        label={bays.length > 1 ? `Bay ${bayIndex + 1} facades` : "Facades"}
+                        help="facades"
+                        view={view}
+                        onChange={(value) => patch((draft) => {
+                          const next = JSON.parse(value) as number[];
+                          draft.stack.layers[index].facades[bayIndex] = next;
+                        })}
+                      />
+                    );
+                  })}
+                  <Flag index={index} field="rails" label="geared rails" help="rails" forced={allBaysSplit} note={someBaySplit && !allBaysSplit ? "split bays always include them" : undefined} />
+                  <ChoiceSelect
+                    label="Interior"
+                    help="interior"
+                    view={labeledChoices("interior", {
+                      choices: bom?.choices?.layers?.[index]?.interior ? { interior: bom.choices.layers[index].interior } : null,
+                      catalog: meta.drawerInteriors,
+                      fitOnly: state.fitOnly,
+                      current: layer.interior,
+                    }, (value) => INTERIOR_LABEL[String(value)] || String(value))}
+                    onChange={(value) => patch((draft) => { draft.stack.layers[index].interior = value; })}
+                  />
+                  {layer.interior === "grid" ? (
+                    <>
+                      <NumberField index={index} field="gridW" label="Width dividers" />
+                      <NumberField index={index} field="gridD" label="Depth dividers" />
+                    </>
+                  ) : null}
+                </div>
+              </div>
+              <div className="editor-group">
+                <h3 className="group-title">Details</h3>
+                <div className="editor">
+                  <ChoiceSelect
+                    label="Lock"
+                    help="key"
+                    view={lockView}
+                    onChange={(value) => patch((draft) => {
+                      draft.stack.layers[index].key = value;
+                    })}
+                  />
+                  <Flag index={index} field="labels" label="labels" help="labels" />
+                  <Flag index={index} field="manualSupports" label="manual support wall" help="manualSupports" />
+                </div>
+              </div>
             </>
           ) : (
-            <>
-              {familyWide(metaFamily(store.meta, layer.layout)) ? (
-                <ChoiceSelect
-                  label="Interior"
-                  help="variant"
-                  view={labeledChoices("interior", {
-                    choices: bom?.choices?.layers?.[index]?.interior ? { interior: bom.choices.layers[index].interior } : null,
-                    catalog: meta.sustainerInteriors,
-                    fitOnly: state.fitOnly,
-                    current: layer.variant,
-                  }, (value) => INTERIOR_LABEL[String(value)] || String(value))}
-                  onChange={(value) => patch((draft) => { draft.stack.layers[index].variant = value; })}
-                />
-              ) : (
-                <Flag index={index} field="dividers" label="dividers" help="dividers" />
-              )}
-              <Flag index={index} field="baseplate" label="Gridfinity baseplate" help="baseplate" />
-            </>
+            <div className="editor-group">
+              <h3 className="group-title">Interior</h3>
+              <div className="editor">
+                {familyWide(metaFamily(store.meta, layer.layout)) ? (
+                  <ChoiceSelect
+                    label="Interior"
+                    help="variant"
+                    view={labeledChoices("interior", {
+                      choices: bom?.choices?.layers?.[index]?.interior ? { interior: bom.choices.layers[index].interior } : null,
+                      catalog: meta.sustainerInteriors,
+                      fitOnly: state.fitOnly,
+                      current: layer.variant,
+                    }, (value) => INTERIOR_LABEL[String(value)] || String(value))}
+                    onChange={(value) => patch((draft) => { draft.stack.layers[index].variant = value; })}
+                  />
+                ) : (
+                  <Flag index={index} field="dividers" label="dividers" help="dividers" />
+                )}
+                <Flag index={index} field="baseplate" label="Gridfinity baseplate" help="baseplate" />
+              </div>
+            </div>
           )}
-          <button type="button" className="btn" onClick={() => store.moveLayer(index, 1)}>Move toward top</button>
-          <button type="button" className="btn" onClick={() => store.moveLayer(index, -1)}>Move toward base</button>
-          <button type="button" className="btn" onClick={() => store.duplicateLayer(index)}>Duplicate layer</button>
+          <div className="editor ops">
+            <button type="button" className="btn" onClick={() => store.moveLayer(index, 1)}>Move toward top</button>
+            <button type="button" className="btn" onClick={() => store.moveLayer(index, -1)}>Move toward base</button>
+            <button type="button" className="btn" onClick={() => store.duplicateLayer(index)}>Duplicate layer</button>
+          </div>
           {notes.slice(0, 3).map((note) => <p key={note} className="warn">{note}</p>)}
         </div>
       ) : null}
@@ -426,7 +445,7 @@ function NumberField({ index, field, label }: { index: number; field: "gridW" | 
 }
 
 function HelpCard() {
-  const { helpTopic, helpSerial, helpAsk } = usePlanner();
+  const { helpTopic, helpSerial, helpAsk, helpReturn, returnFromHelp } = usePlanner();
   const block = HELP[helpTopic];
   const ref = useRef<HTMLElement>(null);
   // Help updates as fields are focussed and scrolls inside its own card (the
@@ -466,6 +485,9 @@ function HelpCard() {
       ) : (
         <p className="note">Click a labelled option. What it changes, the manual page, and the parts in your size show up here.</p>
       )}
+      {block && helpReturn && helpReturn.topic === helpTopic && helpReturn.target.isConnected ? (
+        <p><button type="button" className="btn ghost sm" onClick={returnFromHelp}><Icon name="arrow-left" />Back to {helpReturn.label}</button></p>
+      ) : null}
       </div>
     </section>
   );
@@ -474,25 +496,38 @@ function HelpCard() {
 function PartsInStack() {
   const { bom, state } = usePlanner();
   const ids = (bom?.judged?.printers || []).map((printer) => printer.id);
+  const parts = bom?.parts || [];
+  const pieces = parts.reduce((sum, part) => sum + Number(part.qty || 0), 0);
+  const blocked = parts.filter((part) => {
+    const fit = partFitsScope(part, ids);
+    return fit === "missing" || fit === "unfit";
+  }).length;
   return (
-            <section className="card spaced">
-      <h2>Parts in this stack</h2>
-      {!bom?.parts?.length ? <p className="note">Add a layer. Quantities, size and time show up here.</p> : (
-        bom.parts.map((part) => {
-          const fit = partFitsScope(part, ids);
-          return (
-          <div key={`${part.group}|${part.name}`} className="partline">
-            <span className="swatch" style={{ background: roleColor(state.settings, part.role) }} />
-            <div>
-              <strong>{part.qty}× {part.name}</strong>
-              <div className="note">{part.group} · {part.size ? part.size.map((value) => Number(value).toFixed(1)).join("×") : "?"} mm · {part.seconds != null ? `${Math.round(part.seconds / 60)} min` : "time ?"}</div>
-            </div>
-            <span className={fit === "fits" ? "ok" : fit === "unknown" ? "muted" : "bad"}>
-              {fit === "fits" ? "fits" : fit === "missing" ? "file missing" : fit === "unfit" ? "does not fit" : "fit not checked"}
-            </span>
-          </div>
-          );
-        })
+    <section className="card spaced">
+      {!parts.length ? (
+        <>
+          <h2>Parts in this stack</h2>
+          <p className="note">Add a layer. Quantities, size and time show up here.</p>
+        </>
+      ) : (
+        <details>
+          <summary>Parts in this stack · {pieces} pieces{blocked ? ` · ${blocked} ${blocked === 1 ? "line" : "lines"} not printable yet` : ""}</summary>
+          {parts.map((part) => {
+            const fit = partFitsScope(part, ids);
+            return (
+              <div key={`${part.group}|${part.name}`} className="partline">
+                <span className="swatch" style={{ background: roleColor(state.settings, part.role) }} />
+                <div>
+                  <strong>{part.qty}× {part.name}</strong>
+                  <div className="note">{part.group} · {part.size ? part.size.map((value) => Number(value).toFixed(1)).join("×") : "?"} mm · {part.seconds != null ? `${Math.round(part.seconds / 60)} min` : "time ?"}</div>
+                </div>
+                <span className={fit === "fits" ? "ok" : fit === "unknown" ? "muted" : "bad"}>
+                  {fit === "fits" ? "fits" : fit === "missing" ? "file missing" : fit === "unfit" ? "does not fit" : "fit not checked"}
+                </span>
+              </div>
+            );
+          })}
+        </details>
       )}
     </section>
   );

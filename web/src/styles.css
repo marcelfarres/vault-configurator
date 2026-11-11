@@ -1,4 +1,14 @@
 @layer reset, base, theme, components;
+/* Components layer lives per surface under ./styles/ (shell = shared
+   controls). Import order is cascade order within the layer; the rules
+   that remain in this file (step footer, viewer, utilities, responsive
+   overrides) come last, as they did when this was one sheet. */
+@import url("./styles/shell.css") layer(components);
+@import url("./styles/design.css") layer(components);
+@import url("./styles/parts.css") layer(components);
+@import url("./styles/plates.css") layer(components);
+@import url("./styles/settings.css") layer(components);
+@import url("./styles/assemble.css") layer(components);
 
 @layer reset {
   :where(html) {
@@ -26,6 +36,10 @@
   :root {
     color-scheme: light;
     --radius: 0.5rem;
+    --radius-sm: calc(var(--radius) - 4px);
+    --radius-md: calc(var(--radius) - 2px);
+    /* Full-bleed header rows align to the centred 80rem page column. */
+    --page-pad: max(2rem, calc((100% - 80rem) / 2 + 2rem));
     --background: oklch(0.975 0.003 90);
     --foreground: oklch(0.21 0.006 286);
     --card: oklch(0.995 0.002 90);
@@ -54,7 +68,9 @@
     --ok-bg: oklch(0.955 0.035 155);
     --selection: oklch(0.86 0.06 192);
     --scrollbar: oklch(0.62 0.01 286);
-    --shadow: 0 1px 2px oklch(0.21 0.006 286 / 6%);
+    --shadow-sm: 0 1px 2px oklch(0.21 0.006 286 / 8%);
+    --shadow: 0 1px 3px oklch(0.21 0.006 286 / 10%), 0 1px 2px -1px oklch(0.21 0.006 286 / 10%);
+    --shadow-md: 0 4px 6px -1px oklch(0.21 0.006 286 / 10%), 0 2px 4px -2px oklch(0.21 0.006 286 / 10%);
     accent-color: var(--teal);
     caret-color: var(--teal);
     scrollbar-color: var(--scrollbar) transparent;
@@ -92,7 +108,9 @@
     --ok-bg: oklch(0.26 0.04 155);
     --selection: oklch(0.40 0.06 195);
     --scrollbar: oklch(0.52 0.008 286);
-    --shadow: 0 1px 2px oklch(0 0 0 / 30%);
+    --shadow-sm: 0 1px 2px oklch(0 0 0 / 30%);
+    --shadow: 0 1px 3px oklch(0 0 0 / 35%), 0 1px 2px -1px oklch(0 0 0 / 35%);
+    --shadow-md: 0 4px 6px -1px oklch(0 0 0 / 40%), 0 2px 4px -2px oklch(0 0 0 / 40%);
   }
 
   html {
@@ -132,788 +150,35 @@
 }
 
 @layer components {
-  .boot, .boot-error {
-    padding: 2rem;
-  }
-
-  .topbar {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: safe center;
-    gap: 0.45rem 0.55rem;
-    padding: 0.55rem 1.25rem;
-    border-block-end: 1px solid var(--border);
-    background: var(--background);
-  }
-
-  .topbar .btn, .topbar .load > summary {
-    padding-inline: 0.6rem;
-  }
-
-  .fit-controls {
-    display: flex;
-    flex: 0 0 auto;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.45rem 0.5rem;
-  }
-
-  .fit-label {
-    flex: 0 0 auto;
-    white-space: nowrap;
-  }
-
-  .brand {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
-  .wordmark {
-    font-weight: 600;
-    letter-spacing: 0.14em;
-    font-size: 0.95rem;
-  }
-
-  .project-name {
-    border: none;
-    background: transparent;
-    color: var(--muted-foreground);
-    inline-size: 6rem;
-    padding: 0.2rem 0;
-  }
-
-  .btn, .load > summary {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.35rem;
-    min-block-size: 2.25rem;
-    padding: 0.3rem 0.75rem;
-    border: 1px solid var(--border);
-    border-radius: 0.65rem;
-    background: var(--card);
-    color: var(--foreground);
-    list-style: none;
-  }
-
-  .load > summary::-webkit-details-marker {
-    display: none;
-  }
-
-  .btn.primary, .segment button[aria-pressed="true"] {
-    background: var(--primary);
-    color: var(--primary-foreground);
-    border-color: var(--primary);
-  }
-
-  .btn.ghost {
-    background: transparent;
-  }
-
-  .settings-btn {
-    margin-inline-start: auto;
-  }
-
-  .fleet, .dots, .segment, .export-for {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.35rem;
-  }
-
-  .status-chip {
-    display: inline-flex;
-    align-items: center;
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    background: transparent;
-    color: var(--muted-foreground);
-    padding: 0.12rem 0.55rem;
-    font-size: 0.8rem;
-    min-block-size: 1.7rem;
-    cursor: default;
-  }
-
-  .chip, .pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.3rem;
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    background: var(--card);
-    color: var(--foreground);
-    padding: 0.12rem 0.55rem;
-    font-size: 0.8rem;
-    min-block-size: 1.7rem;
-  }
-
-  .chip[aria-pressed="true"] {
-    background: var(--secondary);
-  }
-
-  .export-for .chip[aria-pressed="true"] {
-    background: var(--accent);
-    color: var(--accent-foreground);
-    border-color: transparent;
-  }
-
-  .dot {
-    inline-size: 0.7rem;
-    block-size: 0.7rem;
-    border-radius: 999px;
-    border: 1px solid var(--input);
-  }
-
-  .check {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    min-block-size: 2.25rem;
-    color: var(--foreground);
-    font-size: 0.92rem;
-  }
-
-  .fit-target select, select, input[type="text"], input[type="number"], input[type="url"] {
-    border: 1px solid var(--input);
-    background: var(--card);
-    border-radius: var(--radius);
-    padding: 0.4rem 0.55rem;
-    min-block-size: 2.25rem;
-    max-inline-size: 100%;
-  }
-
-  td input[type="text"], td input[type="number"], td select {
-    inline-size: 100%;
-    min-inline-size: 3.25rem;
-  }
-
-  /* Numbers must stay readable whole (270, not 27) even when the table scrolls. */
-  td input[type="number"] {
-    min-inline-size: 4.6rem;
-  }
-
-  .muted, .note {
-    color: var(--muted-foreground);
-    font-size: 0.86rem;
-  }
-
-  .warn { color: var(--warn); }
-  .bad { color: var(--bad); }
-  .ok { color: var(--ok); }
-
-  p.warn, p.bad, p.ok {
-    margin-block: 0.35rem;
-    padding: 0.4rem 0.7rem;
-    border-radius: var(--radius);
-  }
-
-  p.warn { background: var(--warn-bg); }
-  p.bad { background: var(--bad-bg); }
-  p.ok { background: var(--ok-bg); }
-  .num-field { display: inline-flex; flex-direction: column; gap: 0.15rem; }
-  .field-error { color: var(--bad); font-size: 0.8rem; }
-  input[aria-invalid="true"] { border-color: var(--bad); }
-  .confirm-remove { display: inline-flex; gap: 0.35rem; flex-wrap: wrap; }
-  .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; }
-
-  .tabs {
-    display: flex;
-    gap: 1.25rem;
-    padding: 0.35rem 1.25rem 0;
-    border-block-end: 1px solid var(--border);
-  }
-
-  .tabs button {
-    background: transparent;
-    border: none;
-    border-block-end: 2px solid transparent;
-    color: var(--muted-foreground);
-    padding: 0.7rem 0.1rem 0.55rem;
-    min-block-size: 2.5rem;
-  }
-
-  .tabs button:hover {
-    color: var(--foreground);
-  }
-
-  .tabs button[aria-selected="true"] {
-    color: var(--foreground);
-    border-block-end-color: var(--teal);
-    font-weight: 600;
-  }
-
-  .page {
-    padding: 1.2rem 1.25rem 3rem;
-    max-inline-size: 1180px;
-  }
-
-  .page h1 {
-    font-size: 1.55rem;
-    font-weight: 600;
-    letter-spacing: -0.02em;
-  }
-
-  .lede {
-    color: var(--muted-foreground);
-    margin-block: 0.35rem 1rem;
-    max-inline-size: 46rem;
-  }
-
-  .compose {
-    display: grid;
-    grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
-    gap: 1rem;
-    align-items: start;
-  }
-
-  .col {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-    min-inline-size: 0;
-  }
-
-  .card {
-    background: var(--card);
-    color: var(--card-foreground);
-    border: 1px solid var(--border);
-    border-radius: calc(var(--radius) + 0.15rem);
-    box-shadow: var(--shadow);
-    padding: 1rem 1.05rem 1.1rem;
-  }
-
-  .card h2 {
-    font-size: 1rem;
-    font-weight: 600;
-  }
-
-  .card-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
-    margin-block-end: 0.35rem;
-  }
-
-  .hint {
-    margin: 0.55rem 0 0.7rem;
-    padding: 0.55rem 0.7rem;
-    border-radius: var(--radius);
-    background: var(--muted);
-    color: var(--muted-foreground);
-    font-size: 0.86rem;
-  }
-
-  .field {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.3rem;
-    margin: 0;
-  }
-
-  .check-row {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.3rem;
-  }
-
-  /* DOM order is label, control, ? (tab reaches the field first); the grid
-     puts the ? back beside the label text. */
-  .field.has-help {
-    display: grid;
-    grid-template-columns: auto auto;
-    justify-content: start;
-    column-gap: 0.3rem;
-  }
-
-  .field.has-help select {
-    grid-column: 1 / -1;
-    grid-row: 2;
-  }
-
-  .field.has-help .help-btn {
-    grid-column: 2;
-    grid-row: 1;
-    align-self: center;
-  }
-
-  .field.has-help .warn {
-    grid-column: 1 / -1;
-  }
-
-  .help-btn {
-    inline-size: 1.15rem;
-    block-size: 1.15rem;
-    flex: none;
-    border: 1px solid var(--input);
-    border-radius: 999px;
-    background: transparent;
-    color: var(--muted-foreground);
-    font-size: 0.72rem;
-    line-height: 1;
-    padding: 0;
-  }
-
-  .help-btn:hover {
-    color: var(--foreground);
-    border-color: var(--foreground);
-  }
-
-  .field-row, .finish-row, .editor, .actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.65rem 0.9rem;
-    align-items: center;
-  }
-
-  .finish-row {
-    justify-content: space-between;
-    padding-block: 0.45rem;
-    column-gap: 0.3rem;
-  }
-
-  /* DOM order is name, switch, ? (tab reaches the switch first); visually
-     the ? sits with the name and the switch keeps the far edge. */
-  .finish-row .help-btn {
-    order: 2;
-  }
-
-  .finish-row .switch {
-    order: 3;
-    margin-inline-start: auto;
-  }
-
-  .finish-row + .finish-row {
-    border-block-start: 1px solid var(--border);
-  }
-
-  .layer-row {
-    display: flex;
-    align-items: center;
-    gap: 0.55rem;
-    background: var(--muted);
-    border-radius: 0.7rem;
-    padding: 0.45rem 0.55rem;
-    margin-block: 0.4rem;
-  }
-
-  .layer-row:has(.name[aria-expanded="true"]) {
-    background: var(--accent);
-  }
-
-  .layer-row .name {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    text-align: start;
-    background: transparent;
-    border: none;
-    padding: 0.35rem 0.2rem;
-    min-block-size: 2.25rem;
-    font-weight: 500;
-  }
-
-  .layer-summary {
-    font-size: 0.86rem;
-    font-weight: 400;
-    color: var(--muted-foreground);
-  }
-
-  .icon-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    inline-size: 2rem;
-    block-size: 2rem;
-    border: none;
-    background: transparent;
-    color: var(--muted-foreground);
-    border-radius: 999px;
-  }
-
-  .grip {
-    color: var(--muted-foreground);
-    cursor: grab;
-    flex: none;
-  }
-
-  .grip:active {
-    cursor: grabbing;
-  }
-
-  .icon {
-    inline-size: 1rem;
-    block-size: 1rem;
-    fill: currentColor;
-  }
-
-  .editor {
-    padding: 0.35rem 0.2rem 0.7rem;
-  }
-
-  .switch {
-    inline-size: 2.55rem;
-    block-size: 1.45rem;
-    border-radius: 999px;
-    border: 1px solid var(--input);
-    background: var(--secondary);
-    position: relative;
-    padding: 0;
-  }
-
-  .switch[aria-checked="true"] {
-    background: var(--teal);
-    border-color: var(--teal);
-  }
-
-  .switch span {
-    position: absolute;
-    inset-block-start: 2px;
-    inset-inline-start: 2px;
-    inline-size: 1.05rem;
-    block-size: 1.05rem;
-    border-radius: 999px;
-    background: var(--card);
-  }
-
-  .switch[aria-checked="true"] span {
-    inset-inline-start: calc(100% - 1.05rem - 2px);
-  }
-
-  .preview-meta {
-    color: var(--muted-foreground);
-    font-size: 0.8rem;
-  }
-
-  .canvas {
-    margin-block-start: 0.7rem;
-    background: var(--muted);
-    border-radius: var(--radius);
-    min-block-size: 240px;
-    display: grid;
-    place-items: center;
-    padding: 0.8rem;
-    position: relative;
-  }
-
-  .cabinet {
-    /* Height-driven: the drawing's box is its own shape at any stack height.
-       The 27rem reservation leaves the sticky column room for the Preview
-       chrome and Help's floor, so the Help heading stays on screen. */
-    block-size: 480px;
-    block-size: min(480px, max(140px, calc(100dvh - 27rem)));
-    inline-size: auto;
-    max-inline-size: 100%;
-    color: var(--preview-frame);
-  }
-
-  /* The drawing and Help stick in the side column while editing. The column
-     takes the viewport height; the disclosure and Help scroll inside their
-     own boxes with whatever height remains — so neither can push the other
-     out of view. Two-column layout only. */
-  @media (min-width: 901px) {
-    .col.side {
-      position: sticky;
-      top: 1rem;
-      block-size: calc(100dvh - 2rem);
-    }
-
-    .preview-card {
-      flex: none;
-    }
-
-    /* The drawing budget sets the frame height here; the 240px floor would
-       silently eat Help's share at short window heights. */
-    .canvas {
-      min-block-size: 0;
-    }
-
-    /* The open disclosure is height-budgeted like the drawing (flex shrink
-       does not reach inside <details>), and the drawing steps down while it
-       is open — together they leave Help its floor at any stack size. */
-    .callouts-scroll {
-      overflow-y: auto;
-      max-block-size: max(2.25rem, calc(100dvh - 44rem));
-    }
-
-    .preview-card:has(details[open]) .cabinet {
-      block-size: min(300px, max(90px, calc(100dvh - 32rem)));
-    }
-
-    #help {
-      /* Shrinks + scrolls internally with whatever height the budgets above
-         leave (a non-zero min-block-size floors at content height instead). */
-      min-block-size: 0;
-      overflow-y: auto;
-    }
-  }
-
-  #help h3 {
-    font-size: 1rem;
-    font-weight: 600;
-  }
-
-  #help img {
-    max-inline-size: 100%;
-    block-size: auto;
-  }
-
-  .badges {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
-    gap: 0.5rem;
-    margin-block-start: 0.65rem;
-  }
-
-  .pill.teal {
-    background: var(--accent);
-    color: var(--accent-foreground);
-    border-color: transparent;
-  }
-
-  .callouts {
-    margin-block-start: 0.7rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-  }
-
-  .partline, .piece {
-    display: grid;
-    grid-template-columns: auto 1fr auto;
-    gap: 0.65rem;
-    align-items: center;
-    padding-block: 0.45rem;
-    border-block-end: 1px solid var(--border);
-  }
-
-  .swatch {
-    inline-size: 2.2rem;
-    block-size: 2.2rem;
-    border-radius: 0.45rem;
-    border: 1px solid var(--input);
-  }
-
-  .role-row {
-    display: grid;
-    grid-template-columns: 9rem 1fr auto;
-    gap: 0.75rem;
-    align-items: center;
-    padding-block: 0.7rem;
-    border-block-end: 1px solid var(--border);
-  }
-
-  .mini-chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.3rem;
-  }
-
-  .pieces {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 0.6rem;
-  }
-
-  .piece-card {
-    display: flex;
-    gap: 0.65rem;
-    align-items: center;
-    background: var(--muted);
-    border: 1px solid transparent;
-    border-radius: 0.7rem;
-    padding: 0.65rem;
-  }
-
-  .piece-card:hover {
-    border-color: var(--teal);
-  }
-  .piece-card:disabled { opacity: 0.55; cursor: default; }
-  .piece-card:disabled:hover { border-color: transparent; }
-  .btn:disabled { opacity: 0.55; cursor: default; }
-
-  .table-wrap {
-    overflow-x: auto;
-  }
-
-  table {
-    inline-size: 100%;
-    border-collapse: collapse;
-    font-size: 0.88rem;
-  }
-
-  th, td {
-    text-align: start;
-    padding: 0.4rem 0.35rem;
-    border-block-end: 1px solid var(--border);
-    vertical-align: top;
-  }
-
-  th {
-    color: var(--muted-foreground);
-    font-weight: 500;
-  }
-
-  .bed {
-    inline-size: 100%;
-    max-inline-size: 420px;
-    background: var(--bed);
-    border-radius: var(--radius);
-    border: 1px solid var(--border);
-  }
-
-  .bed-grid line {
-    stroke: var(--bed-grid);
-    stroke-width: 0.35;
-  }
-
-  .bed-part {
-    stroke: var(--bed-outline);
-    /* Screen pixels, not bed millimetres, so a 350 mm plate does not shrink the edge away. */
-    stroke-width: 2.5px;
-    stroke-linejoin: round;
-    vector-effect: non-scaling-stroke;
-  }
-
-  .plate-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: 0.8rem;
-  }
-
-  .plate-card h3 {
-    font-size: 0.95rem;
-    font-weight: 600;
-    margin-block-end: 0.45rem;
-  }
-
-  .plate-card:has(input:checked) {
-    border-color: var(--teal);
-  }
-
-  .settings {
-    display: grid;
-    grid-template-columns: 11rem minmax(0, 1fr);
-    gap: 1.25rem;
-    align-items: start;
-  }
-
-  .settings-nav {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-  }
-
-  .settings-nav button {
-    text-align: start;
-    border: none;
-    background: transparent;
-    border-radius: 0.7rem;
-    padding: 0.55rem 0.75rem;
-    min-block-size: 2.4rem;
-    color: var(--muted-foreground);
-  }
-
-  .settings-nav button[aria-current="page"] {
-    background: var(--card);
-    color: var(--foreground);
-    box-shadow: var(--shadow);
-  }
-
-  .segment button {
-    min-inline-size: 5.5rem;
-  }
-
-  .menu {
-    margin-block-start: 0.35rem;
-    padding: 0.5rem;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    background: var(--card);
-    display: flex;
-    flex-direction: column;
-    gap: 0.2rem;
-    min-inline-size: 16rem;
-    position: absolute;
-    z-index: 5;
-  }
-
-  .load {
-    position: relative;
-  }
-
-  .menu button {
-    text-align: start;
-    background: transparent;
-    border: none;
-    border-radius: 0.4rem;
-    padding: 0.4rem 0.45rem;
-    min-block-size: 2.1rem;
-  }
-
-  .menu button:hover {
-    background: var(--muted);
-  }
-
-  .onboard {
-    border: 1px solid var(--border);
-    background: var(--card);
-    border-radius: var(--radius);
-    padding: 0.9rem 1rem;
-    margin-block-end: 1rem;
-  }
-
-  .onboard p + p {
-    margin-block-start: 0.45rem;
-  }
-
   .step-footer {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
-    gap: 0.6rem 1rem;
-    margin-block-start: 1.25rem;
-    padding-block-start: 0.9rem;
+    gap: 0.6rem 1.5rem;
+    margin-block-start: 2.5rem;
+    padding-block-start: 1.5rem;
     border-block-start: 1px solid var(--border);
+  }
+  /* Inside the Design controls column the column gap already separates the
+     footer from Finish; the page-level 2.5rem lead-in would double it. */
+  .col > .step-footer {
+    margin-block-start: 0;
   }
 
   .step-footer .note {
     flex: 1 1 16rem;
+    max-inline-size: 42rem;
     margin: 0;
-  }
-
-  .complete {
-    border-color: var(--ok);
-  }
-
-  .complete h2 {
-    color: var(--ok);
-  }
-
-  .progress {
-    block-size: 0.4rem;
-    background: var(--muted);
-    border-radius: 999px;
-    overflow: hidden;
-    margin-block: 0.4rem;
-  }
-
-  .progress div {
-    block-size: 100%;
-    background: var(--teal);
-    inline-size: 0;
   }
 
   .viewer {
     position: fixed;
     inset: 0;
     background: oklch(0.13 0.006 286 / 88%);
-    z-index: 20;
+    /* Above the sticky .app-head stacking context (z-index 30), or the
+       header covers the viewer's toolbar and its focused Close button. */
+    z-index: 50;
     display: flex;
     flex-direction: column;
   }
@@ -933,7 +198,7 @@
   }
 
   .spaced {
-    margin-block-start: 1rem;
+    margin-block-start: 1.5rem;
   }
 
   .visually-hidden {
@@ -948,6 +213,12 @@
     border: 0;
   }
 
+  @media (max-width: 1100px) {
+    .compose {
+      grid-template-columns: minmax(0, 1fr) 320px;
+    }
+  }
+
   @media (max-width: 900px) {
     .compose, .settings, .role-row {
       grid-template-columns: minmax(0, 1fr);
@@ -955,10 +226,16 @@
     .settings-btn {
       margin-inline-start: 0;
     }
+    .role-row select {
+      inline-size: min(14rem, 100%);
+    }
   }
 
   @media (max-width: 640px) {
-    .page, .topbar {
+    .page {
+      padding: 1.5rem 0.9rem 2rem;
+    }
+    .topbar, .tabs {
       padding-inline: 0.9rem;
     }
     .fit-controls {
@@ -966,12 +243,11 @@
       min-inline-size: 0;
     }
     .tabs {
-      gap: 0.9rem;
-      padding-inline: 0.9rem;
       overflow-x: auto;
     }
     .tabs button {
       flex: none;
+      padding-inline: 0.6rem;
     }
     .settings-nav {
       flex-direction: row;

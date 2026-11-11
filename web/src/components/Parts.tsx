@@ -27,7 +27,7 @@ export function Parts() {
     ].filter(Boolean).join(" · ") + "."
     : "No parts yet. You can continue, but Plates has nothing to pack until the stack has a layer.";
   return (
-    <div className="page">
+    <div className="page page-parts">
       <h1>Parts & colours</h1>
       <p className="lede">What this build needs, and which filament each part prints in.</p>
       <section className="card">
@@ -41,7 +41,7 @@ export function Parts() {
             <div className="role-row" key={role}>
               <strong>{ROLE_SHORT[role] || role}</strong>
               <span className="mini-chips">
-                {names.map((name) => <span key={name} className="chip">{name}</span>)}
+                {names.map((name) => <span key={name} className="chip"><span className="mini-swatch" style={{ background: roleColor(state.settings, role) }} />{name}</span>)}
               </span>
               <label>
                 <span className="visually-hidden">{ROLE_SHORT[role] || role} filament</span>
@@ -77,11 +77,11 @@ export function Parts() {
               onClick={(event) => row.sample.file && store.openViewer(row.sample.file, row.sample.name, roleColor(state.settings, row.role), event.currentTarget)}
             >
               <span className="swatch" style={{ background: roleColor(state.settings, row.role) }} />
-              <span>
+              <span className="piece-meta">
                 <strong>{row.sample.name}</strong>
                 <span className="note">{row.sample.file ? (ROLE_SHORT[row.role] || row.role) : "file missing"}</span>
               </span>
-              <span>×{row.qty}</span>
+              <span className="qty">×{row.qty}</span>
             </button>
           ))}
         </div>
@@ -182,7 +182,7 @@ export function Hardware() {
       {!rows.length ? <p className="note">Bolts and bearings for this stack show up here.</p> : (
         <div className="table-wrap">
         <table>
-          <thead><tr><th></th><th>Item</th><th>Qty</th><th>Where</th></tr></thead>
+          <thead><tr><th>Have</th><th>Item</th><th>Qty</th><th>Where</th></tr></thead>
           <tbody>
             {rows.map((row) => {
               const done = !!state.progress.hardware?.[row.item]?.done;
@@ -190,11 +190,11 @@ export function Hardware() {
                 <tr key={row.item}>
                   <td>
                     <label className="check">
-                      <input type="checkbox" checked={done} onChange={(event) => patch((draft) => {
+                      <input type="checkbox" aria-label={`Have ${row.qty} ${row.item}`} checked={done} onChange={(event) => patch((draft) => {
                         draft.progress.hardware = draft.progress.hardware || {};
                         draft.progress.hardware[row.item] = { qty: row.qty, done: event.target.checked };
                       })} />
-                      Have
+                      <span aria-hidden="true">Have</span>
                     </label>
                   </td>
                   <td>{row.item}</td>
