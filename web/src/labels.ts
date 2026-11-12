@@ -1,5 +1,5 @@
 import { catalogChoicesFor, depthLabel, filamentForRole } from "../../planner.mjs";
-import type { Filament, Layer, Settings } from "./types";
+import type { ExportState, Filament, Layer, Settings } from "./types";
 
 export const ROLE_SHORT: Record<string, string> = {
   main: "Body",
@@ -41,6 +41,40 @@ export const INTERIOR_LABEL: Record<string, string> = {
 export const SHEET_H: Record<number, number> = { 1: 51.5, 2: 99.5, 4: 195.5 };
 
 export const ROOF_MM: Record<string, number> = { none: 0, grid: 15, table: 12, bowl: 22, undertable: 12, heavyweight: 60 };
+
+/** The one view of what exported files mean right now: footer line, result
+ * headline and tone, and the Plates-tab warning when they are outdated.
+ * A new ExportState fails here at compile time, in one place. */
+export const EXPORT_STATE_VIEW: Record<ExportState, {
+  line: (files: number) => string;
+  headline: string;
+  tone: "ok" | "warn";
+  tabTitle?: string;
+}> = {
+  none: { line: () => "nothing exported yet", headline: "", tone: "ok" },
+  current: {
+    line: (files) => `${files} ${files === 1 ? "file" : "files"} exported`,
+    headline: "Exported — matches your current stack.",
+    tone: "ok",
+  },
+  stale: {
+    line: () => "exported files are for an earlier build",
+    headline: "Stack changed since this export — export again before printing.",
+    tone: "warn",
+    tabTitle: "Exported files are for an earlier build",
+  },
+  test: {
+    line: () => "test plates exported",
+    headline: "Test plates exported — not your stack export.",
+    tone: "warn",
+  },
+  "test-stale": {
+    line: () => "test plates exported for an earlier selection",
+    headline: "Test plates exported for an earlier selection.",
+    tone: "warn",
+    tabTitle: "Test plates are for an earlier selection",
+  },
+};
 
 /** "2U · 99.5 mm": the unit count with the designer's sheet height beside it. */
 export function heightLabel(height: number | string): string {

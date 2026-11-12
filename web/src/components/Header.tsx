@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { printerLabel } from "../../../planner.mjs";
+import { EXPORT_STATE_VIEW } from "../labels";
 import { usePlanner } from "../store";
 import type { TabId } from "../types";
 import { Icon } from "./ui";
@@ -105,7 +106,8 @@ export function Header() {
 }
 
 export function Tabs() {
-  const { state, setTab } = usePlanner();
+  const { state, setTab, exportState } = usePlanner();
+  const tabTitle = EXPORT_STATE_VIEW[exportState].tabTitle;
   return (
     <nav className="tabs" aria-label="Steps">
       {TABS.map((tab, index) => (
@@ -117,8 +119,10 @@ export function Tabs() {
           aria-selected={state.tab === tab.id}
           aria-label={`${index + 1} ${tab.label}`}
           onClick={() => setTab(tab.id)}
+          title={tab.id === "plates" ? tabTitle : undefined}
         >
           <span className="tab-num" aria-hidden="true">{index + 1}</span>{tab.label}
+          {tab.id === "plates" && tabTitle ? <span className="tab-dot" aria-hidden="true" /> : null}
         </button>
       ))}
     </nav>

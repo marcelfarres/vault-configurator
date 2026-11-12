@@ -310,11 +310,13 @@
 
   .cabinet {
     /* Height-driven: the drawing's box is its own shape at any stack height.
-       The 33rem reservation leaves the sticky column room for the sticky
-       header, the Preview chrome and Help's floor, so the Help heading
-       stays on screen. */
+       One budget rule: the base 26rem reservation leaves the sticky column
+       room for the header, Preview chrome and Help's floor; the open
+       disclosure and an active help topic ADD their reservations (and lower
+       the cap) through variables, so both together shrink the drawing more
+       than either alone instead of one rule winning by source order. */
     block-size: 480px;
-    block-size: min(480px, max(140px, calc(100dvh - var(--head-h, 7rem) - 26rem)));
+    block-size: min(var(--cabinet-cap, 480px), max(var(--cabinet-floor, 140px), calc(100dvh - var(--head-h, 7rem) - 26rem - var(--disclosure-reserve, 0rem) - var(--help-reserve, 0rem))));
     inline-size: auto;
     max-inline-size: 100%;
     color: var(--preview-frame);
@@ -349,8 +351,23 @@
       max-block-size: max(2.25rem, calc(100dvh - var(--head-h, 7rem) - 43rem));
     }
 
-    .preview-card:has(details[open]) .cabinet {
-      block-size: min(300px, max(90px, calc(100dvh - var(--head-h, 7rem) - 31rem)));
+    .preview-card:has(details[open]) {
+      --disclosure-reserve: 5rem;
+      --cabinet-cap: 300px;
+      --cabinet-floor: 90px;
+    }
+
+    /* While a help topic is active Help has first claim on what remains:
+       its reservation adds to the disclosure's, its cap is the tighter one,
+       and the card flexes to the rest of the column. */
+    .col.side[data-help="on"] .preview-card {
+      --help-reserve: 14rem;
+      --cabinet-cap: 200px;
+      --cabinet-floor: 100px;
+    }
+
+    .col.side[data-help="on"] #help {
+      flex: 1 1 auto;
     }
 
     #help {

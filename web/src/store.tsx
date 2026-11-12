@@ -18,7 +18,7 @@ import {
 import { getJson, postJson } from "./api";
 import { uid } from "./labels";
 import { applyStartOver, layerKeySlice, newLayer, remapLayerKeys, replaceLayerKeySlice, sameLayerKeySlice } from "./stack";
-import type { Bom, ExportFile, Layer, Meta, Plan, PlannerState, PresetMap, Printer, SettingsSection, Spool, TabId, ThemeChoice } from "./types";
+import type { Bom, ExportFile, ExportState, Layer, Meta, Plan, PlannerState, PresetMap, Printer, SettingsSection, Spool, TabId, ThemeChoice } from "./types";
 
 const COMPUTE_MS = import.meta.env.MODE === "test" ? 0 : 350;
 
@@ -50,7 +50,7 @@ type Store = {
   /** True while `bom` was computed for an earlier signature (or none yet). */
   bomStale: boolean;
   /** What `exportFiles` are: the current build's export, an outdated one, test plates, or outdated test plates. */
-  exportState: "none" | "current" | "stale" | "test" | "test-stale";
+  exportState: ExportState;
   plan: Plan | null;
   planNote: string;
   exportFiles: ExportFile[];

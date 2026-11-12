@@ -232,3 +232,4 @@ export type Meta = {
 
 export type Spool = { id: number; name: string; vendor?: string; material?: string; color: string; remaining_g?: number; label?: string };
 export type ExportFile = { file: string; plates?: number; items?: number; warning?: string };
+export type ExportState = "none" | "current" | "stale" | "test" | "test-stale";

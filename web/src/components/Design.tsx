@@ -11,7 +11,7 @@ import { Preview } from "./Preview";
 
 export function Design() {
   const store = usePlanner();
-  const { state, meta, bom, patch, showHelp, removedLayer } = store;
+  const { state, meta, bom, patch, showHelp, removedLayer, helpTopic } = store;
   const [confirmReset, setConfirmReset] = useState(false);
   const depth = labeledChoices("depth", {
     choices: bom?.choices || null,
@@ -194,7 +194,7 @@ export function Design() {
           </Card>
           <StepFooter ready={ready} next="Continue to Parts & colours" onNext={() => store.setTab("parts")} />
         </div>
-        <div className="col side">
+        <div className="col side" data-help={helpTopic && state.help !== false ? "on" : undefined}>
           <Preview />
           <HelpCard />
         </div>

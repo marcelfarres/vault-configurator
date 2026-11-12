@@ -590,9 +590,13 @@ test("the Plates footer does not count files exported for an earlier build", asy
   await screen.findByRole("heading", { name: "Plates & export" });
   await user.click(screen.getByRole("button", { name: "Export 3MF" }));
   expect(await screen.findByText(/1 file exported\./, undefined, { timeout: 5000 })).toBeInTheDocument();
+  expect(screen.getByText("Exported — matches your current stack.")).toBeInTheDocument();
+  expect(screen.getByRole("tab", { name: "3 Plates" })).not.toHaveAttribute("title");
   // Changing the fit target changes the signature: the export no longer matches this build.
   await user.selectOptions(screen.getByLabelText("Judge fit against"), "u1");
   expect(screen.getByText(/exported files are for an earlier build/)).toBeInTheDocument();
+  expect(screen.getByText("Stack changed since this export — export again before printing.")).toBeInTheDocument();
+  expect(screen.getByRole("tab", { name: "3 Plates" })).toHaveAttribute("title", "Exported files are for an earlier build");
   expect(screen.queryByText(/1 file exported\./)).not.toBeInTheDocument();
 });
 

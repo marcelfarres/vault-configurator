@@ -1,5 +1,5 @@
 import { checkedCount, exportCandidates, missingFileLines, plateKey, printerLabel } from "../../../planner.mjs";
-import { fmtH } from "../labels";
+import { EXPORT_STATE_VIEW, fmtH } from "../labels";
 import { exportPrinters, estimatePrinter, usePlanner } from "../store";
 import type { Filament, Plate } from "../types";
 import { Icon, NumberField, StepFooter } from "./ui";
@@ -20,13 +20,13 @@ export function Plates() {
   const missingPieces = missingLines.reduce((sum, part) => sum + Number(part.qty || 0), 0);
   const canExport = !emptyStack && partLines.length > 0 && !missingLines.length && packing.length > 0;
   const exported = store.exportFiles.length;
-  const exportLine = {
-    none: "nothing exported yet",
-    current: `${exported} ${exported === 1 ? "file" : "files"} exported`,
-    stale: "exported files are for an earlier build",
-    test: "test plates exported",
-    "test-stale": "test plates exported for an earlier selection",
-  }[store.exportState];
+  const exportView = EXPORT_STATE_VIEW[store.exportState];
+  const exportLine = exportView.line(exported);
+  const exportTotals = store.exportFiles.reduce<{ plates?: number; items?: number }>((acc, file) => {
+    if (file.plates != null) acc.plates = (acc.plates || 0) + file.plates;
+    if (file.items != null) acc.items = (acc.items || 0) + file.items;
+    return acc;
+  }, {});
   const planSummary = plan
     ? plan.synthetic
       ? `${plan.plates.length} example ${plan.plates.length === 1 ? "plate" : "plates"} shown`
@@ -80,16 +80,26 @@ export function Plates() {
         {partLines.length && plan && !plan.plates.length && !plan.synthetic && !missingLines.length ? (
           <p className="warn">No plates could be planned{unplaceable ? `: ${unplaceable} ${unplaceable === 1 ? "part does" : "parts do"} not fit any export printer (see below)` : ""}.</p>
         ) : null}
-        {store.exportFiles.map((file) => {
-          const base = file.file.split(/[/\\]/).pop() || file.file;
-          return (
-            <p key={base} className={file.warning ? "warn" : "ok"}>
-              {base} · {file.plates} plates · {file.items} parts {file.warning ? `· ${file.warning}` : ""}
-              {" "}
-              <a href={`/api/download_file?name=${encodeURIComponent(base)}`} download={base}>Download</a>
+        {store.exportFiles.length ? (
+          <div className="export-result" role="status">
+            <p className={exportView.tone}>
+              <strong>{exportView.headline}</strong>{" "}
+              {exported} {exported === 1 ? "file" : "files"}
+              {exportTotals.plates != null ? ` · ${exportTotals.plates} plates` : ""}
+              {exportTotals.items != null ? ` · ${exportTotals.items} parts` : ""}
             </p>
-          );
-        })}
+            {store.exportFiles.map((file) => {
+              const base = file.file.split(/[/\\]/).pop() || file.file;
+              return (
+                <p key={base} className={file.warning ? "warn" : "ok"}>
+                  {base} · {file.plates} plates · {file.items} parts {file.warning ? `· ${file.warning}` : ""}
+                  {" "}
+                  <a href={`/api/download_file?name=${encodeURIComponent(base)}`} download={base}>Download</a>
+                </p>
+              );
+            })}
+          </div>
+        ) : null}
         <p className="note">{meta.handoffNote}</p>
       </section>
       <section className="card spaced">
