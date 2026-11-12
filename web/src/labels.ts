@@ -42,6 +42,13 @@ export const SHEET_H: Record<number, number> = { 1: 51.5, 2: 99.5, 4: 195.5 };
 
 export const ROOF_MM: Record<string, number> = { none: 0, grid: 15, table: 12, bowl: 22, undertable: 12, heavyweight: 60 };
 
+/** How plates are grouped (Settings.groupBy): the Plates packing select and its collapsed summary read these. */
+export const GROUP_BY_LABEL: Record<string, string> = {
+  color: "one colour",
+  size: "big and small",
+  module: "keep a module together",
+};
+
 /** The one view of what exported files mean right now: footer line, result
  * headline and tone, and the Plates-tab warning when they are outdated.
  * A new ExportState fails here at compile time, in one place. */

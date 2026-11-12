@@ -47,7 +47,7 @@ function layerFronts(layer: Layer, meta: Meta, blockY: number, blockHeight: numb
 }
 
 export function Preview() {
-  const { state, meta, bom, expandedLayer } = usePlanner();
+  const { state, meta, bom, expandedLayer, setExpandedLayer } = usePlanner();
   const stack = state.stack;
   const layers = stack.layers;
   const topFirst = [...layers].reverse();
@@ -77,7 +77,13 @@ export function Preview() {
   const callouts = (bom?.parts || []).slice(0, 6);
   const backbone = stack.mods?.backbone && stack.mods.backbone !== "none";
   const pegboard = stack.mods?.pegboard && stack.mods.pegboard !== "none";
-
+  // The drawing is the stack the user is building: clicking a layer opens its
+  // editor, and the editor (often far down the form column) is brought into view.
+  // Keyboard and screen-reader users reach the same editors through the layer rows.
+  const openLayer = (index: number) => {
+    setExpandedLayer(index);
+    requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-layer-index="${index}"]`)?.scrollIntoView?.({ block: "start" }));
+  };
   return (
     <section className="card preview-card">
       <div className="card-head">
@@ -95,10 +101,12 @@ export function Preview() {
               const strokeWidth = edited ? 3.25 : 2.25;
               const fronts = layerFronts(block.layer, meta, block.y, block.height, pad + 8, drawW - 16);
               return (
-                <g key={block.index}>
+                <g key={block.index} className="layer-hit" onClick={() => openLayer(block.index)}>
+                  <title>{`Edit layer ${block.index + 1}`}</title>
+                  <rect x={pad} y={block.y} width={drawW} height={block.height} fill="transparent" />
                   {fronts.map((front) => (
                     <g key={front.key}>
-                      <rect x={front.x} y={front.y} width={front.width} height={front.height} rx={Math.min(7, front.height / 3)} fill={body} stroke={stroke} strokeWidth={strokeWidth} />
+                      <rect className="front" x={front.x} y={front.y} width={front.width} height={front.height} rx={Math.min(7, front.height / 3)} fill={body} stroke={stroke} strokeWidth={strokeWidth} />
                       {front.lid ? (
                         <line x1={pad + 16} y1={front.y + 10} x2={pad + drawW - 16} y2={front.y + 10} stroke="currentColor" strokeWidth="1.5" />
                       ) : front.knobW != null ? (

@@ -242,6 +242,7 @@ function LayerCard({ index }: { index: number }) {
   return (
     <div
       className="layer"
+      data-layer-index={index}
       draggable
       onDragStart={(event) => { event.dataTransfer.setData("text/plain", String(index)); store.setExpandedLayer(index); }}
       onDragOver={(event) => event.preventDefault()}

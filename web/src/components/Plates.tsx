@@ -1,5 +1,5 @@
 import { checkedCount, exportCandidates, missingFileLines, plateKey, printerLabel } from "../../../planner.mjs";
-import { EXPORT_STATE_VIEW, fmtH } from "../labels";
+import { EXPORT_STATE_VIEW, GROUP_BY_LABEL, fmtH } from "../labels";
 import { exportPrinters, estimatePrinter, usePlanner } from "../store";
 import type { Filament, Plate } from "../types";
 import { Icon, NumberField, StepFooter } from "./ui";
@@ -38,6 +38,10 @@ export function Plates() {
     exportLine,
   ].filter(Boolean).join(" · ");
   const ready = `${readyParts.charAt(0).toUpperCase()}${readyParts.slice(1)}.${store.exportState === "current" ? "" : " You can start assembling before you export."}`;
+  const packingMode = state.settings.mode === "both"
+    ? "all export printers"
+    : `${printerLabel(candidates.find((printer) => printer.id === state.settings.mode) || { name: state.settings.mode })} only`;
+  const packingSummary = `${packingMode} · ${GROUP_BY_LABEL[state.settings.groupBy] || state.settings.groupBy} · ${state.settings.spacing} mm apart · ${state.settings.edge} mm edge`;
   return (
     <div className="page page-plates">
       <h1>Plates & export</h1>
@@ -101,51 +105,54 @@ export function Plates() {
           </div>
         ) : null}
         <p className="note">{meta.handoffNote}</p>
-      </section>
-      <section className="card spaced">
-        <label className="field">
-          <span>Pack plates for</span>
-          <select
-            aria-label="Pack plates for"
-            value={state.settings.mode}
-            onChange={(event) => patch((draft) => { draft.settings.mode = event.target.value; })}
-          >
-            <option value="both">all export printers (balance print time)</option>
-            {candidates.map((printer) => (
-              <option key={printer.id} value={printer.id}>{printerLabel(printer)} only</option>
-            ))}
-          </select>
-        </label>
-        <label className="field">
-          <span>Group plates by</span>
-          <select aria-label="Group plates by" value={state.settings.groupBy} onChange={(event) => patch((draft) => { draft.settings.groupBy = event.target.value; })}>
-            <option value="color">one colour · fewest plates</option>
-            <option value="size">big and small</option>
-            <option value="module">keep a module together</option>
-          </select>
-        </label>
-        <label className="field">
-          <span>Part spacing (mm)</span>
-          <NumberField label="Part spacing (mm)" value={state.settings.spacing} min={0} onCommit={(next) => patch((draft) => { draft.settings.spacing = next; })} />
-        </label>
-        <label className="field">
-          <span>Bed-edge margin (mm)</span>
-          <NumberField label="Bed-edge margin (mm)" value={state.settings.edge} min={0} onCommit={(next) => patch((draft) => { draft.settings.edge = next; })} />
-        </label>
-        <label className="check">
-          <input type="checkbox" checked={state.settings.estimateFromPreset !== false} onChange={(event) => patch((draft) => { draft.settings.estimateFromPreset = event.target.checked; })} />
-          Weight estimate uses the process preset’s walls and infill
-        </label>
-        {state.settings.estimateFromPreset === false ? (
-          <>
-            <label className="field">Shell mm
-              <NumberField label="Shell" value={state.settings.wallMm} min={0} exclusiveMin step="0.1" onCommit={(next) => patch((draft) => { draft.settings.wallMm = next; })} />
+        <details className="packing">
+          <summary>Packing options <span className="packing-summary">{packingSummary}</span></summary>
+          <div className="packing-fields">
+            <label className="field">
+              <span>Pack plates for</span>
+              <select
+                aria-label="Pack plates for"
+                value={state.settings.mode}
+                onChange={(event) => patch((draft) => { draft.settings.mode = event.target.value; })}
+              >
+                <option value="both">all export printers (balance print time)</option>
+                {candidates.map((printer) => (
+                  <option key={printer.id} value={printer.id}>{printerLabel(printer)} only</option>
+                ))}
+              </select>
             </label>
-            <label className="field">Infill
-              <NumberField label="Infill" value={state.settings.infill} min={0} max={1} step="0.01" onCommit={(next) => patch((draft) => { draft.settings.infill = next; })} />
+            <label className="field">
+              <span>Group plates by</span>
+              <select aria-label="Group plates by" value={state.settings.groupBy} onChange={(event) => patch((draft) => { draft.settings.groupBy = event.target.value; })}>
+                <option value="color">{GROUP_BY_LABEL.color} · fewest plates</option>
+                <option value="size">{GROUP_BY_LABEL.size}</option>
+                <option value="module">{GROUP_BY_LABEL.module}</option>
+              </select>
             </label>
-          </>
-        ) : null}
+            <label className="field">
+              <span>Part spacing (mm)</span>
+              <NumberField label="Part spacing (mm)" value={state.settings.spacing} min={0} onCommit={(next) => patch((draft) => { draft.settings.spacing = next; })} />
+            </label>
+            <label className="field">
+              <span>Bed-edge margin (mm)</span>
+              <NumberField label="Bed-edge margin (mm)" value={state.settings.edge} min={0} onCommit={(next) => patch((draft) => { draft.settings.edge = next; })} />
+            </label>
+            <label className="check wide">
+              <input type="checkbox" checked={state.settings.estimateFromPreset !== false} onChange={(event) => patch((draft) => { draft.settings.estimateFromPreset = event.target.checked; })} />
+              Weight estimate uses the process preset’s walls and infill
+            </label>
+            {state.settings.estimateFromPreset === false ? (
+              <>
+                <label className="field">Shell mm
+                  <NumberField label="Shell" value={state.settings.wallMm} min={0} exclusiveMin step="0.1" onCommit={(next) => patch((draft) => { draft.settings.wallMm = next; })} />
+                </label>
+                <label className="field">Infill
+                  <NumberField label="Infill" value={state.settings.infill} min={0} max={1} step="0.01" onCommit={(next) => patch((draft) => { draft.settings.infill = next; })} />
+                </label>
+              </>
+            ) : null}
+          </div>
+        </details>
       </section>
       {plan ? <PlanView /> : null}
       <section className="card spaced">

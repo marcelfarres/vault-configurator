@@ -72,3 +72,29 @@
     padding-block-start: 0.75rem;
   }
 
+  /* Packing controls are set once and then left alone, so they sit closed
+     under the export result and the plate grid follows the card directly.
+     The summary keeps the current values readable without opening it. */
+  .packing {
+    margin-block-start: 1.25rem;
+    border-block-start: 1px solid var(--border);
+    padding-block-start: 0.75rem;
+  }
+
+  .packing-summary {
+    margin-inline-start: 0.5rem;
+    font-weight: 400;
+    color: var(--muted-foreground);
+  }
+
+  .packing-fields {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+    gap: 1rem;
+    margin-block-start: 0.75rem;
+  }
+
+  .packing-fields .wide {
+    grid-column: 1 / -1;
+  }
+

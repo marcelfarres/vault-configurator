@@ -1660,3 +1660,42 @@ test("the 3D viewer takes focus on open and hands it back to the part card on Es
   await user.click(within(await screen.findByRole("dialog", { name: "S Box" })).getByRole("button", { name: "Close" }));
   expect(screen.getByRole("button", { name: "View S Box in 3D" })).toHaveFocus();
 });
+
+test("clicking a layer in the drawing opens that layer's editor", async () => {
+  const layer = (height: number) => ({
+    type: "Drawers", layout: "S", height, facades: [[height]], interior: "none", key: "key",
+    labels: true, rails: false, manualSupports: false, variant: "Flat", baseplate: false,
+    gridW: 1, gridD: 1, divW: 1, divD: 2,
+  });
+  localStorage.setItem("vault-configurator", JSON.stringify({
+    tab: "stack",
+    stack: { name: "my-vault", depth: 5, layers: [layer(1), layer(4)], roof: { type: "none", topHandle: true }, mods: { backbone: "none", pegboard: "none" } },
+    settings: { ...meta.defaults },
+  }));
+  render(<App />);
+  expect(await screen.findByRole("heading", { name: "Compose your stack" })).toBeInTheDocument();
+  const rows = () => screen.getAllByRole("button", { name: /Edit .*drawer/i });
+  expect(rows().every((row) => row.getAttribute("aria-expanded") === "false")).toBe(true);
+  // The drawing lists layers top-first, like the rows: the second group is the base layer.
+  const hits = document.querySelectorAll(".layer-hit");
+  expect(hits).toHaveLength(2);
+  fireEvent.click(hits[1]);
+  expect(rows().map((row) => row.getAttribute("aria-expanded"))).toEqual(["false", "true"]);
+  fireEvent.click(hits[0]);
+  expect(rows().map((row) => row.getAttribute("aria-expanded"))).toEqual(["true", "false"]);
+  // Clicking the layer that is already open leaves its editor open.
+  fireEvent.click(hits[0]);
+  expect(rows()[0]).toHaveAttribute("aria-expanded", "true");
+});
+
+test("the Plates packing options stay collapsed but keep the current values readable", async () => {
+  const user = userEvent.setup();
+  render(<App />);
+  await user.click(await screen.findByRole("tab", { name: "3 Plates" }));
+  const summary = screen.getByText("Packing options").closest("summary")!;
+  expect(summary.closest("details")).not.toHaveAttribute("open");
+  expect(summary).toHaveTextContent("all export printers · one colour · 6 mm apart · 0 mm edge");
+  await user.selectOptions(screen.getByLabelText("Pack plates for"), "u1");
+  await user.selectOptions(screen.getByLabelText("Group plates by"), "size");
+  expect(summary).toHaveTextContent("U1 only · big and small · 6 mm apart · 0 mm edge");
+});

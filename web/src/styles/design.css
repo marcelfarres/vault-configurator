@@ -197,6 +197,20 @@
     color: var(--muted-foreground);
   }
 
+  /* The editor a click on the drawing opens can be far down the form; land
+     it below the sticky header instead of under it. */
+  .layer {
+    scroll-margin-block-start: calc(var(--head-h, 7rem) + 1rem);
+  }
+
+  .cabinet .layer-hit {
+    cursor: pointer;
+  }
+
+  .cabinet .layer-hit:hover .front {
+    stroke: var(--teal);
+  }
+
   .icon-btn {
     display: inline-flex;
     align-items: center;
@@ -311,12 +325,14 @@
   .cabinet {
     /* Height-driven: the drawing's box is its own shape at any stack height.
        One budget rule: the base 26rem reservation leaves the sticky column
-       room for the header, Preview chrome and Help's floor; the open
+       room for the header, Preview chrome and Help's resting content (about
+       110px; less and Help scrolls inside itself at rest). The open
        disclosure and an active help topic ADD their reservations (and lower
        the cap) through variables, so both together shrink the drawing more
-       than either alone instead of one rule winning by source order. */
+       than either alone instead of one rule winning by source order. The cap
+       is what gives a tall window a bigger drawing. */
     block-size: 480px;
-    block-size: min(var(--cabinet-cap, 480px), max(var(--cabinet-floor, 140px), calc(100dvh - var(--head-h, 7rem) - 26rem - var(--disclosure-reserve, 0rem) - var(--help-reserve, 0rem))));
+    block-size: min(var(--cabinet-cap, 560px), max(var(--cabinet-floor, 140px), calc(100dvh - var(--head-h, 7rem) - 26rem - var(--disclosure-reserve, 0rem) - var(--help-reserve, 0rem))));
     inline-size: auto;
     max-inline-size: 100%;
     color: var(--preview-frame);
