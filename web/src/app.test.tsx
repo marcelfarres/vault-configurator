@@ -1743,3 +1743,63 @@ test("the Plates packing options stay collapsed but keep the current values read
   await user.selectOptions(screen.getByLabelText("Group plates by"), "size");
   expect(summary).toHaveTextContent("U1 only · big and small · 6 mm apart · 0 mm edge");
 });
+
+test("the page has a main landmark, a skip link, and a tabpanel tied to the selected step", async () => {
+  const user = userEvent.setup();
+  render(<App />);
+  await screen.findByRole("heading", { name: "Compose your stack" });
+  const main = screen.getByRole("main");
+  const panel = within(main).getByRole("tabpanel");
+  expect(panel).toHaveAttribute("aria-labelledby", "tab-stack");
+  expect(screen.getByRole("tab", { name: "1 Design" })).toHaveAttribute("aria-controls", panel.id);
+  expect(screen.getByRole("tablist", { name: "Steps" })).toBeInTheDocument();
+  await user.click(screen.getByRole("link", { name: "Skip to content" }));
+  expect(main).toHaveFocus();
+  // Settings is not a step: main stays, the tabpanel does not.
+  await user.click(screen.getByRole("button", { name: "Settings" }));
+  expect(screen.getByRole("main")).toBeInTheDocument();
+  expect(screen.queryByRole("tabpanel")).not.toBeInTheDocument();
+});
+
+test("the step tabs are one tab stop and move with the arrow keys, Home and End", async () => {
+  const user = userEvent.setup();
+  render(<App />);
+  await screen.findByRole("heading", { name: "Compose your stack" });
+  const tab = (name: string) => screen.getByRole("tab", { name });
+  expect(tab("1 Design")).toHaveAttribute("tabindex", "0");
+  expect(["2 Parts", "3 Plates", "4 Assemble"].every((name) => tab(name).getAttribute("tabindex") === "-1")).toBe(true);
+  tab("1 Design").focus();
+  await user.keyboard("{ArrowRight}");
+  expect(tab("2 Parts")).toHaveFocus();
+  expect(tab("2 Parts")).toHaveAttribute("aria-selected", "true");
+  expect(tab("2 Parts")).toHaveAttribute("tabindex", "0");
+  await user.keyboard("{End}");
+  expect(tab("4 Assemble")).toHaveFocus();
+  expect(tab("4 Assemble")).toHaveAttribute("aria-selected", "true");
+  // Past the last step wraps to the first, and back again.
+  await user.keyboard("{ArrowRight}");
+  expect(tab("1 Design")).toHaveFocus();
+  await user.keyboard("{ArrowLeft}");
+  expect(tab("4 Assemble")).toHaveFocus();
+  await user.keyboard("{Home}");
+  expect(tab("1 Design")).toHaveFocus();
+  expect(tab("1 Design")).toHaveAttribute("aria-selected", "true");
+});
+
+test("JSON that cannot be parsed is reported inline, not in a blocking dialog", async () => {
+  const user = userEvent.setup();
+  const alert = vi.spyOn(window, "alert").mockImplementation(() => undefined);
+  render(<App />);
+  await screen.findByRole("heading", { name: "Compose your stack" });
+  await user.click(screen.getByText("Import a stack from ussadesign.com"));
+  const box = screen.getByLabelText("Import JSON");
+  await user.type(box, "{{not json");
+  await user.click(screen.getByRole("button", { name: "Import layers" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent(/JSON/i);
+  expect(box).toHaveAttribute("aria-invalid", "true");
+  expect(alert).not.toHaveBeenCalled();
+  // Editing the text clears the message.
+  await user.type(box, "x");
+  expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  alert.mockRestore();
+});

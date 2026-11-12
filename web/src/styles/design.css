@@ -46,6 +46,8 @@
   .card summary {
     font-size: 0.875rem;
     font-weight: 500;
+    /* A disclosure row is a click target: WCAG 2.5.8 minimum height. */
+    min-block-size: 1.5rem;
   }
 
   .topbar .check {
@@ -114,8 +116,8 @@
   }
 
   .help-btn {
-    inline-size: 1.15rem;
-    block-size: 1.15rem;
+    inline-size: 1.5rem;
+    block-size: 1.5rem;
     flex: none;
     border: 1px solid var(--input);
     border-radius: 999px;
@@ -275,8 +277,8 @@
   }
 
   .switch {
-    inline-size: 2.25rem;
-    block-size: 1.25rem;
+    inline-size: 2.5rem;
+    block-size: 1.5rem;
     border-radius: 999px;
     border: 2px solid transparent;
     background: color-mix(in oklch, var(--foreground) 22%, transparent);
@@ -295,15 +297,15 @@
     position: absolute;
     inset-block-start: 0;
     inset-inline-start: 0;
-    inline-size: 1rem;
-    block-size: 1rem;
+    inline-size: 1.25rem;
+    block-size: 1.25rem;
     border-radius: 999px;
     background: var(--background);
     box-shadow: 0 2px 4px oklch(0.21 0.006 286 / 25%);
   }
 
   .switch[aria-checked="true"] span {
-    inset-inline-start: calc(100% - 1rem);
+    inset-inline-start: calc(100% - 1.25rem);
   }
 
   .preview-meta {

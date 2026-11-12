@@ -108,23 +108,41 @@ export function Header() {
 export function Tabs() {
   const { state, setTab, exportState } = usePlanner();
   const tabTitle = EXPORT_STATE_VIEW[exportState].tabTitle;
+  // Arrow keys move between steps and select them (the panel is cheap to show);
+  // only the selected tab is in the Tab order, as a tablist expects.
+  const move = (event: React.KeyboardEvent, index: number) => {
+    const last = TABS.length - 1;
+    const next = event.key === "ArrowRight" ? (index === last ? 0 : index + 1)
+      : event.key === "ArrowLeft" ? (index === 0 ? last : index - 1)
+      : event.key === "Home" ? 0
+      : event.key === "End" ? last
+      : -1;
+    if (next < 0) return;
+    event.preventDefault();
+    setTab(TABS[next].id);
+    document.getElementById(`tab-${TABS[next].id}`)?.focus();
+  };
   return (
-    <nav className="tabs" aria-label="Steps">
+    <div className="tabs" role="tablist" aria-label="Steps">
       {TABS.map((tab, index) => (
         <button
           key={tab.id}
           type="button"
           role="tab"
+          id={`tab-${tab.id}`}
           data-tab={tab.id}
           aria-selected={state.tab === tab.id}
+          aria-controls={state.tab === tab.id ? `panel-${tab.id}` : undefined}
+          tabIndex={state.tab === tab.id ? 0 : -1}
           aria-label={`${index + 1} ${tab.label}`}
           onClick={() => setTab(tab.id)}
+          onKeyDown={(event) => move(event, index)}
           title={tab.id === "plates" ? tabTitle : undefined}
         >
           <span className="tab-num" aria-hidden="true">{index + 1}</span>{tab.label}
           {tab.id === "plates" && tabTitle ? <span className="tab-dot" aria-hidden="true" /> : null}
         </button>
       ))}
-    </nav>
+    </div>
   );
 }

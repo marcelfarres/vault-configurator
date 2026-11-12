@@ -13,6 +13,8 @@ export function Design() {
   const store = usePlanner();
   const { state, meta, bom, patch, showHelp, removedLayer, helpTopic } = store;
   const [confirmReset, setConfirmReset] = useState(false);
+  // JSON that does not parse is reported next to the box, not in a blocking dialog.
+  const [importError, setImportError] = useState("");
   const depth = labeledChoices("depth", {
     choices: bom?.choices || null,
     catalog: meta.depths,
@@ -106,15 +108,17 @@ export function Design() {
                 event.target.value = "";
               }} />
               <p className="note">{store.importStatus}</p>
-              <textarea aria-label="Import JSON" rows={4} placeholder='{"version":2,"layers":[{"type":"Drawers","layout":"S","height":2,"facades":[[2]]}]}' id="import-json" />
+              <textarea aria-label="Import JSON" rows={4} placeholder='{"version":2,"layers":[{"type":"Drawers","layout":"S","height":2,"facades":[[2]]}]}' id="import-json" aria-invalid={importError ? true : undefined} aria-describedby={importError ? "import-json-error" : undefined} onChange={() => setImportError("")} />
+              {importError ? <p className="bad" role="alert" id="import-json-error">{importError}</p> : null}
               <button type="button" className="btn" onClick={() => {
                 const box = document.querySelector<HTMLTextAreaElement>("#import-json");
                 if (!box) return;
                 try {
                   const payload = JSON.parse(box.value) as { layers?: Layer[] };
                   store.importLayers(payload.layers || []);
+                  setImportError("");
                 } catch (error) {
-                  window.alert(error instanceof Error ? error.message : "Could not parse that JSON.");
+                  setImportError(error instanceof Error ? error.message : "Could not parse that JSON.");
                 }
               }}>Import layers</button>
             </details>

@@ -41,11 +41,18 @@ function Shell() {
   if (!store.ready || !store.state) return <p className="boot">Loading planner…</p>;
   return (
     <>
+      <a className="skip-link" href="#main" onClick={(event) => { event.preventDefault(); document.getElementById("main")?.focus(); }}>Skip to content</a>
       <div className="app-head" ref={headRef}>
         <Header />
         {store.settingsOpen ? null : <Tabs />}
       </div>
-      {store.settingsOpen ? <Settings /> : <Screen tab={store.state.tab} />}
+      <main id="main" tabIndex={-1}>
+        {store.settingsOpen ? <Settings /> : (
+          <div role="tabpanel" id={`panel-${store.state.tab}`} aria-labelledby={`tab-${store.state.tab}`}>
+            <Screen tab={store.state.tab} />
+          </div>
+        )}
+      </main>
       {store.viewer ? (
         <Suspense fallback={null}>
           <Viewer />
