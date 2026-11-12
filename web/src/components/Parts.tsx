@@ -26,6 +26,14 @@ export function Parts() {
       tooBig ? `${tooBig} ${tooBig === 1 ? "part does" : "parts do"} not fit ${who}` : "",
     ].filter(Boolean).join(" · ") + "."
     : "No parts yet. You can continue, but Plates has nothing to pack until the stack has a layer.";
+  // One fit per rendered row owns the cell class, the cell content and the banner.
+  // Only a missing file or a part that does not fit is a problem; "unknown" is not
+  // claimed as fitting, nor counted against the build (as in the footer).
+  const rows = visiblePartRows(rowsOf(parts, state.merge)).map((part) => ({ part, fit: partFitsScope(part, ids) }));
+  const problemRows = rows.filter(({ fit }) => fit === "missing" || fit === "unfit").length;
+  const fitSummary = problemRows
+    ? `${problemRows} ${problemRows === 1 ? "row needs" : "rows need"} a look, marked in the fit column.`
+    : rows.length && rows.every(({ fit }) => fit === "fits") ? `All parts fit ${who}.` : "";
   return (
     <div className="page page-parts">
       <h1>Parts & colours</h1>
@@ -59,6 +67,27 @@ export function Parts() {
             </div>
           );
         })}
+        {meta.kinds.length ? (
+          <details className="group-colour">
+            <summary>Change a whole group</summary>
+            {meta.kinds.map((kind) => (
+              <label key={kind} className="field">
+                <span>{kind}</span>
+                <select
+                  aria-label={`Colour for ${kind}`}
+                  value={state.settings.kindRoles[kind] || ""}
+                  onChange={(event) => patch((draft) => {
+                    if (event.target.value) draft.settings.kindRoles[kind] = event.target.value;
+                    else delete draft.settings.kindRoles[kind];
+                  })}
+                >
+                  <option value="">keep the designer’s colour</option>
+                  {meta.roles.map((role) => <option key={role} value={role}>{ROLE_SHORT[role] || role}</option>)}
+                </select>
+              </label>
+            ))}
+          </details>
+        ) : null}
       </section>
       <section className="card spaced">
         <div className="card-head">
@@ -95,38 +124,42 @@ export function Parts() {
             Join identical parts
           </label>
         </div>
+        {fitSummary ? <p className={problemRows ? "warn" : "note"}>{fitSummary}</p> : null}
         <div className="table-wrap">
           <table>
             <thead>
               <tr><th>Part</th><th>Qty</th><th>Colour</th><th>g</th><th>time</th><th>size mm</th><th>fits</th></tr>
             </thead>
             <tbody>
-              {visiblePartRows(rowsOf(parts, state.merge)).map((part) => {
-                const fit = partFitsScope(part, ids);
+              {rows.map(({ part, fit }) => {
                 return (
                   <tr key={`${part.group}|${part.name}`}>
                     <td>{part.name}<div className="note">{part.group}</div></td>
                     <td>{part.qty}</td>
                     <td>
-                      <select
-                        aria-label={`Colour for ${part.name}`}
-                        value={part.role}
-                        onChange={(event) => patch((draft) => {
-                          const targets = state.merge ? parts.filter((row) => row.name === part.name) : [part];
-                          for (const target of targets) {
-                            const key = `${target.group}|${target.name}`;
-                            draft.overrides[key] = { ...(draft.overrides[key] || {}), role: event.target.value };
-                          }
-                        })}
-                      >
-                        {meta.roles.map((role) => <option key={role} value={role}>{ROLE_SHORT[role] || role}</option>)}
-                      </select>
+                      <span className="role-pick">
+                        <span className="mini-swatch" aria-hidden="true" style={{ background: roleColor(state.settings, part.role) }} />
+                        <select
+                          aria-label={`Colour for ${part.name}`}
+                          value={part.role}
+                          onChange={(event) => patch((draft) => {
+                            const targets = state.merge ? parts.filter((row) => row.name === part.name) : [part];
+                            for (const target of targets) {
+                              const key = `${target.group}|${target.name}`;
+                              draft.overrides[key] = { ...(draft.overrides[key] || {}), role: event.target.value };
+                            }
+                          })}
+                        >
+                          {meta.roles.map((role) => <option key={role} value={role}>{ROLE_SHORT[role] || role}</option>)}
+                        </select>
+                      </span>
                     </td>
                     <td>{part.grams != null ? Math.round(part.grams) : "?"}</td>
                     <td>{part.seconds != null ? fmtH(part.seconds) : "?"}</td>
                     <td className="mono">{part.size ? part.size.map((value) => Math.round(value)).join("×") : "?"}</td>
-                    <td className={fit === "fits" ? "ok" : fit === "unknown" ? undefined : "bad"}>
-                      {fit === "fits" ? `fits ${who}` : fit === "missing" ? "file missing" : fit === "unfit" ? `does not fit ${who}` : "fit not checked"}
+                    <td className={fit === "fits" || fit === "unknown" ? undefined : "bad"}>
+                      {fit === "fits" ? <span className="ok" role="img" aria-label={`fits ${who}`} title={`Fits ${who}`}>✓</span>
+                        : fit === "missing" ? "file missing" : fit === "unfit" ? `does not fit ${who}` : "fit not checked"}
                     </td>
                   </tr>
                 );
@@ -134,27 +167,6 @@ export function Parts() {
             </tbody>
           </table>
         </div>
-        {meta.kinds.length ? (
-          <details>
-            <summary>Change a whole group</summary>
-            {meta.kinds.map((kind) => (
-              <label key={kind} className="field">
-                <span>{kind}</span>
-                <select
-                  aria-label={`Colour for ${kind}`}
-                  value={state.settings.kindRoles[kind] || ""}
-                  onChange={(event) => patch((draft) => {
-                    if (event.target.value) draft.settings.kindRoles[kind] = event.target.value;
-                    else delete draft.settings.kindRoles[kind];
-                  })}
-                >
-                  <option value="">keep the designer’s colour</option>
-                  {meta.roles.map((role) => <option key={role} value={role}>{ROLE_SHORT[role] || role}</option>)}
-                </select>
-              </label>
-            ))}
-          </details>
-        ) : null}
       </section>
       <Hardware />
       <StepFooter ready={ready} next="Review plates" onNext={() => store.setTab("plates")} />
