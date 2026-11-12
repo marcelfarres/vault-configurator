@@ -251,11 +251,13 @@ def verify_3mf(path, bed=None, tol=0.05, reach=None):
         model = z.read("3D/3dmodel.model").decode()
         ms = z.read("Metadata/model_settings.config").decode()
         proj = json.loads(z.read("Metadata/project_settings.config")) if "Metadata/project_settings.config" in z.namelist() else {}
-        comp = {m[0]: m[1] for m in re.findall(r'<object id="(\d+)"[^>]*>\s*<components>\s*<component p:path="([^"]+)"', model)}
+        comp = {}
+        for oid, body in re.findall(r'<object id="(\d+)"[^>]*>\s*<components>(.*?)</components>', model, re.S):
+            comp[oid] = re.findall(r'p:path="([^"]+)"', body)
         tf = {m[0]: [float(v) for v in m[1].split()] for m in re.findall(r'<item objectid="(\d+)"[^>]*transform="([^"]+)"', model)}
         names = dict(re.findall(r'<object id="(\d+)">\s*<metadata key="name" value="([^"]*)"', ms))
         meshes = {}
-        for sub in set(comp.values()):
+        for sub in {path for paths in comp.values() for path in paths}:
             xml = z.read(sub.lstrip("/")).decode()
             xy = np.array(re.findall(r'<vertex x="([-\d.eE+]+)" y="([-\d.eE+]+)"', xml), dtype=float)
             meshes[sub] = xy
@@ -274,10 +276,13 @@ def verify_3mf(path, bed=None, tol=0.05, reach=None):
     for i, p in enumerate(plates):
         px, py = (i % cols) * w * (1 + PLATE_GAP), -(i // cols) * d * (1 + PLATE_GAP)
         for oid in re.findall(r'key="object_id" value="(\d+)"', p):
-            t, xy = tf.get(oid), meshes.get(comp.get(oid))
-            if t is None or xy is None or not len(xy):
+            paths = comp.get(oid) or []
+            pieces = [meshes.get(path) for path in paths]
+            t = tf.get(oid)
+            if t is None or not pieces or any(xy is None or not len(xy) for xy in pieces):
                 problems.append({"plate": i + 1, "name": names.get(oid, oid), "overhang_mm": None})
                 continue
+            xy = np.concatenate(pieces, axis=0)
             wx = xy[:, 0] * t[0] + xy[:, 1] * t[3] + t[9]   # 3MF row-vector transform: x' = x*m00 + y*m10 + tx
             wy = xy[:, 0] * t[1] + xy[:, 1] * t[4] + t[10]
             over = max(px + rx - wx.min(), wx.max() - (px + rx + rw), py + ry - wy.min(), wy.max() - (py + ry + rd))
@@ -302,15 +307,30 @@ def write_3mf(path, objects, plates, bed, title="", project=None):
     build, settings, assemble, files, rels, plate_cfg = [], [], [], {}, [], []
     # each mesh is stored once (3D/Objects/object_N.model); every printed piece is its own top-level object that
     # references it through a component, so the slicer lists "L3 Box 1F" per piece instead of "Instance 2"
+    def part_list(obj):
+        # "parts" is Bambu's cut-to-parts: one object, several meshes and nozzles.
+        # A bare mesh stays one part, which is what every existing export writes.
+        if obj.get("parts"):
+            return obj["parts"]
+        return [{"name": obj["name"], "mesh": obj["mesh"], "extruder": obj.get("extruder", 1)}]
+
     mesh_id_of = {}
+    next_mesh = 1
     for k, obj in enumerate(objects):
-        mesh_id = k + 1
-        mesh_id_of[k] = mesh_id
-        sub = f"3D/Objects/object_{mesh_id}.model"
-        files[sub] = f'{head}<metadata name="BambuStudio:3mfVersion">1</metadata>\n<resources>\n<object id="{mesh_id}" p:UUID="{_uuid(mesh_id)}" type="model">{_mesh_xml(obj["mesh"])}</object>\n</resources>\n<build/>\n</model>\n'
-        rels.append(f'<Relationship Target="/{sub}" Id="rel-{mesh_id}" Type="{REL_MODEL}"/>')
-    oid = len(objects)
+        stored = []
+        for part in part_list(obj):
+            mesh_id = next_mesh
+            next_mesh += 1
+            stored.append((mesh_id, part))
+            sub = f"3D/Objects/object_{mesh_id}.model"
+            files[sub] = f'{head}<metadata name="BambuStudio:3mfVersion">1</metadata>\n<resources>\n<object id="{mesh_id}" p:UUID="{_uuid(mesh_id)}" type="model">{_mesh_xml(part["mesh"])}</object>\n</resources>\n<build/>\n</model>\n'
+            rels.append(f'<Relationship Target="/{sub}" Id="rel-{mesh_id}" Type="{REL_MODEL}"/>')
+        mesh_id_of[k] = stored
+    # Instance ids have to start past every mesh id. A cut object has two meshes, so
+    # len(objects) collides with the last mesh and Studio drops or mis-places that instance.
+    oid = next_mesh - 1
     grid = printable_size(project, bed)
+    plates = [pl for pl in plates if pl.get("items")]
     for pi, plate in enumerate(plates):
         ox, oy = plate_origin(pi, len(plates), grid)
         bed_type = (project or {}).get("curr_bed_type") or "Textured PEI Plate"
@@ -318,15 +338,21 @@ def write_3mf(path, objects, plates, bed, title="", project=None):
                          f'<metadata key="bed_type" value="{escape(bed_type)}"/>\n')
         for (k, x, y, rot) in plate["items"]:
             oid += 1
-            obj, mesh_id = objects[k], mesh_id_of[k]
-            name, ext = escape(obj["name"]), int(obj.get("extruder", 1))
-            model.append(f'<object id="{oid}" p:UUID="{_uuid(oid)}" type="model">\n<components>\n'
-                         f'<component p:path="/3D/Objects/object_{mesh_id}.model" objectid="{mesh_id}" p:UUID="{_uuid(100000 + oid)}" transform="1 0 0 0 1 0 0 0 1 0 0 0"/>\n</components>\n</object>\n')
+            obj, stored = objects[k], mesh_id_of[k]
+            name = escape(obj["name"])
+            components = []
+            part_xml = []
             cfg_meta = "".join(f'<metadata key="{escape(kk)}" value="{escape(str(v))}"/>\n' for kk, v in (obj.get("config") or {}).items())
-            settings.append(f'<object id="{oid}">\n<metadata key="name" value="{name}"/>\n<metadata key="extruder" value="{ext}"/>\n{cfg_meta}'
-                            f'<part id="{mesh_id}" subtype="normal_part">\n<metadata key="name" value="{name}"/>\n<metadata key="extruder" value="{ext}"/>\n'
-                            f'<metadata key="matrix" value="1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1"/>\n'
-                            f'<mesh_stat edges_fixed="0" degenerate_facets="0" facets_removed="0" facets_reversed="0" backwards_edges="0"/>\n</part>\n</object>\n')
+            for mesh_id, part in stored:
+                pname, ext = escape(part["name"]), int(part.get("extruder", 1))
+                components.append(f'<component p:path="/3D/Objects/object_{mesh_id}.model" objectid="{mesh_id}" p:UUID="{_uuid(100000 + oid + mesh_id)}" transform="1 0 0 0 1 0 0 0 1 0 0 0"/>\n')
+                part_xml.append(f'<part id="{mesh_id}" subtype="normal_part">\n<metadata key="name" value="{pname}"/>\n<metadata key="extruder" value="{ext}"/>\n'
+                                f'<metadata key="matrix" value="1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1"/>\n'
+                                f'<mesh_stat edges_fixed="0" degenerate_facets="0" facets_removed="0" facets_reversed="0" backwards_edges="0"/>\n</part>\n')
+            first_ext = int(stored[0][1].get("extruder", 1))
+            model.append(f'<object id="{oid}" p:UUID="{_uuid(oid)}" type="model">\n<components>\n' + "".join(components) + '</components>\n</object>\n')
+            settings.append(f'<object id="{oid}">\n<metadata key="name" value="{name}"/>\n<metadata key="extruder" value="{first_ext}"/>\n{cfg_meta}'
+                            + "".join(part_xml) + '</object>\n')
             a = math.radians(rot)
             c, s = math.cos(a), math.sin(a)
             tf = f"{c:.6f} {s:.6f} 0 {-s:.6f} {c:.6f} 0 0 0 1 {ox + x:.3f} {oy + y:.3f} 0"  # rotate about Z, then translate

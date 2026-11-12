@@ -1,0 +1,156 @@
+/* Parts step: filament roles, piece cards, and the shared table styles.
+   Imported into the components layer by ../styles.css; no @layer wrapper here. */
+  .swatch {
+    inline-size: 2.5rem;
+    block-size: 2.5rem;
+    flex: none;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--input);
+  }
+
+  .role-row {
+    display: grid;
+    grid-template-columns: 10rem 1fr auto;
+    gap: 1rem;
+    align-items: center;
+    padding-block: 0.75rem;
+    border-block-end: 1px solid var(--border);
+  }
+
+  .role-row strong {
+    font-size: 0.875rem;
+    font-weight: 500;
+  }
+
+  .role-row select {
+    inline-size: 14rem;
+  }
+
+  .mini-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.375rem;
+  }
+
+  .mini-chips .chip {
+    font-family: inherit;
+    border-radius: var(--radius-md);
+    background: var(--background);
+    padding: 0.25rem 0.5rem;
+  }
+
+  .mini-swatch {
+    inline-size: 0.75rem;
+    block-size: 0.75rem;
+    flex: none;
+    border-radius: var(--radius-sm);
+  }
+
+  /* The colour cell is a swatch beside a real, visible select with the native
+     chrome cleared: click, keyboard and the "Colour for …" name all stay on one
+     control. `td select` (shell.css) sets 100% wide with a 3.25rem floor; this
+     cell is sized to its role name instead. */
+  .role-pick {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .role-pick select {
+    inline-size: auto;
+    min-inline-size: 0;
+    min-block-size: 1.75rem;
+    padding-block: 0.125rem;
+    padding-inline: 0.25rem 1.25rem;
+    appearance: none;
+    border-color: transparent;
+    background-color: transparent;
+    background-image:
+      linear-gradient(45deg, transparent 50%, var(--muted-foreground) 50%),
+      linear-gradient(135deg, var(--muted-foreground) 50%, transparent 50%);
+    background-position: right 0.7rem center, right 0.45rem center;
+    background-size: 0.3rem 0.3rem;
+    background-repeat: no-repeat;
+    cursor: pointer;
+  }
+
+  .role-pick select:hover {
+    background-color: var(--accent);
+    border-color: var(--input);
+  }
+
+  /* Part group overrides belong with the role rows they override. */
+  .group-colour {
+    padding-block-start: 0.75rem;
+  }
+
+  .pieces {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 0.75rem;
+  }
+
+  .piece-card {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    text-align: start;
+    background: var(--background);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 0.75rem;
+  }
+
+  .piece-meta {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    align-items: flex-start;
+    min-inline-size: 0;
+  }
+
+  .piece-meta strong {
+    font-size: 0.875rem;
+    font-weight: 500;
+  }
+
+  .qty {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.875rem;
+    color: var(--muted-foreground);
+  }
+
+  .piece-card:hover {
+    border-color: var(--teal);
+  }
+  .piece-card:disabled { opacity: 0.55; cursor: default; }
+  .piece-card:disabled:hover { border-color: var(--border); }
+  .btn:disabled { opacity: 0.5; cursor: default; }
+  .btn:disabled:hover { background: var(--background); color: var(--foreground); }
+  .btn.primary:disabled:hover { background: var(--primary); color: var(--primary-foreground); }
+
+  .table-wrap {
+    overflow-x: auto;
+  }
+
+  table {
+    inline-size: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+  }
+
+  th, td {
+    text-align: start;
+    padding: 0.5rem;
+    border-block-end: 1px solid var(--border);
+    vertical-align: top;
+  }
+
+  th {
+    color: var(--muted-foreground);
+    font-weight: 500;
+  }
+
+  tbody tr:hover {
+    background: color-mix(in oklch, var(--muted) 50%, transparent);
+  }

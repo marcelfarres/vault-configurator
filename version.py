@@ -4,7 +4,7 @@ copy don't change it; line endings are normalised, so a Windows copy and a Linux
 import hashlib
 import os
 
-FILES = ["assets_bootstrap.py", "catalog.py", "mesh.py", "plates.py", "presets.py", "server.py", "version.py",
+FILES = ["assets_bootstrap.py", "catalog.py", "h2d_split.py", "mesh.py", "plates.py", "planner.py", "planner.mjs", "presets.py", "server.py", "stackfit.py", "version.py",
          "index.html", "site_print_data.json"]
 
 

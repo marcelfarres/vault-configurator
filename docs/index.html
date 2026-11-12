@@ -82,11 +82,11 @@ footer{margin-top:60px;color:var(--muted);font-size:14px}
 <h2>Run it</h2>
 <p><b>One click, on your own computer</b> (no server, no Python install): <a href="https://github.com/marcelfarres/vault-configurator/archive/refs/heads/main.zip">download the ZIP</a>, unpack it and double-click <code>Start VAULT (Windows).bat</code>, <code>Start VAULT (Mac).command</code> (the first time: right-click, Open) or <code>Start VAULT (Linux).sh</code>. The first start offers to install <a href="https://docs.astral.sh/uv/">uv</a>, which fetches Python and the libraries into your user folder, then asks once for your archive folder. Your browser opens at http://localhost:8765. Delete <code>archive-path.txt</code> to choose another folder. If Windows warns about an unknown publisher, choose More info, then Run anyway.</p>
 <p><b>Docker</b> (any machine, NAS included): put your archive folder somewhere, then</p>
-<pre>git clone https://github.com/marcelfarres/vault-configurator
+<pre>git clone https://github.com/vcolombo/vault-configurator
 cd vault-configurator
 VAULT_ARCHIVE=/path/to/your/VAULT docker compose up -d
 # open http://localhost:8765</pre>
-<p><b>NAS with a stack manager</b> (Dockhand, Portainer): paste <a href="https://github.com/marcelfarres/vault-configurator/blob/main/deploy/compose.yaml">deploy/compose.yaml</a>, point <code>VAULT_ARCHIVE</code> at the dataset holding your archive, deploy. The image <code>ghcr.io/marcelfarres/vault-configurator:latest</code> is rebuilt on every change and <code>pull_policy: always</code> makes each redeploy pick it up, so a scheduled redeploy keeps the NAS current.</p>
+<p><b>Container</b> (Unraid, Dockhand, Portainer): paste <a href="https://github.com/vcolombo/vault-configurator/blob/main/deploy/compose.yaml">deploy/compose.yaml</a> and set <code>VAULT_ARCHIVE</code> to the folder on that machine. The container reads it at <code>/archive</code>. The image <code>ghcr.io/vcolombo/vault-configurator:latest</code> is rebuilt on every change and <code>pull_policy: always</code> makes each redeploy pick it up.</p>
 <p><b>Plain Python</b> (3.11+ with numpy, pypdf and pillow):</p>
 <pre>VAULT_ARCHIVE=/path/to/your/VAULT python -X utf8 server.py</pre>
 <p>Running it on the machine that has your slicers installed lets it read your Bambu Studio, OrcaSlicer and Anycubic Slicer Next presets; in Docker, mount the slicers' config folder to get the same.</p>
@@ -101,7 +101,7 @@ VAULT_ARCHIVE=/path/to/your/VAULT docker compose up -d
 <h2>Status</h2>
 <p>Verified with Bambu Studio 2.8, OrcaSlicer and Anycubic Slicer Next on a Bambu Lab H2C and an Anycubic Kobra X. Rules follow the VAULT manuals and the designer's composer; where the archive leaves a count open (dividers, connectors) the tool says so.</p>
 
-<footer>Not affiliated with USSA Design. VAULT is their work; this tool only helps you print the files you own. <a href="https://github.com/marcelfarres/vault-configurator">Source on GitHub</a>, under the <a href="https://github.com/marcelfarres/vault-configurator/blob/main/LICENSE">GNU AGPL v3</a> (the tool's code only).</footer>
+<footer>Not affiliated with USSA Design. VAULT is their work; this tool only helps you print the files you own. <a href="https://github.com/vcolombo/vault-configurator">Source on GitHub</a> (AGPL-3.0, based on marcelfarres/vault-configurator), under the <a href="https://github.com/vcolombo/vault-configurator/blob/main/LICENSE">GNU AGPL v3</a> (the tool's code only).</footer>
 </main>
 </body>
 </html>

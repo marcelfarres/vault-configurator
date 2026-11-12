@@ -1,0 +1,587 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-11T00:00:00+00:00",
+  "title": "Design System: VAULT configurator",
+  "extensions": {
+    "colorMeta": {
+      "bench-paper": {
+        "role": "neutral",
+        "displayName": "Bench Paper",
+        "canonical": "oklch(0.975 0.003 90)",
+        "tonalRamp": [
+          "oklch(0.150 0.0004 90)",
+          "oklch(0.264 0.0004 90)",
+          "oklch(0.379 0.0005 90)",
+          "oklch(0.493 0.0010 90)",
+          "oklch(0.607 0.0015 90)",
+          "oklch(0.721 0.0019 90)",
+          "oklch(0.836 0.0024 90)",
+          "oklch(0.950 0.0029 90)"
+        ]
+      },
+      "card-stock": {
+        "role": "neutral",
+        "displayName": "Card Stock",
+        "canonical": "oklch(0.995 0.002 90)",
+        "tonalRamp": [
+          "oklch(0.150 0.0003 90)",
+          "oklch(0.264 0.0003 90)",
+          "oklch(0.379 0.0003 90)",
+          "oklch(0.493 0.0006 90)",
+          "oklch(0.607 0.0009 90)",
+          "oklch(0.721 0.0012 90)",
+          "oklch(0.836 0.0016 90)",
+          "oklch(0.950 0.0019 90)"
+        ]
+      },
+      "bench-ink": {
+        "role": "primary",
+        "displayName": "Bench Ink",
+        "canonical": "oklch(0.21 0.006 286)",
+        "tonalRamp": [
+          "oklch(0.150 0.0055 286)",
+          "oklch(0.264 0.0055 286)",
+          "oklch(0.379 0.0046 286)",
+          "oklch(0.493 0.0036 286)",
+          "oklch(0.607 0.0027 286)",
+          "oklch(0.721 0.0017 286)",
+          "oklch(0.836 0.0009 286)",
+          "oklch(0.950 0.0009 286)"
+        ]
+      },
+      "ink-reverse": {
+        "role": "primary",
+        "displayName": "Ink Reverse",
+        "canonical": "oklch(0.985 0.002 90)",
+        "tonalRamp": [
+          "oklch(0.150 0.0003 90)",
+          "oklch(0.264 0.0003 90)",
+          "oklch(0.379 0.0003 90)",
+          "oklch(0.493 0.0006 90)",
+          "oklch(0.607 0.0009 90)",
+          "oklch(0.721 0.0013 90)",
+          "oklch(0.836 0.0016 90)",
+          "oklch(0.950 0.0019 90)"
+        ]
+      },
+      "pressed-grey": {
+        "role": "neutral",
+        "displayName": "Pressed Grey",
+        "canonical": "oklch(0.94 0.004 286)",
+        "tonalRamp": [
+          "oklch(0.150 0.0006 286)",
+          "oklch(0.264 0.0006 286)",
+          "oklch(0.379 0.0009 286)",
+          "oklch(0.493 0.0015 286)",
+          "oklch(0.607 0.0021 286)",
+          "oklch(0.721 0.0028 286)",
+          "oklch(0.836 0.0034 286)",
+          "oklch(0.950 0.0039 286)"
+        ]
+      },
+      "recess": {
+        "role": "neutral",
+        "displayName": "Recess",
+        "canonical": "oklch(0.95 0.003 286)",
+        "tonalRamp": [
+          "oklch(0.150 0.0004 286)",
+          "oklch(0.264 0.0004 286)",
+          "oklch(0.379 0.0006 286)",
+          "oklch(0.493 0.0011 286)",
+          "oklch(0.607 0.0016 286)",
+          "oklch(0.721 0.0020 286)",
+          "oklch(0.836 0.0025 286)",
+          "oklch(0.950 0.0030 286)"
+        ]
+      },
+      "pencil-grey": {
+        "role": "neutral",
+        "displayName": "Pencil Grey",
+        "canonical": "oklch(0.52 0.012 286)",
+        "tonalRamp": [
+          "oklch(0.150 0.0058 286)",
+          "oklch(0.264 0.0077 286)",
+          "oklch(0.379 0.0096 286)",
+          "oklch(0.493 0.0115 286)",
+          "oklch(0.607 0.0105 286)",
+          "oklch(0.721 0.0086 286)",
+          "oklch(0.836 0.0067 286)",
+          "oklch(0.950 0.0048 286)"
+        ]
+      },
+      "hairline": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "oklch(0.91 0.004 286)",
+        "tonalRamp": [
+          "oklch(0.150 0.0006 286)",
+          "oklch(0.264 0.0006 286)",
+          "oklch(0.379 0.0010 286)",
+          "oklch(0.493 0.0017 286)",
+          "oklch(0.607 0.0023 286)",
+          "oklch(0.721 0.0029 286)",
+          "oklch(0.836 0.0036 286)",
+          "oklch(0.950 0.0038 286)"
+        ]
+      },
+      "field-edge": {
+        "role": "neutral",
+        "displayName": "Field Edge",
+        "canonical": "oklch(0.62 0.008 286)",
+        "tonalRamp": [
+          "oklch(0.150 0.0027 286)",
+          "oklch(0.264 0.0040 286)",
+          "oklch(0.379 0.0053 286)",
+          "oklch(0.493 0.0066 286)",
+          "oklch(0.607 0.0079 286)",
+          "oklch(0.721 0.0069 286)",
+          "oklch(0.836 0.0056 286)",
+          "oklch(0.950 0.0043 286)"
+        ]
+      },
+      "bench-teal": {
+        "role": "secondary",
+        "displayName": "Bench Teal",
+        "canonical": "oklch(0.52 0.07 195)",
+        "tonalRamp": [
+          "oklch(0.150 0.0337 195)",
+          "oklch(0.264 0.0449 195)",
+          "oklch(0.379 0.0561 195)",
+          "oklch(0.493 0.0673 195)",
+          "oklch(0.607 0.0615 195)",
+          "oklch(0.721 0.0503 195)",
+          "oklch(0.836 0.0391 195)",
+          "oklch(0.950 0.0279 195)"
+        ]
+      },
+      "teal-wash": {
+        "role": "secondary",
+        "displayName": "Teal Wash",
+        "canonical": "oklch(0.93 0.03 190)",
+        "tonalRamp": [
+          "oklch(0.150 0.0045 190)",
+          "oklch(0.264 0.0045 190)",
+          "oklch(0.379 0.0068 190)",
+          "oklch(0.493 0.0116 190)",
+          "oklch(0.607 0.0164 190)",
+          "oklch(0.721 0.0212 190)",
+          "oklch(0.836 0.0260 190)",
+          "oklch(0.950 0.0292 190)"
+        ]
+      },
+      "deep-teal": {
+        "role": "secondary",
+        "displayName": "Deep Teal",
+        "canonical": "oklch(0.35 0.06 195)",
+        "tonalRamp": [
+          "oklch(0.150 0.0432 195)",
+          "oklch(0.264 0.0528 195)",
+          "oklch(0.379 0.0576 195)",
+          "oklch(0.493 0.0480 195)",
+          "oklch(0.607 0.0384 195)",
+          "oklch(0.721 0.0288 195)",
+          "oklch(0.836 0.0192 195)",
+          "oklch(0.950 0.0096 195)"
+        ]
+      },
+      "plate-bed": {
+        "role": "neutral",
+        "displayName": "Plate Bed",
+        "canonical": "oklch(0.90 0.004 286)",
+        "tonalRamp": [
+          "oklch(0.150 0.0006 286)",
+          "oklch(0.264 0.0006 286)",
+          "oklch(0.379 0.0011 286)",
+          "oklch(0.493 0.0017 286)",
+          "oklch(0.607 0.0024 286)",
+          "oklch(0.721 0.0030 286)",
+          "oklch(0.836 0.0036 286)",
+          "oklch(0.950 0.0037 286)"
+        ]
+      },
+      "plate-grid": {
+        "role": "neutral",
+        "displayName": "Plate Grid",
+        "canonical": "oklch(0.79 0.004 286)",
+        "tonalRamp": [
+          "oklch(0.150 0.0006 286)",
+          "oklch(0.264 0.0011 286)",
+          "oklch(0.379 0.0017 286)",
+          "oklch(0.493 0.0023 286)",
+          "oklch(0.607 0.0030 286)",
+          "oklch(0.721 0.0036 286)",
+          "oklch(0.836 0.0037 286)",
+          "oklch(0.950 0.0031 286)"
+        ]
+      },
+      "cabinet-frame": {
+        "role": "neutral",
+        "displayName": "Cabinet Frame",
+        "canonical": "oklch(0.28 0.006 286)",
+        "tonalRamp": [
+          "oklch(0.150 0.0049 286)",
+          "oklch(0.264 0.0059 286)",
+          "oklch(0.379 0.0052 286)",
+          "oklch(0.493 0.0042 286)",
+          "oklch(0.607 0.0033 286)",
+          "oklch(0.721 0.0023 286)",
+          "oklch(0.836 0.0013 286)",
+          "oklch(0.950 0.0009 286)"
+        ]
+      },
+      "caution": {
+        "role": "neutral",
+        "displayName": "Caution",
+        "canonical": "oklch(0.50 0.11 60)",
+        "tonalRamp": [
+          "oklch(0.150 0.0561 60)",
+          "oklch(0.264 0.0737 60)",
+          "oklch(0.379 0.0913 60)",
+          "oklch(0.493 0.1089 60)",
+          "oklch(0.607 0.0935 60)",
+          "oklch(0.721 0.0759 60)",
+          "oklch(0.836 0.0583 60)",
+          "oklch(0.950 0.0407 60)"
+        ]
+      },
+      "fault": {
+        "role": "neutral",
+        "displayName": "Fault",
+        "canonical": "oklch(0.52 0.16 25)",
+        "tonalRamp": [
+          "oklch(0.150 0.0771 25)",
+          "oklch(0.264 0.1027 25)",
+          "oklch(0.379 0.1283 25)",
+          "oklch(0.493 0.1539 25)",
+          "oklch(0.607 0.1405 25)",
+          "oklch(0.721 0.1149 25)",
+          "oklch(0.836 0.0893 25)",
+          "oklch(0.950 0.0637 25)"
+        ]
+      },
+      "confirmed": {
+        "role": "neutral",
+        "displayName": "Confirmed",
+        "canonical": "oklch(0.48 0.09 155)",
+        "tonalRamp": [
+          "oklch(0.150 0.0484 155)",
+          "oklch(0.264 0.0628 155)",
+          "oklch(0.379 0.0772 155)",
+          "oklch(0.493 0.0884 155)",
+          "oklch(0.607 0.0740 155)",
+          "oklch(0.721 0.0596 155)",
+          "oklch(0.836 0.0452 155)",
+          "oklch(0.950 0.0308 155)"
+        ]
+      },
+      "caution-wash": {
+        "role": "neutral",
+        "displayName": "Caution Wash",
+        "canonical": "oklch(0.955 0.035 80)",
+        "tonalRamp": [
+          "oklch(0.150 0.0053 80)",
+          "oklch(0.264 0.0053 80)",
+          "oklch(0.379 0.0068 80)",
+          "oklch(0.493 0.0124 80)",
+          "oklch(0.607 0.0180 80)",
+          "oklch(0.721 0.0236 80)",
+          "oklch(0.836 0.0292 80)",
+          "oklch(0.950 0.0348 80)"
+        ]
+      },
+      "fault-wash": {
+        "role": "neutral",
+        "displayName": "Fault Wash",
+        "canonical": "oklch(0.955 0.022 25)",
+        "tonalRamp": [
+          "oklch(0.150 0.0033 25)",
+          "oklch(0.264 0.0033 25)",
+          "oklch(0.379 0.0042 25)",
+          "oklch(0.493 0.0078 25)",
+          "oklch(0.607 0.0113 25)",
+          "oklch(0.721 0.0148 25)",
+          "oklch(0.836 0.0183 25)",
+          "oklch(0.950 0.0218 25)"
+        ]
+      },
+      "confirmed-wash": {
+        "role": "neutral",
+        "displayName": "Confirmed Wash",
+        "canonical": "oklch(0.955 0.035 155)",
+        "tonalRamp": [
+          "oklch(0.150 0.0053 155)",
+          "oklch(0.264 0.0053 155)",
+          "oklch(0.379 0.0068 155)",
+          "oklch(0.493 0.0124 155)",
+          "oklch(0.607 0.0180 155)",
+          "oklch(0.721 0.0236 155)",
+          "oklch(0.836 0.0292 155)",
+          "oklch(0.950 0.0348 155)"
+        ]
+      },
+      "selection": {
+        "role": "neutral",
+        "displayName": "Selection",
+        "canonical": "oklch(0.86 0.06 192)",
+        "tonalRamp": [
+          "oklch(0.150 0.0090 192)",
+          "oklch(0.264 0.0100 192)",
+          "oklch(0.379 0.0196 192)",
+          "oklch(0.493 0.0292 192)",
+          "oklch(0.607 0.0388 192)",
+          "oklch(0.721 0.0484 192)",
+          "oklch(0.836 0.0580 192)",
+          "oklch(0.950 0.0524 192)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "The single h1 per page (Compose your stack, Parts & colours, Plates & export)."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Card titles (h2) and plate card titles."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Controls, rows, part names."
+      },
+      "note": {
+        "displayName": "Note",
+        "purpose": "Secondary text, hints, table body, field help."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Mono chips, pills, status chips, tab numerals, preview meta."
+      },
+      "wordmark": {
+        "displayName": "Wordmark",
+        "purpose": "VAULT in the top bar; the only tracked-out caps."
+      },
+      "mono": {
+        "displayName": "Mono",
+        "purpose": "Measured dimensions such as the W x D x H line."
+      }
+    },
+    "shadows": [
+      {
+        "name": "control-shadow",
+        "value": "0 1px 2px oklch(0.21 0.006 286 / 8%)",
+        "purpose": "Outline buttons, inputs, selects, the switch track, current settings-nav item."
+      },
+      {
+        "name": "primary-shadow",
+        "value": "0 1px 3px oklch(0.21 0.006 286 / 10%), 0 1px 2px -1px oklch(0.21 0.006 286 / 10%)",
+        "purpose": "The ink-filled primary button."
+      },
+      {
+        "name": "menu-shadow",
+        "value": "0 4px 6px -1px oklch(0.21 0.006 286 / 10%), 0 2px 4px -2px oklch(0.21 0.006 286 / 10%)",
+        "purpose": "Popover menus. Dark theme deepens all three steps to 30-40% black."
+      }
+    ],
+    "motion": [],
+    "breakpoints": [
+      {
+        "name": "preview-narrows",
+        "value": "1100px"
+      },
+      {
+        "name": "collapse",
+        "value": "900px"
+      },
+      {
+        "name": "tight-gutters",
+        "value": "640px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Button",
+      "kind": "button",
+      "refersTo": "button",
+      "description": "Default (outline) action: Bench Paper fill, hairline border, control shadow, 0.375rem corner; hover takes the Teal Wash.",
+      "html": "<button class=\"ds-btn\">Save</button>",
+      "css": ".ds-btn{font-family:var(--font, 'IBM Plex Sans', 'Segoe UI', sans-serif);line-height:1.45;display:inline-flex;align-items:center;justify-content:center;gap:.5rem;min-height:2.25rem;padding:.5rem 1rem;border:1px solid var(--border, oklch(0.91 0.004 286));border-radius:calc(var(--radius, .5rem) - 2px);background:var(--background, oklch(0.975 0.003 90));color:var(--foreground, oklch(0.21 0.006 286));font-size:.875rem;font-weight:500;box-shadow:var(--shadow-sm, 0 1px 2px oklch(0.21 0.006 286 / 8%));cursor:pointer} .ds-btn:hover{background:var(--accent, oklch(0.93 0.03 190));color:var(--accent-foreground, oklch(0.35 0.06 195))} .ds-btn:focus-visible{outline:2px solid var(--ring, oklch(0.52 0.07 195));outline-offset:2px;}"
+    },
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The chosen or committed action: Bench Ink fill with the primary shadow. Also the pressed state of a segmented control.",
+      "html": "<button class=\"ds-btn-primary\">Export 3MF</button>",
+      "css": ".ds-btn-primary{font-family:var(--font, 'IBM Plex Sans', 'Segoe UI', sans-serif);line-height:1.45;display:inline-flex;align-items:center;justify-content:center;gap:.5rem;min-height:2.25rem;padding:.5rem 1rem;border:1px solid var(--primary, oklch(0.21 0.006 286));border-radius:calc(var(--radius, .5rem) - 2px);background:var(--primary, oklch(0.21 0.006 286));color:var(--primary-foreground, oklch(0.985 0.002 90));font-size:.875rem;font-weight:500;box-shadow:var(--shadow, 0 1px 3px oklch(0.21 0.006 286 / 10%));cursor:pointer} .ds-btn-primary:hover{background:color-mix(in oklch, var(--primary, oklch(0.21 0.006 286)) 90%, var(--card, oklch(0.995 0.002 90)))} .ds-btn-primary:focus-visible{outline:2px solid var(--ring, oklch(0.52 0.07 195));outline-offset:2px;}"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Quiet header action: no fill, no border, Teal Wash on hover. Save and Load wear it at the small size.",
+      "html": "<button class=\"ds-btn-ghost\">Save</button>",
+      "css": ".ds-btn-ghost{font-family:var(--font, 'IBM Plex Sans', 'Segoe UI', sans-serif);line-height:1.45;display:inline-flex;align-items:center;justify-content:center;gap:.5rem;min-height:2rem;padding:.25rem .6rem;border:1px solid transparent;border-radius:calc(var(--radius, .5rem) - 2px);background:transparent;color:var(--foreground, oklch(0.21 0.006 286));font-size:.75rem;font-weight:500;cursor:pointer} .ds-btn-ghost:hover{background:var(--accent, oklch(0.93 0.03 190));color:var(--accent-foreground, oklch(0.35 0.06 195))} .ds-btn-ghost:focus-visible{outline:2px solid var(--ring, oklch(0.52 0.07 195));outline-offset:2px;}"
+    },
+    {
+      "name": "Chip",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "Round mono label chip. Selected is Pressed Grey; the teal pill carries facts like backbone.",
+      "html": "<span class=\"ds-chip-row\"><span class=\"ds-chip\">2U · 99.5 mm</span><span class=\"ds-chip ds-chip-teal\">backbone</span></span>",
+      "css": ".ds-chip-row{display:inline-flex;gap:.5rem} .ds-chip{font-family:'IBM Plex Mono', ui-monospace, monospace;line-height:1.45;display:inline-flex;align-items:center;gap:.375rem;padding:.125rem .625rem;border:1px solid var(--border, oklch(0.91 0.004 286));border-radius:999px;background:var(--card, oklch(0.995 0.002 90));color:var(--muted-foreground, oklch(0.52 0.012 286));font-size:.75rem} .ds-chip-teal{background:var(--accent, oklch(0.93 0.03 190));color:var(--accent-foreground, oklch(0.35 0.06 195));border-color:var(--teal, oklch(0.52 0.07 195))}"
+    },
+    {
+      "name": "Printer Toggle",
+      "kind": "chip",
+      "refersTo": "printer-toggle",
+      "description": "Export-row printer selector: name plus bed size in small mono. Selected is Teal Wash with a Bench Teal border.",
+      "html": "<span class=\"ds-chip-row\"><button class=\"ds-ptoggle ds-ptoggle-on\" aria-pressed=\"true\">U1 <span class=\"ds-pmono\">270×270</span></button><button class=\"ds-ptoggle\" aria-pressed=\"false\">P1S <span class=\"ds-pmono\">256×256</span></button></span>",
+      "css": ".ds-ptoggle{font-family:var(--font, 'IBM Plex Sans', 'Segoe UI', sans-serif);line-height:1.45;border:1px solid var(--border, oklch(0.91 0.004 286));border-radius:calc(var(--radius, .5rem) - 2px);background:var(--background, oklch(0.975 0.003 90));color:var(--foreground, oklch(0.21 0.006 286));padding:.5rem 1rem;font-size:.875rem;cursor:pointer} .ds-ptoggle:hover{border-color:var(--teal, oklch(0.52 0.07 195))} .ds-ptoggle-on{border-color:var(--teal, oklch(0.52 0.07 195));background:var(--accent, oklch(0.93 0.03 190));color:var(--accent-foreground, oklch(0.35 0.06 195))} .ds-pmono{font-family:'IBM Plex Mono', ui-monospace, monospace;font-size:.75rem;opacity:.7} .ds-ptoggle:focus-visible{outline:2px solid var(--ring, oklch(0.52 0.07 195));outline-offset:2px;}"
+    },
+    {
+      "name": "Status Chip",
+      "kind": "chip",
+      "refersTo": "status-chip",
+      "description": "Non-interactive state report in mono Pencil Grey (enabled printers in the header).",
+      "html": "<span class=\"ds-status\">U1</span>",
+      "css": ".ds-status{font-family:'IBM Plex Mono', ui-monospace, monospace;line-height:1.45;display:inline-flex;align-items:center;padding:.125rem .5rem;border:1px solid var(--border, oklch(0.91 0.004 286));border-radius:999px;background:var(--card, oklch(0.995 0.002 90));color:var(--muted-foreground, oklch(0.52 0.012 286));font-size:.75rem;cursor:default}"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Input with a 500-weight label above, Field Edge border, control shadow, 2.25rem tall.",
+      "html": "<label class=\"ds-field\"><span>Depth</span><select class=\"ds-input\"><option>5 units · 240.1 mm</option></select></label>",
+      "css": ".ds-field{font-family:var(--font, 'IBM Plex Sans', 'Segoe UI', sans-serif);line-height:1.45;display:flex;flex-direction:column;align-items:flex-start;gap:.5rem;color:var(--foreground, oklch(0.21 0.006 286));font-size:.875rem;font-weight:500} .ds-input{font:inherit;font-weight:400;color:var(--foreground, oklch(0.21 0.006 286));border:1px solid var(--input, oklch(0.62 0.008 286));background:var(--card, oklch(0.995 0.002 90));border-radius:calc(var(--radius, .5rem) - 2px);padding:.5rem .75rem;min-height:2.25rem;box-shadow:var(--shadow-sm, 0 1px 2px oklch(0.21 0.006 286 / 8%))} .ds-input:focus-visible{outline:2px solid var(--ring, oklch(0.52 0.07 195));outline-offset:2px;}"
+    },
+    {
+      "name": "Switch",
+      "kind": "custom",
+      "refersTo": "input",
+      "description": "Round 2.25rem × 1.25rem toggle; off is a 22% ink tint, on is Bench Ink, with a Bench Paper thumb.",
+      "html": "<span class=\"ds-switch-row\"><button class=\"ds-switch\" role=\"switch\" aria-checked=\"false\" aria-label=\"Off\"><span></span></button><button class=\"ds-switch ds-switch-on\" role=\"switch\" aria-checked=\"true\" aria-label=\"On\"><span></span></button></span>",
+      "css": ".ds-switch-row{display:inline-flex;gap:.6rem} .ds-switch{position:relative;width:2.25rem;height:1.25rem;padding:0;border:2px solid transparent;border-radius:999px;background:color-mix(in oklch, var(--foreground, oklch(0.21 0.006 286)) 22%, transparent);box-shadow:var(--shadow-sm, 0 1px 2px oklch(0.21 0.006 286 / 8%));cursor:pointer} .ds-switch span{position:absolute;top:0;left:0;width:1rem;height:1rem;border-radius:999px;background:var(--background, oklch(0.975 0.003 90));box-shadow:0 2px 4px oklch(0.21 0.006 286 / 25%)} .ds-switch-on{background:var(--primary, oklch(0.21 0.006 286))} .ds-switch-on span{left:calc(100% - 1rem)} .ds-switch:focus-visible{outline:2px solid var(--ring, oklch(0.52 0.07 195));outline-offset:2px;}"
+    },
+    {
+      "name": "Step Tabs",
+      "kind": "nav",
+      "refersTo": "tab",
+      "description": "Tabs in the sticky shell: small mono numeral at 60% opacity, selected is Bench Ink at weight 500 with a 2px Bench Teal underline.",
+      "html": "<nav class=\"ds-tabs\"><button class=\"ds-tab-on\" aria-selected=\"true\"><span class=\"ds-tabnum\">1</span>Design</button><button><span class=\"ds-tabnum\">2</span>Parts</button><button><span class=\"ds-tabnum\">3</span>Plates</button><button><span class=\"ds-tabnum\">4</span>Assemble</button></nav>",
+      "css": ".ds-tabs{font-family:var(--font, 'IBM Plex Sans', 'Segoe UI', sans-serif);line-height:1.45;display:flex;gap:.25rem;border-bottom:1px solid var(--border, oklch(0.91 0.004 286))} .ds-tabs button{font:inherit;font-size:.875rem;background:transparent;border:none;border-bottom:2px solid transparent;margin-bottom:-1px;color:var(--muted-foreground, oklch(0.52 0.012 286));padding:.625rem 1rem;min-height:2.5rem;cursor:pointer} .ds-tabnum{font-family:'IBM Plex Mono', ui-monospace, monospace;font-size:.75rem;opacity:.6;margin-right:.375rem} .ds-tabs .ds-tab-on{color:var(--foreground, oklch(0.21 0.006 286));border-bottom-color:var(--teal, oklch(0.52 0.07 195));font-weight:500} .ds-tabs button:not(.ds-tab-on):hover{color:var(--foreground, oklch(0.21 0.006 286))} .ds-tabs button:focus-visible{outline:2px solid var(--ring, oklch(0.52 0.07 195));outline-offset:2px;}"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Card Stock surface, hairline border, 1.5rem padding, no shadow; 0.875rem semibold title.",
+      "html": "<section class=\"ds-card\"><div class=\"ds-card-head\"><h2>Footprint</h2></div><p class=\"ds-note\">Fits every enabled printer.</p></section>",
+      "css": ".ds-card{font-family:var(--font, 'IBM Plex Sans', 'Segoe UI', sans-serif);line-height:1.45;background:var(--card, oklch(0.995 0.002 90));color:var(--foreground, oklch(0.21 0.006 286));border:1px solid var(--border, oklch(0.91 0.004 286));border-radius:var(--radius, .5rem);padding:1.5rem;max-width:24rem} .ds-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;margin-bottom:1rem} .ds-card h2{margin:0;font-size:.875rem;font-weight:600} .ds-note{margin:0;color:var(--muted-foreground, oklch(0.52 0.012 286));font-size:.875rem}"
+    },
+    {
+      "name": "Layer Row",
+      "kind": "custom",
+      "refersTo": "layer-row",
+      "description": "Signature: a Bench Paper bordered strip with grip, layer name plus one-line summary, mono height pill and remove icon. The open one takes Teal Wash with a teal border.",
+      "html": "<div class=\"ds-layer\"><svg class=\"ds-grip\" viewBox=\"0 0 16 16\" width=\"16\" height=\"16\" fill=\"currentColor\" aria-hidden=\"true\"><circle cx=\"5\" cy=\"3.5\" r=\"1.15\"/><circle cx=\"11\" cy=\"3.5\" r=\"1.15\"/><circle cx=\"5\" cy=\"8\" r=\"1.15\"/><circle cx=\"11\" cy=\"8\" r=\"1.15\"/><circle cx=\"5\" cy=\"12.5\" r=\"1.15\"/><circle cx=\"11\" cy=\"12.5\" r=\"1.15\"/></svg><button class=\"ds-layer-name\">S drawer<span class=\"ds-layer-sum\">empty</span></button><span class=\"ds-pill\">2U · 99.5 mm</span></div><div class=\"ds-layer ds-layer-open\" style=\"margin-top:.5rem\"><span class=\"ds-layer-name\">S drawer (open)</span><span class=\"ds-pill\">2U · 99.5 mm</span></div>",
+      "css": ".ds-layer{font-family:var(--font, 'IBM Plex Sans', 'Segoe UI', sans-serif);line-height:1.45;display:flex;align-items:center;gap:.75rem;background:var(--background, oklch(0.975 0.003 90));border:1px solid var(--border, oklch(0.91 0.004 286));border-radius:calc(var(--radius, .5rem) - 2px);padding:.625rem .75rem;color:var(--foreground, oklch(0.21 0.006 286));max-width:26rem} .ds-grip{color:var(--muted-foreground, oklch(0.52 0.012 286));cursor:grab;flex:none} .ds-layer-name{flex:1;display:flex;flex-direction:column;align-items:flex-start;text-align:left;font:inherit;font-size:.875rem;font-weight:500;background:transparent;border:none;padding:.35rem .2rem;min-height:2.25rem;color:inherit;cursor:pointer} .ds-layer-sum{font-size:.86rem;font-weight:400;color:var(--muted-foreground, oklch(0.52 0.012 286))} .ds-pill{display:inline-flex;align-items:center;padding:.125rem .625rem;border:1px solid var(--border, oklch(0.91 0.004 286));border-radius:999px;background:var(--card, oklch(0.995 0.002 90));color:var(--muted-foreground, oklch(0.52 0.012 286));font-family:'IBM Plex Mono', ui-monospace, monospace;font-size:.75rem} .ds-layer-open{background:var(--accent, oklch(0.93 0.03 190));border-color:var(--teal, oklch(0.52 0.07 195))}"
+    },
+    {
+      "name": "Filament Swatch",
+      "kind": "custom",
+      "refersTo": "swatch",
+      "description": "Signature: the one place colour is allowed. A 2.5rem square on piece cards, overlapping 1rem dots in the header, a 2.25rem colour disc picker in Settings.",
+      "html": "<span class=\"ds-sw-row\"><span class=\"ds-swatch\" style=\"background:#2a2b2e\"></span><span class=\"ds-swatch\" style=\"background:#ece6d9\"></span><span class=\"ds-dots\"><span class=\"ds-dot\" style=\"background:#c8a256\"></span><span class=\"ds-dot\" style=\"background:#3b4f6b\"></span><span class=\"ds-dot\" style=\"background:#a9adb3\"></span></span><span class=\"ds-disc\" style=\"background:#3b4f6b\"></span></span>",
+      "css": ".ds-sw-row{display:inline-flex;align-items:center;gap:.75rem} .ds-swatch{width:2.5rem;height:2.5rem;border-radius:calc(var(--radius, .5rem) - 4px);border:1px solid var(--input, oklch(0.62 0.008 286))} .ds-dots{display:inline-flex} .ds-dot{width:1rem;height:1rem;border-radius:999px;border:1px solid color-mix(in oklch, var(--foreground, oklch(0.21 0.006 286)) 15%, transparent);box-shadow:0 0 0 2px var(--card, oklch(0.995 0.002 90));margin-left:-.25rem} .ds-dot:first-child{margin-left:0} .ds-disc{width:2.25rem;height:2.25rem;border-radius:999px;border:1px solid color-mix(in oklch, var(--foreground, oklch(0.21 0.006 286)) 15%, transparent)}"
+    },
+    {
+      "name": "Progress",
+      "kind": "custom",
+      "refersTo": "card",
+      "description": "A 0.4rem round track with a Bench Teal fill.",
+      "html": "<div class=\"ds-progress\"><div style=\"width:62%\"></div></div>",
+      "css": ".ds-progress{height:.4rem;max-width:16rem;background:var(--muted, oklch(0.95 0.003 286));border-radius:999px;overflow:hidden;margin:.4rem 0} .ds-progress div{height:100%;background:var(--teal, oklch(0.52 0.07 195))}"
+    },
+    {
+      "name": "Warning Message",
+      "kind": "custom",
+      "refersTo": "hint",
+      "description": "A full-width message line: signal-coloured text on its faint wash. Inline status words stay text-only.",
+      "html": "<p class=\"ds-msg ds-msg-warn\">Layer 2 is 4U: this does not fit the enabled printers.</p>",
+      "css": ".ds-msg{margin:.35rem 0;padding:.4rem .7rem;border-radius:.5rem;font-family:'IBM Plex Sans','Segoe UI',sans-serif;line-height:1.45;max-width:26rem} .ds-msg-warn{background:var(--warn-bg, oklch(0.955 0.035 80));color:var(--warn, oklch(0.50 0.11 60))}"
+    },
+    {
+      "name": "Fault Message",
+      "kind": "custom",
+      "refersTo": "hint",
+      "description": "A full-width message line: signal-coloured text on its faint wash. Inline status words stay text-only.",
+      "html": "<p class=\"ds-msg ds-msg-bad\">1× Module body L 4U does not fit an export printer.</p>",
+      "css": ".ds-msg{margin:.35rem 0;padding:.4rem .7rem;border-radius:.5rem;font-family:'IBM Plex Sans','Segoe UI',sans-serif;line-height:1.45;max-width:26rem} .ds-msg-bad{background:var(--bad-bg, oklch(0.955 0.022 25));color:var(--bad, oklch(0.52 0.16 25))}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Neutral Bench",
+    "overview": "A clean workbench that lets the user's own filament colours and the designer's real renders be the loudest colour in the room. The chrome is warm off-white paper, ink-dark text, and hairline rules under a sticky, blurred header; the one accent is a muted teal that means \"this is selected or in progress\": the current tab, the open layer, a plate marked printed, the focus ring. A switch that is on is ink-filled, like a primary button. Everything else that carries colour is data: a swatch, a drawer front in the stack preview, a part on a plate bed. When the interface stays this quiet, a wrong number or an unprintable part is the loudest thing on screen.\n\nThe mood is calm, precise and restrained, at an airier scale than the bench's first rendition: a centred 80rem column, 1.5rem card padding and 2rem column gaps (the rendition pinned from the \"Vault Configurator UI prototype\" on Lovable, ported 2026-11). Density is still real, because this is a planner with part lists, plate beds and printer fleets, but it is held together by hairline borders, a three-step shadow scale on controls only, and consistent control heights rather than by decoration. Icons are a single 2px-stroke set drawn inline, used only where they name an action.\n\nThis is an independent tool with a neutral identity (see PRODUCT.md). Nothing here borrows the VAULT or USSA Design look.",
+    "keyCharacteristics": [
+      "Colour belongs to the user's filaments; the UI itself is paper, ink and one teal that marks selection and state.",
+      "Cards are flat with hairline borders; controls carry a small resting shadow so editable things read as objects on the bench.",
+      "Hairline borders do the structural work that fills and shadows do elsewhere.",
+      "Plex Sans for prose and controls; Plex Mono for the wordmark, chips, counts and measured dimensions.",
+      "Light and dark themes share one set of semantic token names and one warm-neutral hue family, each composed on its own.",
+      "Desktop-first, mouse and keyboard; breakpoints at 1100px (preview narrows), 900px (one column) and 640px (tight gutters)."
+    ],
+    "rules": [
+      {
+        "name": "The Filaments-First Colour Rule",
+        "body": "The loudest hue on any screen is a filament colour (swatches, dots, plate parts, the stack preview). The interface adds only Bench Teal, and only to mark selection, state or focus. Do not introduce a second accent.",
+        "section": "colors"
+      },
+      {
+        "name": "The Quiet Wash Rule",
+        "body": "Caution, Fault and Confirmed colour text. Only a full-width message line may also carry the matching faint wash, with no border, no icon and no saturated fill. A warning is still a sentence, not a banner.",
+        "section": "colors"
+      },
+      {
+        "name": "The Millimetre Rule",
+        "body": "Measured dimensions, sizes and coordinates are set in Plex Mono so figures align and read as data; the same mono carries the wordmark, chips, tab numerals and counts — short data labels only. Prose never uses it.",
+        "section": "typography"
+      },
+      {
+        "name": "The Weight-Not-Size Rule",
+        "body": "Emphasis inside a row is weight (500 or 600), never a larger size.",
+        "section": "typography"
+      },
+      {
+        "name": "The One Column Collapse Rule",
+        "body": "Below 900px every multi-column grid becomes a single column in source order. The 1100px preview narrowing is the one intermediate step.",
+        "section": "layout"
+      },
+      {
+        "name": "The Flat-Cards Rule",
+        "body": "Surfaces and cards are flat at rest and nothing lifts on hover. Shadows belong to controls and menus only. Hover is a colour or border change (a button takes the Teal Wash, a piece card takes a teal edge, an inactive tab darkens to ink), never a movement.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** let colour come from filaments and renders. A swatch, a dot, a plate part or a drawer front is where a saturated hue belongs; Bench Teal marks selection and state beside them.",
+      "**Do** separate surfaces with a 1px Hairline border and a tonal step (Paper, Card Stock, Recess). Keep shadows on controls and menus, from the three-step scale only.",
+      "**Do** keep controls on the 2.25rem rhythm (small header size 2rem, tabs 2.5rem) and corners on the one radius scale (0.25 / 0.375 / 0.5rem) so rows align across the page.",
+      "**Do** set measured dimensions, chips and counts in IBM Plex Mono and state limits with the number (\"329.6 mm wide\", not \"too big\").",
+      "**Do** use the inline 2px-stroke icon set where an icon names the action (save, load, add, export); pair it with a text label on buttons.",
+      "**Do** report faults as a short Caution or Fault sentence beside the control that caused it; give a blocking full-width message its faint wash.",
+      "**Do** keep a visible 2px Bench Teal focus ring on every interactive element; this is a keyboard-and-mouse desk tool.",
+      "**Do** take every colour from the token set so light and dark both work. Add a token before adding a literal."
+    ],
+    "donts": [
+      "**Don't** add a second accent colour, gradients, glow, or decorative coloured backgrounds on panels. Tinted backgrounds are limited to the three signal washes on message lines and Teal Wash on the documented selected, open and hover states.",
+      "**Don't** use Caution, Fault or Confirmed as saturated fills, borders, left-edge stripes or banners; they colour text, and a message line may add its faint wash.",
+      "**Don't** lift on hover, shadow a card, or add shadow steps beyond the three named ones.",
+      "**Don't** introduce a display typeface or a size jump to show emphasis; use weight.",
+      "**Don't** import the look of the VAULT product or USSA Design (logo, palette, imagery as chrome); the identity stays neutral and independent.",
+      "**Don't** use emoji or text glyphs (`×`, `←`, `+`) as icons, or icons as ornament; the interface carries data.",
+      "**Don't** hard-code a colour in a component's CSS for UI chrome. The only literal colours in code are fallbacks for filament data (`#c9ccd0`, `#ccc`).",
+      "**Don't** design for touch or narrow screens beyond the documented 1100 / 900 / 640px steps unless the product brief changes."
+    ]
+  }
+}

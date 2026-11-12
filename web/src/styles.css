@@ -1,0 +1,269 @@
+@layer reset, base, theme, components;
+/* Components layer lives per surface under ./styles/ (shell = shared
+   controls). Import order is cascade order within the layer; the rules
+   that remain in this file (step footer, viewer, utilities, responsive
+   overrides) come last, as they did when this was one sheet. */
+@import url("./styles/shell.css") layer(components);
+@import url("./styles/design.css") layer(components);
+@import url("./styles/parts.css") layer(components);
+@import url("./styles/plates.css") layer(components);
+@import url("./styles/settings.css") layer(components);
+@import url("./styles/assemble.css") layer(components);
+
+@layer reset {
+  :where(html) {
+    box-sizing: border-box;
+  }
+  :where(body, button, input, select, textarea, summary) {
+    box-sizing: border-box;
+  }
+  :where(body) {
+    margin: 0;
+  }
+  :where(button, input, select, textarea) {
+    font: inherit;
+    color: inherit;
+  }
+  :where(button, summary) {
+    cursor: pointer;
+  }
+  :where(h1, h2, h3, p) {
+    margin: 0;
+  }
+}
+
+@layer base {
+  :root {
+    color-scheme: light;
+    --radius: 0.5rem;
+    --radius-sm: calc(var(--radius) - 4px);
+    --radius-md: calc(var(--radius) - 2px);
+    /* Full-bleed header rows align to the centred 80rem page column. */
+    --page-pad: max(2rem, calc((100% - 80rem) / 2 + 2rem));
+    --background: oklch(0.975 0.003 90);
+    --foreground: oklch(0.21 0.006 286);
+    --card: oklch(0.995 0.002 90);
+    --card-foreground: oklch(0.21 0.006 286);
+    --primary: oklch(0.21 0.006 286);
+    --primary-foreground: oklch(0.985 0.002 90);
+    --secondary: oklch(0.94 0.004 286);
+    --muted: oklch(0.95 0.003 286);
+    --muted-foreground: oklch(0.52 0.012 286);
+    --accent: oklch(0.93 0.03 190);
+    --accent-foreground: oklch(0.35 0.06 195);
+    --teal: oklch(0.52 0.07 195);
+    --bed: oklch(0.90 0.004 286);
+    --bed-grid: oklch(0.79 0.004 286);
+    --bed-outline: oklch(0.21 0.006 286);
+    --preview-frame: oklch(0.28 0.006 286);
+    --border: oklch(0.91 0.004 286);
+    /* Field edges need 3:1 against the card to mark an editable control. */
+    --input: oklch(0.62 0.008 286);
+    --ring: oklch(0.52 0.07 195);
+    --warn: oklch(0.50 0.11 60);
+    --bad: oklch(0.52 0.16 25);
+    --ok: oklch(0.48 0.09 155);
+    --warn-bg: oklch(0.955 0.035 80);
+    --bad-bg: oklch(0.955 0.022 25);
+    --ok-bg: oklch(0.955 0.035 155);
+    --selection: oklch(0.86 0.06 192);
+    --scrollbar: oklch(0.62 0.01 286);
+    --shadow-sm: 0 1px 2px oklch(0.21 0.006 286 / 8%);
+    --shadow: 0 1px 3px oklch(0.21 0.006 286 / 10%), 0 1px 2px -1px oklch(0.21 0.006 286 / 10%);
+    --shadow-md: 0 4px 6px -1px oklch(0.21 0.006 286 / 10%), 0 2px 4px -2px oklch(0.21 0.006 286 / 10%);
+    accent-color: var(--teal);
+    caret-color: var(--teal);
+    scrollbar-color: var(--scrollbar) transparent;
+    font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+    background: var(--background);
+    color: var(--foreground);
+  }
+
+  html.dark {
+    color-scheme: dark;
+    --background: oklch(0.165 0.006 286);
+    --foreground: oklch(0.955 0.004 90);
+    --card: oklch(0.205 0.007 286);
+    --card-foreground: oklch(0.955 0.004 90);
+    --primary: oklch(0.93 0.006 90);
+    --primary-foreground: oklch(0.18 0.006 286);
+    --secondary: oklch(0.28 0.007 286);
+    --muted: oklch(0.255 0.007 286);
+    --muted-foreground: oklch(0.72 0.01 286);
+    --accent: oklch(0.30 0.045 195);
+    --accent-foreground: oklch(0.85 0.07 195);
+    --teal: oklch(0.74 0.075 195);
+    --bed: oklch(0.36 0.006 286);
+    --bed-grid: oklch(0.46 0.006 286);
+    --bed-outline: oklch(0.97 0.004 90);
+    --preview-frame: oklch(0.78 0.01 286);
+    --border: oklch(0.31 0.007 286);
+    --input: oklch(0.54 0.008 286);
+    --ring: oklch(0.74 0.075 195);
+    --warn: oklch(0.80 0.11 75);
+    --bad: oklch(0.76 0.13 25);
+    --ok: oklch(0.78 0.10 155);
+    --warn-bg: oklch(0.27 0.045 75);
+    --bad-bg: oklch(0.265 0.05 25);
+    --ok-bg: oklch(0.26 0.04 155);
+    --selection: oklch(0.40 0.06 195);
+    --scrollbar: oklch(0.52 0.008 286);
+    --shadow-sm: 0 1px 2px oklch(0 0 0 / 30%);
+    --shadow: 0 1px 3px oklch(0 0 0 / 35%), 0 1px 2px -1px oklch(0 0 0 / 35%);
+    --shadow-md: 0 4px 6px -1px oklch(0 0 0 / 40%), 0 2px 4px -2px oklch(0 0 0 / 40%);
+  }
+
+  html {
+    /* Reserve the scrollbar track on every tab so the page never jumps sideways. */
+    scrollbar-gutter: stable;
+  }
+
+  body {
+    min-block-size: 100vh;
+    background: var(--background);
+    color: var(--foreground);
+    line-height: 1.45;
+  }
+
+  :where(button, a, input, select, textarea, summary):focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  a {
+    color: var(--accent-foreground);
+    text-decoration-color: var(--teal);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.18em;
+  }
+
+  ::selection {
+    background: var(--selection);
+    color: var(--foreground);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .progress div {
+      transition: none;
+    }
+  }
+}
+
+@layer components {
+  .step-footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem 1.5rem;
+    margin-block-start: 2.5rem;
+    padding-block-start: 1.5rem;
+    border-block-start: 1px solid var(--border);
+  }
+  /* Inside the Design controls column the column gap already separates the
+     footer from Finish; the page-level 2.5rem lead-in would double it. */
+  .col > .step-footer {
+    margin-block-start: 0;
+  }
+
+  .step-footer .note {
+    flex: 1 1 16rem;
+    max-inline-size: 42rem;
+    margin: 0;
+  }
+
+  .viewer {
+    position: fixed;
+    inset: 0;
+    background: oklch(0.13 0.006 286 / 88%);
+    /* Above the sticky .app-head stacking context (z-index 30), or the
+       header covers the viewer's toolbar and its focused Close button. */
+    z-index: 50;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .viewer .bar {
+    display: flex;
+    gap: 0.7rem;
+    align-items: center;
+    padding: 0.6rem 0.9rem;
+    background: var(--card);
+  }
+
+  .viewer canvas {
+    flex: 1;
+    inline-size: 100%;
+    min-block-size: 0;
+  }
+
+  .spaced {
+    margin-block-start: 1.5rem;
+  }
+
+  .visually-hidden {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  @media (max-width: 1100px) {
+    .compose {
+      grid-template-columns: minmax(0, 1fr) 320px;
+    }
+  }
+
+  @media (max-width: 900px) {
+    .compose, .settings, .role-row {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .settings-btn {
+      margin-inline-start: 0;
+    }
+    .role-row select {
+      inline-size: min(14rem, 100%);
+    }
+  }
+
+  @media (max-width: 640px) {
+    .page {
+      padding: 1.5rem 0.9rem 2rem;
+    }
+    .topbar, .tabs {
+      padding-inline: 0.9rem;
+    }
+    .fit-controls {
+      flex-shrink: 1;
+      min-inline-size: 0;
+    }
+    .tabs {
+      overflow-x: auto;
+    }
+    .tabs button {
+      flex: none;
+      padding-inline: 0.6rem;
+    }
+    .settings-nav {
+      flex-direction: row;
+      flex-wrap: wrap;
+    }
+    /* Anchor the Load menu to the topbar, not the trigger: right-aligning to
+       .load clips it offscreen whenever Load wraps to a row start. */
+    .topbar {
+      position: relative;
+    }
+    .load {
+      position: static;
+    }
+    .menu {
+      inset-inline: 0.9rem;
+      min-inline-size: 0;
+    }
+  }
+}

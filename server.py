@@ -1,6 +1,9 @@
 """Local web server for the VAULT configurator.  Run:  python server.py  (opens the browser)."""
+import copy
 import io
 import json
+import math
+import mimetypes
 import os
 import re
 import subprocess
@@ -14,6 +17,7 @@ import zipfile
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+UI_DIST = os.path.join(HERE, "web", "dist")
 # the VAULT archive (01. DRAWERS, 02. SUSTAINERS, 03. MODIFICATIONS, the manuals): next to this folder by
 # default, or wherever VAULT_ARCHIVE points (Docker mounts it at /archive)
 ROOT = os.path.abspath(os.environ.get("VAULT_ARCHIVE") or os.path.dirname(HERE))
@@ -23,6 +27,8 @@ import version  # noqa: E402
 import catalog  # noqa: E402
 import mesh  # noqa: E402
 import plates  # noqa: E402
+import planner  # noqa: E402
+import stackfit  # noqa: E402
 import presets  # noqa: E402
 
 PORT = int(os.environ.get("VAULT_PORT") or os.environ.get("PORT") or 8765)
@@ -86,13 +92,64 @@ def precache():
 
 def settings_of(body):
     s = {**plates.DEFAULT_SETTINGS, **(body.get("settings") or {})}
+    _validate_settings(s)
     return s
 
 
+def _number(value, what):
+    # JSON numbers only: float() would also accept numeric strings and booleans, and the
+    # original string would then crash downstream arithmetic with a TypeError.
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(f"{what} needs a number.")
+    number = float(value)
+    if not math.isfinite(number):  # NaN, or infinity from JSON like 1e309
+        raise ValueError(f"{what} needs a number.")
+    return number
+
+
+def _positive(value, what):
+    number = _number(value, what)
+    if number <= 0:
+        raise ValueError(f"{what} must be above 0.")
+    return number
+
+
+def _nonnegative(value, what, maximum=None):
+    number = _number(value, what)
+    if number < 0:
+        raise ValueError(f"{what} must be at least 0.")
+    if maximum is not None and number > maximum:
+        raise ValueError(f"{what} must be at most {maximum:g}.")
+    return number
+
+
+def _validate_settings(s):
+    """A zero-sized bed or estimate must fail here, not as nonsense plates downstream."""
+    for p in s.get("printers") or []:
+        name = p.get("name") or p.get("id") or "Printer"
+        bed = p.get("bed") or []
+        if len(bed) != 2:
+            raise ValueError(f"{name} bed needs two numbers.")
+        _positive(bed[0], f"{name} bed X")
+        _positive(bed[1], f"{name} bed Y")
+        _positive(p.get("z"), f"{name} Z")
+        if p.get("maxH") is not None:
+            _positive(p["maxH"], f"{name} max part height")
+    # These keys always exist after the defaults merge; an explicit JSON null overwrites the
+    # default and must fail here with the field name, not as a TypeError in the estimate.
+    for key in ("spacing", "edge"):
+        if key in s:
+            _nonnegative(s[key], key)
+    if "infill" in s:
+        _nonnegative(s["infill"], "infill", maximum=1)
+    for key in ("wallMm", "secondsPerGram", "density"):
+        if key in s:
+            _positive(s[key], key)
+
+
 def biggest_printer(s):
-    ps = [p for p in s["printers"] if p.get("enabled", True)]
-    if s["mode"] != "both":
-        ps = [p for p in ps if p["id"] == s["mode"]] or ps
+    """The biggest printer this export will actually use. Same list as plan()."""
+    ps = plates.printers_for_export(s)
     return max(ps, key=lambda p: p["bed"][0] * p["bed"][1]) if ps else None
 
 
@@ -110,6 +167,8 @@ def estimate_from_preset(s, p):
 
 
 def compute_bom(body):
+    body = dict(body)
+    body["stack"] = stackfit.normalize(copy.deepcopy(body.get("stack") or {}))
     s = settings_of(body)
     big = biggest_printer(s)
     est = estimate_from_preset(s, big) if s.get("estimateFromPreset", True) else None
@@ -152,6 +211,16 @@ def compute_bom(body):
             bigger = [f"{n} ({x}×{y}×{z} mm)" for n, (x, y, z) in BIGGER.items() if h <= z and plates.diagonal_fit(w, d, x, y) is not None]
             bom["warnings"].append(f'{l["group"]}: {l["qty"]}× {l["name"]} ({w:.1f}×{d:.1f}×{h:.1f} mm) cannot be printed. ' + "; ".join(why) + "."
                                    + (f" It fits a {' or a '.join(bigger)}." if bigger else ""))
+    judged, scope = stackfit.judged_printers(s, body.get("fitTarget"))
+    bom["judged"] = {"scope": scope, "printers": [{"id": p["id"], "name": p["name"]} for p in judged]}
+    bom["stack"] = body["stack"]
+    if body.get("fitChoices") and judged:
+        bom["optionFits"] = stackfit.fit_choices(body["stack"], judged, float(s["edge"]), INDEX, SITE, stats_fn, fits_whole)
+        bom["optionFits"]["scope"] = scope
+        bom["optionFits"]["printers"] = bom["judged"]["printers"]
+        bom["choices"] = bom["optionFits"]
+    else:
+        bom["choices"] = stackfit.choice_frame(body["stack"])
     return bom, s
 
 
@@ -191,6 +260,33 @@ def tot_h(sec):
 
 
 EXPORT = {"running": False, "percent": 0, "msg": "", "result": None, "error": None}
+EXPORTED = {}  # basename -> real path, only files this process wrote under output/
+
+
+def output_root():
+    return os.path.join(HERE, "output")
+
+
+def remember_written(paths):
+    for path in paths:
+        if path and os.path.isfile(path):
+            planner.remember_export(path, EXPORTED, output_root())
+
+
+def handoff_meta(loopback):
+    """What this process can open, and the sentence the page should show."""
+    if not loopback:
+        return "none", ("This page is not on the computer running the planner. Download the 3MF and open it in "
+                        "Bambu Studio or OrcaSlicer. Opening an app needs the planner running on that Mac or PC, "
+                        "not in a hosted browser or on a NAS.")
+    if sys.platform == "darwin":
+        return "mac", ("Opens the exported 3MF in Bambu Studio or OrcaSlicer on this Mac. If the app is missing, "
+                       "macOS says so and the download still works.")
+    if sys.platform == "win32":
+        return "windows", ("Shows the export folder, or opens the 3MF with the app Windows has associated with it. "
+                           "The download is there either way.")
+    return "none", ("This computer is not macOS or Windows, so the planner cannot hand a file to Bambu Studio or "
+                    "OrcaSlicer. Download the 3MF and open it yourself.")
 
 
 def run_export(body, test):
@@ -199,6 +295,13 @@ def run_export(body, test):
     t = time.time()
     try:
         bom, s = compute_bom(body)
+        if not test:
+            # A main export with missing files would silently ship an incomplete cart.
+            missing = plates.missing_file_lines(bom["parts"])
+            if missing:
+                pieces = sum(int(line["qty"]) for line in missing)
+                raise ValueError(f"{pieces} pieces have no file in the archive (first: {missing[0]['name']}). "
+                                 "Nothing was exported. Point the planner at your VAULT folder.")
         name = re.sub(r"[^A-Za-z0-9_-]+", "-", body["stack"].get("name") or "vault-stack").strip("-") or "vault-stack"
         out = os.path.join(HERE, "output", name)
 
@@ -206,17 +309,25 @@ def run_export(body, test):
             EXPORT.update({"percent": round(pct), "msg": msg})
         if test:
             pr = plates.plan_tests(bom["parts"], s, body.get("kinds") or [], stats_fn)
-            files = plates.export(pr, s, out, ROOT, stats_fn, stack_name=name, suffix="_TEST", progress=progress)
-            extra = []
         else:
             pr = plates.plan(bom["parts"], s, stats_fn)
-            files = plates.export(pr, s, out, ROOT, stats_fn, stack_name=name, progress=progress)
+        if not pr["plates"]:
+            first = pr["unplaceable"][0]["name"] if pr.get("unplaceable") else None
+            raise ValueError("No test plates could be planned for the selected part groups. Nothing was exported."
+                             if test else
+                             f"No plates could be planned{': ' + first + ' does not fit an export printer' if first else ''}. Nothing was exported.")
+        files = plates.export(pr, s, out, ROOT, stats_fn, stack_name=name, suffix="_TEST" if test else "", progress=progress)
+        if test:
+            extra = []
+        else:
             extra = [os.path.join(out, "BOM.md"), os.path.join(out, "stack.json")]
             write_bom_md(extra[0], body["stack"], bom, pr, s)
             with open(extra[1], "w", encoding="utf-8") as f:
                 json.dump({"stack": body["stack"], "settings": s, "overrides": body.get("overrides") or {}}, f, indent=1)
+        written_paths = [f["file"] for f in files]
+        remember_written(written_paths)
         EXPORT.update({"result": {"folder": out, "files": files, "plan": pr, "seconds": round(time.time() - t, 1),
-                                  "zip": name + ("_TEST" if test else "") + ".zip", "download": [f["file"] for f in files] + extra},
+                                  "zip": name + ("_TEST" if test else "") + ".zip", "download": written_paths + extra},
                        "percent": 100, "msg": "done"})
     except Exception as e:
         import traceback
@@ -268,10 +379,27 @@ class Handler(SimpleHTTPRequestHandler):
     def send_json(self, obj, code=200):
         self.send_bytes(json.dumps(obj).encode("utf-8"), "application/json; charset=utf-8", code)
 
+    def send_file(self, path, ctype, headers=()):
+        with open(path, "rb") as fh:
+            self.send_bytes(fh.read(), ctype, headers=headers)
+
+    def send_ui_asset(self, rel):
+        root = os.path.realpath(UI_DIST)
+        target = os.path.realpath(os.path.join(root, rel))
+        if target != root and not target.startswith(root + os.sep):
+            return self.send_json({"error": "not found"}, 404)
+        if not os.path.isfile(target):
+            return self.send_json({"error": "not found"}, 404)
+        ctype = mimetypes.guess_type(target)[0] or "application/octet-stream"
+        return self.send_file(target, ctype, headers=[("Cache-Control", "public, max-age=31536000, immutable")])
+
+    def loopback(self):
+        return self.client_address[0] in ("127.0.0.1", "::1")
+
     def local(self):
         """Page opened on the Windows machine running the server: Explorer can show the output folder.
         Anywhere else (Docker, NAS, another PC, macOS/Linux) the files are downloaded instead."""
-        return os.name == "nt" and self.client_address[0] in ("127.0.0.1", "::1")
+        return os.name == "nt" and self.loopback()
 
     def send_thumb(self, rel):
         rel = archive_rel(rel)
@@ -286,14 +414,30 @@ class Handler(SimpleHTTPRequestHandler):
             self.send_bytes(f.read(), "image/png", headers=[("Cache-Control", "max-age=86400")])
 
     def do_GET(self):
-        if self.path in ("/", "/index.html"):
+        path = urllib.parse.urlparse(self.path).path
+        if path in ("/classic", "/classic/", "/classic/index.html"):
             self.path = "/index.html"
             return super().do_GET()
+        if path in ("/", "/index.html"):
+            ui = os.path.join(UI_DIST, "index.html")
+            if os.path.isfile(ui):
+                return self.send_file(ui, "text/html; charset=utf-8", headers=[("Cache-Control", "no-cache")])
+            self.path = "/index.html"
+            return super().do_GET()
+        if path.startswith("/ui/"):
+            return self.send_ui_asset(path[1:])
         if self.path == "/api/meta":
             return self.send_json({"defaults": plates.DEFAULT_SETTINGS, "layouts": catalog.LAYOUTS, "allowed": catalog.ALLOWED_LAYOUTS,
-                                   "patterns": catalog.PATTERNS, "width": catalog.WIDTH, "files": len(INDEX.files), "progress": PROGRESS,
+                                   "patterns": catalog.PATTERNS, "width": catalog.WIDTH, "depths": list(catalog.DEPTHS), "roofs": list(catalog.ROOFS),
+                                   "files": len(INDEX.files), "progress": PROGRESS,
                                    "roles": catalog.ROLES, "roleLabels": catalog.ROLE_LABELS, "kinds": [k for k, _ in catalog.KINDS], "materials": plates.MATERIALS, "printerCatalog": plates.PRINTER_CATALOG,
-                                   "build": BUILD, "assets": assets_bootstrap.count(os.path.join(HERE, "assets")), "local": self.local()})
+                                   "families": catalog.FAMILIES, "layoutFamily": catalog.LAYOUT_FAMILY, "layerTypes": list(catalog.LAYER_TYPES),
+                                   "drawerInteriors": list(catalog.DRAWER_INTERIORS), "sustainerInteriors": list(catalog.SUSTAINER_INTERIORS),
+                                   "heights": list(catalog.HEIGHTS), "widthMm": catalog.WIDTH,
+                                   "build": BUILD, "assets": assets_bootstrap.count(os.path.join(HERE, "assets")), "local": self.local(),
+                                   "archiveVia": "environment" if os.environ.get("VAULT_ARCHIVE") else "unspecified",
+                                   "archiveReady": os.path.isdir(os.path.join(ROOT, "01. DRAWERS")),
+                                   **dict(zip(("handoff", "handoffNote"), handoff_meta(self.loopback())))})
         if self.path == "/api/progress":
             return self.send_json(PROGRESS)
         if self.path == "/api/presets":
@@ -305,6 +449,16 @@ class Handler(SimpleHTTPRequestHandler):
             return self.send_json(out)
         if self.path == "/api/export_status":
             return self.send_json(EXPORT)
+        if self.path == "/api/sample_plan":
+            return self.send_json(plates.sample_plan())
+        if self.path.startswith("/api/download_file"):
+            name = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query).get("name", [""])[0]
+            path = EXPORTED.get(name)
+            if not path:
+                return self.send_json({"error": "that file is not from an export this planner just wrote"}, 404)
+            with open(path, "rb") as fh:
+                data = fh.read()
+            return self.send_bytes(data, "application/octet-stream", headers=[("Content-Disposition", f'attachment; filename="{name}"')])
         if self.path == "/api/download":  # the last export as one zip: 3MFs + BOM.md + stack.json
             r = EXPORT.get("result")
             if not r:
@@ -357,11 +511,10 @@ class Handler(SimpleHTTPRequestHandler):
                 EXPORT.update({"running": True, "percent": 0, "msg": "planning…", "result": None, "error": None})
                 threading.Thread(target=run_export, args=(body, self.path == "/api/export_test"), daemon=True).start()
                 return self.send_json({"started": True})
-            if self.path == "/api/open":
-                if not self.local():
-                    return self.send_json({"error": "only from the computer running the tool"}, 403)
-                subprocess.Popen(["explorer", body["path"]])
-                return self.send_json({"ok": True})
+            if self.path in ("/api/open", "/api/handoff"):
+                return self.send_handoff(body)
+            if self.path == "/api/export_part":
+                return self.send_json(export_one_part(body))
             if self.path == "/api/presets_upload":  # {"files": {"BambuStudio/user/…/x.json": text}} from a folder picked in the browser
                 return self.send_json(presets.save_upload(body["files"]))
         except Exception as e:  # surface errors in the UI instead of a silent 500
@@ -371,6 +524,46 @@ class Handler(SimpleHTTPRequestHandler):
         finally:
             BUSY.acquire(blocking=False)
         return self.send_json({"error": "not found"}, 404)
+
+    def send_handoff(self, body):
+        """Open one file this process exported. Never a caller-supplied path or command."""
+        origin_ok = planner.origin_allows_handoff(self.headers.get("Origin"), self.headers.get("Host"))
+        filename = body.get("file") or ""
+        app = body.get("app") or ""
+        if not filename and body.get("path"):
+            filename = os.path.basename(str(body.get("path")).replace("\\", "/"))
+            app = app or "folder"
+        try:
+            spec = planner.plan_handoff(app, filename, platform=sys.platform, loopback=self.loopback(), origin_ok=origin_ok,
+                                        exported=EXPORTED, output_root=output_root())
+        except planner.HandoffError as e:
+            return self.send_json({"error": str(e)}, 403)
+        if spec["action"] == "argv":
+            subprocess.Popen(spec["argv"])
+        else:
+            os.startfile(spec["path"])  # Windows only; plan_handoff never asks for it elsewhere
+        return self.send_json({"ok": True, "opened": spec["label"]})
+
+
+def export_one_part(body):
+    """One 3MF containing a single archive part. The STL is read in place and not copied into the repo."""
+    rel = archive_rel(body.get("file") or "")
+    if rel.startswith("..") or not any(r == rel for _, _, r in INDEX.files):
+        raise ValueError("unknown part")
+    s = settings_of(body)
+    name = re.sub(r"[^A-Za-z0-9_-]+", "-", body.get("name") or os.path.splitext(os.path.basename(rel))[0]).strip("-") or "part"
+    line = {"name": body.get("name") or name, "file": rel, "qty": 1, "role": body.get("role") or "main", "group": "solo", "kind": "other"}
+    pr = plates.plan([line], s, stats_fn)
+    if not pr["plates"]:
+        why = pr["unplaceable"][0].get("name") if pr["unplaceable"] else line["name"]
+        raise ValueError(f"{why} does not fit an enabled printer")
+    out = os.path.join(output_root(), "solo-" + name)
+    files = plates.export(pr, s, out, ROOT, stats_fn, stack_name="solo-" + name)
+    remember_written([f["file"] for f in files])
+    first = files[0]
+    base = os.path.basename(first["file"])
+    return {"file": base, "files": [os.path.basename(f["file"]) for f in files], "download": "/api/download_file?name=" + urllib.parse.quote(base),
+            "warning": first.get("warning"), "plates": first["plates"]}
 
 
 if __name__ == "__main__":

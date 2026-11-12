@@ -11,3 +11,4 @@ docs/
 deploy/
 scripts/
 .github/
+web/node_modules/
